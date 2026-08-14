@@ -1,0 +1,965 @@
+<!doctype html>
+<!--
+  The about:spacekeeper panel.
+
+  This page runs with UI privilege: it reads and writes Services.prefs directly,
+  with no bridge between processes. That is why it is strictly local — no font,
+  image or script from the network, ever.
+
+  No visible text is written here. Everything comes from zstg-i18n.mjs, the same
+  catalog the chrome script uses, so a phrase exists in exactly one place.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src chrome:; img-src data: chrome:; style-src 'unsafe-inline'; script-src 'unsafe-inline';"
+    />
+    <title>Spacekeeper</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f2f2f7;
+        --card: #ffffff;
+        --text: #1c1c1e;
+        --secondary: #6e6e73;
+        --line: rgba(0, 0, 0, 0.08);
+        --accent: AccentColor;
+        --radius: 12px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c1c1e;
+          --card: #2c2c2e;
+          --text: #f2f2f7;
+          --secondary: #98989d;
+          --line: rgba(255, 255, 255, 0.1);
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 48px 24px 80px;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        -moz-user-select: none;
+      }
+
+      main { max-width: 680px; margin: 0 auto; }
+
+      h1 {
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 4px;
+      }
+      .sub { color: var(--secondary); margin: 0 0 32px; }
+      .version {
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0;
+        vertical-align: middle;
+        margin-inline-start: 10px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--secondary);
+      }
+      .version.missing { border-color: #e0483d; color: #e0483d; }
+
+      section {
+        background: var(--card);
+        border-radius: var(--radius);
+        margin-bottom: 24px;
+        /* `flow-root` instead of `overflow: hidden`: it creates the formatting
+           context that stops the last child's margin from escaping the card,
+           without clipping the help balloons, which need to float outside. */
+        display: flow-root;
+      }
+      .title-box h2 { padding-bottom: 4px; }
+      h2 {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--secondary);
+        margin: 0;
+        padding: 14px 18px 8px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 18px;
+        border-top: 1px solid var(--line);
+        min-height: 52px;
+      }
+      h2 + .row { border-top: none; }
+
+      .block {
+        padding: 12px 18px 16px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      h2 + .block { border-top: none; }
+
+      .row-box + .row-box .row,
+      .row-box + .block,
+      .row-box + .row { border-top: 1px solid var(--line); }
+      .row-box .row,
+      .row-box .block { border-top: 1px solid var(--line); }
+      h2 + .row-box .row,
+      h2 + .row-box .block { border-top: none; }
+
+      .info {
+        width: 17px;
+        height: 17px;
+        padding: 0;
+        margin-inline-start: 7px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        color: var(--secondary);
+        font-size: 11px;
+        font-style: italic;
+        line-height: 1;
+        vertical-align: middle;
+        cursor: pointer;
+      }
+      .info.open {
+        background: var(--accent);
+        border-color: transparent;
+        color: #fff;
+      }
+
+      /* A yellow balloon, in the spirit of a sticky note: it stands apart from the
+         panel and reads as a comment, not as one more field. Fixed colors — the
+         note is always light, including under the dark theme. */
+      .row-box { position: relative; }
+
+      .help {
+        position: absolute;
+        z-index: 20;
+        left: 18px;
+        right: 18px;
+        top: calc(100% - 8px);
+        margin: 0;
+        padding: 12px 14px;
+        background: #fff8c5;
+        color: #3d3000;
+        border: 1px solid #e6d97a;
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+        font-size: 13px;
+        line-height: 1.55;
+        max-width: 68ch;
+      }
+      .help::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: 22px;
+        width: 10px;
+        height: 10px;
+        background: #fff8c5;
+        border-left: 1px solid #e6d97a;
+        border-top: 1px solid #e6d97a;
+        transform: rotate(45deg);
+      }
+
+      .row.inert .label { opacity: 0.5; }
+      .label { flex: 1; min-width: 0; }
+      .label b { font-weight: 500; display: inline-block; }
+      .label span {
+        color: var(--secondary);
+        font-size: 12.5px;
+        display: block;
+        margin-top: 2px;
+      }
+
+      /* Switch */
+      .switch { position: relative; width: 42px; height: 25px; flex: none; }
+      .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+      .switch i {
+        position: absolute;
+        inset: 0;
+        background: var(--line);
+        border-radius: 999px;
+        pointer-events: none;
+        transition: background 0.15s;
+      }
+      .switch i::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 21px;
+        height: 21px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.15s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      }
+      .switch input:checked + i { background: var(--accent); }
+      .switch input:checked + i::after { transform: translateX(17px); }
+
+      input[type="number"],
+      input[type="text"],
+      textarea,
+      select {
+        font: inherit;
+        color: inherit;
+        background: transparent;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+      input[type="number"] { width: 68px; text-align: center; }
+      input:focus, textarea:focus, select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: -1px;
+      }
+      textarea { width: 100%; resize: vertical; min-height: 64px; font-size: 13px; }
+
+      /* Choice with a preview, in the spirit of the reference panel */
+      .choice { display: flex; flex-direction: column; gap: 10px; padding: 6px 18px 16px; }
+      .option {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      .option:has(input:checked) { border-color: var(--accent); }
+      .option input { accent-color: var(--accent); flex: none; }
+      .option .txt { flex: 1; min-width: 0; }
+      .option .txt b { font-weight: 500; display: block; }
+      .option .txt span {
+        color: var(--secondary);
+        font-size: 12.5px;
+        display: block;
+        margin-top: 2px;
+      }
+      /* Fixed columns on the right: mockup and control line up across rows, even
+         with controls of different widths (a switch versus a number field). */
+      .preview-box,
+      .preview-empty {
+        flex: none;
+        width: 104px;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .ctrl {
+        flex: none;
+        width: 84px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .mockup { display: block; border-radius: 6px; }
+
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 18px; }
+      button {
+        font: inherit;
+        color: inherit;
+        background: transparent;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 7px 14px;
+        cursor: pointer;
+      }
+      button:hover { background: var(--line); }
+      button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+
+      pre {
+        margin: 0 18px 16px;
+        border: 1px solid var(--line);
+        padding: 12px;
+        background: var(--bg);
+        border-radius: 8px;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 260px;
+        overflow: auto;
+        -moz-user-select: text;
+      }
+      .warning {
+        margin: 0 18px 14px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: color-mix(in srgb, #ff9f0a 22%, transparent);
+        font-size: 13px;
+      }
+      .rule { display: flex; gap: 8px; padding: 8px 18px; align-items: center; }
+      .rule input.name { width: 150px; flex: none; }
+      .rule input.doms { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Spacekeeper <span class="version" id="version"></span></h1>
+      <p class="sub" id="subtitle"></p>
+
+      <section id="grouping"></section>
+      <section id="subdomains"></section>
+      <section id="rules"></section>
+      <section id="exclusions"></section>
+      <section id="appearance"></section>
+      <section id="actions"></section>
+      <section id="diagnostics"></section>
+    </main>
+
+    <script>
+      "use strict";
+
+      const S =
+        globalThis.Services ??
+        ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs").Services;
+
+      const P = "zen.stg.";
+      const chromeWindow = window.browsingContext?.topChromeWindow ?? null;
+      const ZSTG = chromeWindow?.ZSTG ?? null;
+
+      // ---- prefs: read and written directly, with no cache in between ----
+      const readBool = (n, d) => { try { return S.prefs.getBoolPref(P + n, d); } catch { return d; } };
+      const readInt = (n, d) => { try { return S.prefs.getIntPref(P + n, d); } catch { return d; } };
+      const readStr = (n, d) => { try { return S.prefs.getStringPref(P + n, d); } catch { return d; } };
+      const writeBool = (n, v) => S.prefs.setBoolPref(P + n, v);
+      const writeInt = (n, v) => S.prefs.setIntPref(P + n, v);
+      const writeStr = (n, v) => S.prefs.setStringPref(P + n, v);
+
+      // ---- Texts -------------------------------------------------------
+      // The same catalog the chrome script reads.
+      //
+      // Guarded because everything below builds the page from `t()`: an
+      // unguarded throw here leaves a blank page with every switch and every
+      // command out of reach. Falling back to the raw keys keeps the panel
+      // usable and names exactly what is missing — an ugly page beats no page.
+      let i18n = null;
+      let t = key => key;
+      try {
+        i18n = ChromeUtils.importESModule(
+          "chrome://userchrome/content/zstg-i18n.mjs"
+        );
+        const language = i18n.chooseLanguage(
+          readStr("locale", "auto"),
+          S.locale.appLocaleAsBCP47
+        );
+        t = i18n.createTranslator(language);
+      } catch (ex) {
+        console.error("[ZSTG] could not load the text catalog:", ex);
+      }
+
+      // The version comes from the running script, not from a number written
+      // here: if page and script are out of sync, that is precisely what has to
+      // show up — and it is the first thing I ask for when something goes wrong.
+      {
+        const target = document.getElementById("version");
+        if (ZSTG?.version) {
+          target.textContent = `v${ZSTG.version}`;
+        } else {
+          target.textContent = t("noWindow");
+          target.classList.add("missing");
+        }
+      }
+      document.getElementById("subtitle").textContent = t("app.subtitle");
+
+      const el = (tag, attrs = {}, ...children) => {
+        const e = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          if (k === "class") e.className = v;
+          else if (k === "text") e.textContent = v;
+          else e.setAttribute(k, v);
+        }
+        for (const c of children) e.append(c);
+        return e;
+      };
+
+      /** Section header, built from the catalog and given its own (i). */
+      function heading(sectionId, key, help) {
+        const h = el("h2", { text: t(key) });
+        document.getElementById(sectionId).prepend(h);
+        return help ? headerHelp(h, help) : h;
+      }
+
+      /**
+       * The (i) button that reveals a longer text below the row.
+       *
+       * The balloon floats over the following rows instead of pushing them down:
+       * expanding in place moved every control below it, and the row you were
+       * reading jumped away from the pointer.
+       */
+      function withHelp(container, text) {
+        if (!text) return container;
+        const box = el("div", { class: "row-box" });
+        box.append(container);
+        return helpOn(box, container.querySelector(".label b"), text);
+      }
+
+      /**
+       * @param box     positioned container that anchors the balloon
+       * @param anchor  element the (i) is inserted after
+       */
+      function helpOn(box, anchor, text, { inside = false } = {}) {
+        const p = el("p", { class: "help", text });
+        p.hidden = true;
+
+        const button = el("button", {
+          class: "info",
+          type: "button",
+          "aria-label": t("moreDetails"),
+          "aria-expanded": "false",
+          text: "i",
+        });
+        const close = () => {
+          p.hidden = true;
+          button.setAttribute("aria-expanded", "false");
+          button.classList.remove("open");
+        };
+
+        button.addEventListener("click", ev => {
+          ev.stopPropagation();
+          // Only one balloon open at a time: two of them overlap, since they
+          // float over the rows that follow.
+          for (const other of document.querySelectorAll(".help:not([hidden])")) {
+            if (other !== p) other.dispatchEvent(new CustomEvent("zstg-close"));
+          }
+          p.hidden = !p.hidden;
+          button.setAttribute("aria-expanded", String(!p.hidden));
+          button.classList.toggle("open", !p.hidden);
+        });
+
+        p.addEventListener("zstg-close", close);
+        p.addEventListener("click", ev => ev.stopPropagation());
+        document.addEventListener("click", close);
+        document.addEventListener("keydown", ev => {
+          if (ev.key === "Escape") close();
+        });
+
+        if (inside) {
+          anchor?.append(button);
+        } else {
+          anchor?.after(button);
+        }
+        box.append(p);
+        return box;
+      }
+
+      /** The same (i), hung on the header of a whole section. */
+      function headerHelp(header, text) {
+        const box = el("div", { class: "row-box title-box" });
+        header.replaceWith(box);
+        box.append(header);
+        // Inside the h2, not after it: h2 is a block, and a sibling would fall
+        // onto the line below.
+        return helpOn(box, header, text, { inside: true });
+      }
+
+      function row(title, description, control, preview, help) {
+        const r = el("div", { class: "row" });
+        const lab = el("div", { class: "label" });
+        lab.append(el("b", { text: title }));
+        if (description) lab.append(el("span", { text: description }));
+        r.append(lab);
+        if (preview) {
+          r.append(preview);
+        } else {
+          // Reserved space: without it, rows with no mockup pull the control to
+          // the left and the right-hand column stops existing.
+          r.append(el("div", { class: "preview-empty" }));
+        }
+        r.append(el("div", { class: "ctrl" }, control));
+        return withHelp(r, help);
+      }
+
+      // ---- Mockups ------------------------------------------------------
+      // Drawn as inline SVG: the page cannot load an image from the network, and
+      // a drawing in code follows the theme without needing two versions.
+
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const MOCK_BG = "#ffffff";
+      const MOCK_BORDER = "#d8d8dd";
+      const MOCK_LINE = "#c2c2c8";
+      const svgEl = (tag, attrs) => {
+        const e = document.createElementNS(SVG_NS, tag);
+        for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+        return e;
+      };
+
+      /**
+       * A miniature sidebar. `groups` is a list of { color, label, tabs,
+       * collapsed }; `loose` are tabs with no group, drawn at the end.
+       */
+      function mockup(groups, loose = 0) {
+        const W = 104, H = 66;
+        const s = svgEl("svg", {
+          class: "mockup",
+          viewBox: `0 0 ${W} ${H}`,
+          width: W,
+          height: H,
+        });
+        // The thumbnail is always light, like in the reference panel: it depicts
+        // a screen, it is not part of the interface. That is why the colors here
+        // are fixed and do not follow the theme — in the dark, `currentColor`
+        // would draw white lines on a white background.
+        s.append(
+          svgEl("rect", {
+            x: 0.5, y: 0.5, width: W - 1, height: H - 1, rx: 6,
+            fill: MOCK_BG,
+            stroke: MOCK_BORDER,
+            "stroke-width": 1,
+          })
+        );
+
+        let y = 7;
+        const tabLine = (x, width, op = 1) => {
+          s.append(
+            svgEl("rect", {
+              x, y, width, height: 5, rx: 2.5,
+              fill: MOCK_LINE, opacity: op,
+            })
+          );
+          y += 8;
+        };
+
+        for (const g of groups) {
+          if (y > H - 8) break;
+          // the group chip
+          s.append(
+            svgEl("rect", {
+              x: 7, y, width: g.label ?? 30, height: 7, rx: 3.5,
+              fill: g.color ?? "var(--accent)",
+              opacity: g.dimmed ? 0.35 : 0.85,
+            })
+          );
+          y += 10;
+          if (!g.collapsed) {
+            for (let i = 0; i < (g.tabs ?? 0) && y <= H - 8; i++) {
+              tabLine(14, 78);
+            }
+          }
+          y += 2;
+        }
+        for (let i = 0; i < loose && y <= H - 8; i++) {
+          tabLine(7, 85, 0.75);
+        }
+        return s;
+      }
+
+      const MOCK_COLORS = ["#e0483d", "#3b82f6", "#22a06b", "#f0883e"];
+
+      /** Swaps a row's mockup according to the current state. */
+      function livePreview(draw) {
+        const box = el("div", { class: "preview-box" });
+        const update = state => {
+          box.textContent = "";
+          box.append(draw(state));
+        };
+        return { box, update };
+      }
+
+      function toggle(pref, onChange) {
+        const wrap = el("label", { class: "switch" });
+        const input = el("input", { type: "checkbox" });
+        input.checked = readBool(pref, false);
+        input.addEventListener("change", () => {
+          writeBool(pref, input.checked);
+          onChange?.(input.checked);
+        });
+        wrap.append(input, el("i"));
+        return wrap;
+      }
+
+      function number(pref, min, max) {
+        const input = el("input", { type: "number", min, max });
+        input.value = readInt(pref, min);
+        input.addEventListener("change", () => {
+          const v = Math.min(max, Math.max(min, Number(input.value) || min));
+          input.value = v;
+          writeInt(pref, v);
+        });
+        return input;
+      }
+
+      function listField(pref, placeholder) {
+        const field = el("textarea", { placeholder });
+        field.value = readStr(pref, "");
+        field.addEventListener("change", () => writeStr(pref, field.value.trim()));
+        return field;
+      }
+
+      /**
+       * A text field takes the whole width, so it does not fit the
+       * label-left-control-right shape: title and description on top, field
+       * underneath. Before this it became a row with an empty right-hand side.
+       */
+      function block(title, description, field, help) {
+        const b = el("div", { class: "block" });
+        const lab = el("div", { class: "label" });
+        lab.append(el("b", { text: title }));
+        if (description) lab.append(el("span", { text: description }));
+        b.append(lab, field);
+        return withHelp(b, help);
+      }
+
+      // ---- Grouping ----
+      const sGrouping = document.getElementById("grouping");
+      heading("grouping", "sec.grouping");
+
+      const pGrouping = livePreview(on =>
+        on
+          ? mockup([
+              { color: MOCK_COLORS[0], label: 34, tabs: 2 },
+              { color: MOCK_COLORS[1], label: 26, tabs: 2 },
+            ])
+          : mockup([], 6)
+      );
+      pGrouping.update(readBool("enabled", true));
+
+      const pMinimum = livePreview(min =>
+        min <= 1
+          ? mockup([
+              { color: MOCK_COLORS[0], label: 34, tabs: 1 },
+              { color: MOCK_COLORS[1], label: 26, tabs: 1 },
+            ])
+          : mockup([{ color: MOCK_COLORS[0], label: 34, tabs: 3 }], 2)
+      );
+      pMinimum.update(readInt("minTabs", 1));
+
+      const nMinimum = number("minTabs", 1, 10);
+      nMinimum.addEventListener("change", () => pMinimum.update(Number(nMinimum.value)));
+
+      sGrouping.append(
+        row(
+          t("grouping.title"),
+          t("grouping.short"),
+          toggle("enabled", v => pGrouping.update(v)),
+          pGrouping.box,
+          t("grouping.help")
+        ),
+        row(
+          t("minimum.title"),
+          t("minimum.short"),
+          nMinimum,
+          pMinimum.box,
+          t("minimum.help")
+        ),
+        // Moved here from Diagnostics: it diagnoses nothing, it changes how the
+        // browser behaves when opening addresses.
+        row(
+          t("noJump.title"),
+          t("noJump.short"),
+          toggle("spaceScopedTabSwitch"),
+          null,
+          t("noJump.help")
+        )
+      );
+
+      // ---- Subdomains ----
+      const sSubdomains = document.getElementById("subdomains");
+      heading("subdomains", "sec.subdomains");
+
+      const pSubGlobal = livePreview(on =>
+        on
+          ? mockup([
+              { color: MOCK_COLORS[1], label: 24, tabs: 1 },
+              { color: MOCK_COLORS[2], label: 28, tabs: 1 },
+              { color: MOCK_COLORS[3], label: 22, tabs: 1 },
+            ])
+          : mockup([{ color: MOCK_COLORS[1], label: 30, tabs: 3 }])
+      );
+      pSubGlobal.update(readBool("groupBySubdomain", false));
+
+      sSubdomains.append(
+        row(
+          t("subGlobal.title"),
+          t("subGlobal.short"),
+          toggle("groupBySubdomain", v => pSubGlobal.update(v)),
+          pSubGlobal.box,
+          t("subGlobal.help")
+        ),
+        block(
+          t("subList.title"),
+          t("subList.short"),
+          listField("subdomainDomains", t("subList.example")),
+          t("subList.help")
+        )
+      );
+
+      // Wide label versus narrow label: the difference is visual, so the mockup
+      // shows the chip at its real size instead of describing it.
+      const labelStyles = [
+        ["host", t("label.host"), t("label.host.ex"), 44],
+        ["sub", t("label.sub"), t("label.sub.ex"), 22],
+      ];
+      const choice = el("div", { class: "choice" });
+      const currentStyle = readStr("subdomainLabel", "host");
+      for (const [value, name, example, width] of labelStyles) {
+        const op = el("label", { class: "option" });
+        const radio = el("input", { type: "radio", name: "labelStyle" });
+        radio.checked = currentStyle === value;
+        radio.addEventListener("change", () => writeStr("subdomainLabel", value));
+        const txt = el("div", { class: "txt" });
+        txt.append(el("b", { text: name }), el("span", { text: example }));
+        op.append(
+          radio,
+          txt,
+          mockup([
+            { color: MOCK_COLORS[1], label: width, tabs: 1 },
+            { color: MOCK_COLORS[2], label: width, tabs: 1 },
+          ])
+        );
+        choice.append(op);
+      }
+      const labelHeader = el("h2", { text: t("sec.labels") });
+      sSubdomains.append(labelHeader, choice);
+      headerHelp(labelHeader, t("label.help"));
+
+      // ---- Rules ----
+      const sRules = document.getElementById("rules");
+      let rules = [];
+      let brokenRules = null;
+      try {
+        const raw = readStr("customRules", "[]");
+        const v = JSON.parse(raw);
+        if (Array.isArray(v)) rules = v;
+        else brokenRules = raw;
+      } catch {
+        brokenRules = readStr("customRules", "");
+      }
+
+      function saveRules() {
+        writeStr("customRules", JSON.stringify(rules));
+      }
+
+      function drawRules() {
+        sRules.querySelectorAll(".rule, .actions, .warning").forEach(n => n.remove());
+        if (brokenRules !== null) {
+          // We do not overwrite it: the text may hold something recoverable.
+          sRules.append(el("div", { class: "warning", text: t("rules.warning") }));
+        }
+        rules.forEach((r, i) => {
+          const name = el("input", { class: "name", type: "text", placeholder: t("rules.name") });
+          name.value = r.name ?? "";
+          const doms = el("input", { class: "doms", type: "text", placeholder: t("rules.sites") });
+          doms.value = (r.domains ?? []).join(", ");
+          const remove = el("button", { text: t("rules.remove") });
+          name.addEventListener("change", () => { rules[i].name = name.value.trim(); saveRules(); });
+          doms.addEventListener("change", () => {
+            rules[i].domains = doms.value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+            saveRules();
+          });
+          remove.addEventListener("click", () => { rules.splice(i, 1); saveRules(); drawRules(); });
+          sRules.append(el("div", { class: "rule" }, name, doms, remove));
+        });
+        const add = el("button", { class: "primary", text: t("rules.new") });
+        add.addEventListener("click", () => {
+          // The warning says nothing was deleted; without this confirmation, the
+          // first click here contradicted the warning and overwrote the original.
+          if (brokenRules !== null && !window.confirm(t("rules.confirm"))) {
+            return;
+          }
+          rules.push({ name: t("rules.new"), domains: [] });
+          brokenRules = null;
+          saveRules();
+          drawRules();
+        });
+        sRules.append(el("div", { class: "actions" }, add));
+      }
+      heading("rules", "sec.rules", t("rules.help"));
+      drawRules();
+
+      // ---- Exclusions ----
+      heading("exclusions", "sec.exclusions");
+      document
+        .getElementById("exclusions")
+        .append(
+          block(
+            t("exclusions.title"),
+            t("exclusions.short"),
+            listField("excludedDomains", t("exclusions.example")),
+            t("exclusions.help")
+          )
+        );
+
+      // ---- Appearance ----
+      const sAppearance = document.getElementById("appearance");
+      heading("appearance", "sec.appearance");
+
+      const pColor = livePreview(on =>
+        mockup(
+          on
+            ? [
+                { color: MOCK_COLORS[0], label: 30, tabs: 1 },
+                { color: MOCK_COLORS[2], label: 26, tabs: 1 },
+                { color: MOCK_COLORS[3], label: 22, tabs: 1 },
+              ]
+            : [
+                { color: "var(--accent)", label: 30, tabs: 1 },
+                { color: "var(--accent)", label: 26, tabs: 1 },
+                { color: "var(--accent)", label: 22, tabs: 1 },
+              ]
+        )
+      );
+      pColor.update(readBool("faviconColors", true));
+
+      const drawFocus = n =>
+        mockup([
+          { color: MOCK_COLORS[0], label: 30, tabs: 2 },
+          { color: MOCK_COLORS[1], label: 26, tabs: n >= 2 ? 2 : 0, collapsed: n < 2, dimmed: n < 2 },
+          { color: MOCK_COLORS[2], label: 22, tabs: 0, collapsed: true, dimmed: true },
+        ]);
+
+      const pFocus = livePreview(([on, n]) =>
+        on
+          ? drawFocus(n)
+          : mockup([
+              { color: MOCK_COLORS[0], label: 30, tabs: 2 },
+              { color: MOCK_COLORS[1], label: 26, tabs: 2 },
+            ])
+      );
+      const focusState = [readBool("focusMode", false), readInt("focusKeep", 3)];
+      pFocus.update(focusState);
+
+      const nFocus = number("focusKeep", 1, 10);
+      nFocus.addEventListener("change", () => {
+        focusState[1] = Number(nFocus.value);
+        pFocus.update(focusState);
+      });
+      // With focus mode off this number does nothing — leaving it enabled invites
+      // fiddling with an inert setting.
+      const syncFocus = on => {
+        nFocus.disabled = !on;
+        nFocus.closest(".row")?.classList.toggle("inert", !on);
+      };
+
+      // Changing the language does not re-render what is already on screen, and a
+      // half-translated panel reads as a bug. Reloading is the honest move.
+      const languageSelect = el("select");
+      languageSelect.append(el("option", { value: "auto", text: t("language.auto") }));
+      // Without the catalog there is no list of languages to offer, and the only
+      // honest option left is the automatic one.
+      for (const code of i18n?.LANGUAGES ?? []) {
+        languageSelect.append(el("option", { value: code, text: i18n.LANGUAGE_NAMES[code] ?? code }));
+      }
+      languageSelect.value = readStr("locale", "auto");
+      languageSelect.addEventListener("change", () => {
+        writeStr("locale", languageSelect.value);
+        window.location.reload();
+      });
+
+      sAppearance.append(
+        row(
+          t("color.title"),
+          t("color.short"),
+          toggle("faviconColors", v => pColor.update(v)),
+          pColor.box,
+          t("color.help")
+        ),
+        row(
+          t("focus.title"),
+          t("focus.short"),
+          toggle("focusMode", v => {
+            focusState[0] = v;
+            pFocus.update(focusState);
+            syncFocus(v);
+          }),
+          pFocus.box,
+          t("focus.help")
+        ),
+        row(
+          t("focusCount.title"),
+          t("focusCount.short"),
+          nFocus,
+          null,
+          t("focusCount.help")
+        ),
+        row(t("language.title"), t("language.short"), languageSelect, null, null)
+      );
+      syncFocus(readBool("focusMode", false));
+
+      // ---- Actions ----
+      const sActions = document.getElementById("actions");
+      const commandOutput = el("pre", { text: "—" });
+      const commands = [
+        ["regroup", t("cmd.regroup"), () => ZSTG?.regroup()],
+        ["ungroup", t("cmd.ungroup"), () => ZSTG?.ungroup()],
+        ["collapse", t("cmd.collapse"), () => ZSTG?.collapseAll()],
+        ["expand", t("cmd.expand"), () => ZSTG?.expandAll()],
+        ["recover", t("cmd.recover"), () => ZSTG?.recoverOldGroups()],
+      ];
+
+      /**
+       * An answer in a sentence, not an object: `{"moved":3}` is not an answer.
+       *
+       * Keyed by the command's id and never by its label — matching on the label
+       * broke the moment the label came from the catalog and changed language.
+       */
+      function sentence(id, r) {
+        const n = typeof r === "number" ? r : Array.isArray(r) ? r.length : null;
+        if (id === "regroup") {
+          return n ? t("cmd.regrouped", { n }) : t("cmd.nothingToDo");
+        }
+        if (id === "ungroup") {
+          return n ? t("cmd.ungrouped", { n }) : t("cmd.noGroups");
+        }
+        if (id === "recover") {
+          return n ? t("cmd.recovered", { n }) : t("cmd.noOldGroups");
+        }
+        return t("cmd.done");
+      }
+
+      const actionButtons = el("div", { class: "actions" });
+      for (const [id, label, fn] of commands) {
+        const b = el("button", { text: label });
+        b.addEventListener("click", () => {
+          if (!ZSTG) {
+            commandOutput.textContent = t("noWindow");
+            return;
+          }
+          // Ungrouping loses the names you gave the groups, and that does not
+          // come back.
+          if (id === "ungroup" && !window.confirm(t("cmd.confirmUngroup"))) {
+            return;
+          }
+          commandOutput.textContent = sentence(id, fn());
+        });
+        actionButtons.append(b);
+      }
+      sActions.append(actionButtons, commandOutput);
+      heading("actions", "sec.actions", t("actions.help"));
+
+      // ---- Diagnostics ----
+      const sDiagnostics = document.getElementById("diagnostics");
+      heading("diagnostics", "sec.diagnostics");
+      const testOutput = el("pre", { text: "—" });
+      const testButton = el("button", { text: t("selfTest.button") });
+      testButton.addEventListener("click", () => {
+        if (!ZSTG) {
+          testOutput.textContent = t("noWindow");
+          return;
+        }
+        const r = ZSTG.selfTest();
+        const failures = r.cases.filter(c => !c.ok);
+        testOutput.textContent = failures.length
+          ? t("selfTest.failed", { n: failures.length, total: r.total }) +
+            "\n\n" +
+            failures.map(f => `• ${f.name}`).join("\n")
+          : t("selfTest.ok", { n: r.total });
+      });
+      sDiagnostics.append(
+        row(t("log.title"), t("log.short"), toggle("debugLog"), null, t("log.help")),
+        el("div", { class: "actions" }, testButton),
+        testOutput
+      );
+    </script>
+  </body>
+</html>

@@ -1,0 +1,139 @@
+/* ==UserStyle==
+@name           Spacekeeper
+@description    Collapse and appearance of the groups created by the script
+==/UserStyle== */
+
+/*
+ * Everything here is scoped to `tab-group[zstg-key]` — the groups created by this
+ * project. Native Zen folders and groups made by the user stay exactly the way Zen
+ * draws them.
+ *
+ * The two numbers below are the only matters of taste; the rest follows from them.
+ */
+:root {
+  /* An absolute value, not a multiplier: on a chip about 20px tall, any radius
+     above ~10px already reads as a capsule, so doubling or halving anywhere in
+     that range barely changes the perception. */
+  --zstg-radius: 6px;
+  --zstg-breathing: 8px; /* separation between neighboring groups */
+}
+
+/* ---------------------------------------------------------------------------
+ * Collapse
+ *
+ * Zen only styles `zen-folder[collapsed]`. A plain `tab-group` toggles the
+ * attribute and keeps showing its tabs, because no rule hides them.
+ * The tabs live inside `.tab-group-container`, not as direct children of
+ * `tab-group` — see the MozTabbrowserTabGroup markup in tabgroup.js.
+ * --------------------------------------------------------------------------*/
+
+tab-group[zstg-key][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
+  display: none;
+}
+
+tab-group[zstg-key][collapsed] > .tab-group-container {
+  overflow-y: clip;
+  /* Collapsed reserves no room for content: no indent, no guide line */
+  margin-block-start: 0;
+  padding-inline-start: 0;
+  border-inline-start: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Vertical rhythm and hierarchy
+ * --------------------------------------------------------------------------*/
+
+/* Breathing room between neighboring groups, so the boundary registers without
+   anyone having to read a thing */
+tab-group[zstg-key] {
+  margin-block: var(--zstg-breathing);
+}
+
+/*
+ * No indent and no guide line, deliberately.
+ *
+ * The first attempt indented the tabs and drew a hairline in the group's color to
+ * create hierarchy. On screen the result was worse: the label chip sits flush
+ * against the left margin while the tabs took on a different one, creating two
+ * competing left edges in the same list. The eye reads that as misalignment, not
+ * as subordination.
+ *
+ * The colored chip is already enough to mark where a group begins. The hierarchy
+ * here comes from the breathing room between groups, not from indentation.
+ */
+tab-group[zstg-key]:not([collapsed]) > .tab-group-container {
+  margin-block-start: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * The label chip
+ *
+ * A group's visible box is the chip: `.tab-group-label` is what carries the
+ * colored background. `tab-group` and `.tab-group-container` are transparent.
+ * --------------------------------------------------------------------------*/
+
+/*
+ * Radius and horizontal padding only. `padding-block`, `font-weight` and
+ * `letter-spacing` were tried and removed: they alter the text metrics and throw
+ * the label out of alignment with the neighboring tabs, which use Zen's default
+ * typography.
+ */
+tab-group[zstg-key] .tab-group-label {
+  border-radius: var(--zstg-radius);
+  padding-inline: 0.5em;
+}
+
+/*
+ * Collapsed recedes in emphasis: the filled chip turns into a ghost — tinted
+ * background, outline in the group's color, text in the interface's normal color.
+ *
+ * The text does NOT take the group's color, on purpose: the native colors shift
+ * with the theme, and some of them would be unreadable over the sidebar
+ * background. Letting the text inherit the theme's color guarantees legibility
+ * and leaves color identity to the tint and the outline.
+ */
+tab-group[zstg-key][collapsed] .tab-group-label {
+  background-color: color-mix(
+    in srgb,
+    var(--tab-group-color, currentColor) 24%,
+    transparent
+  );
+  color: inherit;
+  /* The collapsed outline is drawn by Firefox/Zen itself, not by us — expanded
+     has none. We cancel both mechanisms that could produce it. */
+  border: none !important;
+  outline: none !important;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Hidden tab count
+ *
+ * The number comes from an attribute maintained by the script — CSS cannot count,
+ * and `attr()` only sees attributes of the element owning the pseudo-element,
+ * which is why the attribute is written on the label itself.
+ * --------------------------------------------------------------------------*/
+
+/*
+ * The number sits OUTSIDE the chip, anchored to the right of the label's line.
+ *
+ * Inside the chip it changed the width as the group collapsed or gained tabs, and
+ * that movement drew more attention than the information itself. Anchored to the
+ * label container, the chip keeps a stable width and the number gets a column of
+ * its own.
+ */
+tab-group[zstg-key] .tab-group-label-container {
+  position: relative;
+}
+
+tab-group[zstg-key] .tab-group-label[zstg-hidden-count]::after {
+  content: attr(zstg-hidden-count);
+  position: absolute;
+  inset-inline-end: 8px;
+  inset-block: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.55;
+}

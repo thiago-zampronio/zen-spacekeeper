@@ -1,0 +1,68 @@
+schema: spec-driven
+
+context: |
+  PROJETO: zen-space-tab-groups
+
+  Agrupamento automático de abas por domínio no Zen Browser, respeitando os Spaces
+  (workspaces) do navegador.
+
+  ORIGEM
+  O ponto de partida é a extensão Auto Tab Groups (github.com/nitzanpap/auto-tab-groups),
+  que agrupa por domínio mas é cega a Spaces: ela indexa grupos apenas por domínio, então
+  ao abrir youtube.com no Space 2 a aba é adotada pelo grupo "youtube" que já existe no
+  Space 1 — e a aba é arrastada junto para o Space 1.
+
+  CAUSA RAIZ (verificada no omni.ja do Zen instalado)
+  Cada Space tem seu próprio container de abas no DOM
+  (gZenWorkspaces.activeWorkspaceElement.tabsContainer, em modules/zen/ZenSpaceManager.mjs).
+  Um grupo vive fisicamente dentro do strip de um Space, então group.addTabs() reparenta a
+  aba para aquele Space. A correção é indexar grupos por (Space, chave) em vez de só chave.
+
+  DECISÕES DE ARQUITETURA
+  - Não é extensão: a API WebExtensions (browser.tabs.group) não expõe Spaces do Zen.
+  - Não é Zen Mod oficial: mods do marketplace são CSS + preferences.json, não executam JS.
+  - É um script privilegiado de chrome (.uc.mjs) carregado por fx-autoconfig.
+  - Usa gBrowser.addTabGroup (grupo comum, abas seguem desafixadas), NÃO
+    gZenFolders.createFolder — este último chama pinTab e fixaria toda aba agrupada.
+  - Identidade de grupo por atributos (zstg-key + zen-workspace-id), não pelo rótulo
+    visível, para o usuário poder renomear grupos sem quebrar o pareamento.
+
+  API INTERNA DO ZEN USADA
+  - Space ativo (uuid): gZenWorkspaces.activeWorkspace
+  - Space de uma aba: atributo zen-workspace-id na <tab>
+  - Container de abas do space: gZenWorkspaces.activeWorkspaceElement.tabsContainer
+  - Criar grupo comum: gBrowser.addTabGroup(tabs, { label, color, insertBefore })
+  - Grupos existentes: gBrowser.tabGroups
+  - Folder nativa do Zen: gZenFolders.createFolder() — fixa as abas, não usamos
+
+  AMBIENTE
+  - Windows 11
+  - Zen Browser em C:\Program Files\Zen Browser
+  - Perfil ativo: %APPDATA%\zen\Profiles\eeijpino.Default (release)
+
+  CONVENÇÕES
+  - Especificação e discussão em PT-BR. Palavras-chave normativas (SHALL, GIVEN, WHEN,
+    THEN) permanecem em inglês por exigência de formato do OpenSpec.
+  - Toda mudança de comportamento passa por proposta antes da implementação.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

@@ -1,0 +1,299 @@
+# Spacekeeper installer.
+#
+#   irm https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.ps1 | iex
+#
+# Also works from a clone: .\install.ps1
+#
+# It installs two separate things, and the difference matters when something
+# breaks later:
+#
+#   1. The fx-autoconfig loader, in the Zen program directory. Needs administrator.
+#      EVERY ZEN UPDATE DELETES IT. Re-run this installer after an update.
+#   2. Spacekeeper itself, in your profile. Needs no privilege, and survives updates.
+#
+# Nothing here touches the network at runtime: the files are copied once, and the
+# mod reads only your own preferences afterwards.
+
+[CmdletBinding()]
+param(
+    # Where the sources come from when the script is piped from the web.
+    [string]$Repo = "thiago-zampronio/zen-spacekeeper",
+    [string]$Branch = "main",
+    # Set these only if detection picks the wrong one.
+    [string]$ZenDir,
+    [string]$ProfileDir,
+    # Reports what is installed and exits. Use it after a Zen update.
+    [switch]$Check,
+    # Removes Spacekeeper from the profile. Leaves the loader alone: other mods
+    # may depend on it.
+    [switch]$Uninstall
+)
+
+$ErrorActionPreference = "Stop"
+
+$FILES = @(
+    @{ From = "src/zen-space-tab-groups.uc.mjs"; To = "chrome\JS\zen-space-tab-groups.uc.mjs" }
+    @{ From = "src/zen-space-tab-groups.uc.css"; To = "chrome\CSS\zen-space-tab-groups.uc.css" }
+    @{ From = "src/resources/zstg-panel.html";   To = "chrome\resources\zstg-panel.html" }
+    @{ From = "src/resources/zstg-i18n.mjs";     To = "chrome\resources\zstg-i18n.mjs" }
+)
+
+$LOADER = @(
+    @{ From = "vendor/fx-autoconfig/program/config.js";                    To = "config.js" }
+    @{ From = "vendor/fx-autoconfig/program/defaults/pref/config-prefs.js"; To = "defaults\pref\config-prefs.js" }
+)
+
+function Say($text) { Write-Host $text }
+function Ok($text) { Write-Host "  [ok] $text" -ForegroundColor Green }
+function Warn($text) { Write-Host "  [!!] $text" -ForegroundColor Yellow }
+
+# ---------------------------------------------------------------------------
+# Where Zen is
+
+function Find-ZenDir {
+    if ($ZenDir) { return $ZenDir }
+
+    # The registry entry is the only source that knows about a non-default
+    # install path; the fixed paths are the fallback for when it is absent.
+    $fromRegistry = @(
+        "HKLM:\SOFTWARE\Clients\StartMenuInternet\Zen Browser\shell\open\command",
+        "HKCU:\SOFTWARE\Clients\StartMenuInternet\Zen Browser\shell\open\command"
+    ) | ForEach-Object {
+        try {
+            $cmd = (Get-ItemProperty -Path $_ -ErrorAction Stop).'(default)'
+            if ($cmd) { Split-Path ($cmd -replace '^"|"$|" .*$', '') -Parent }
+        } catch {}
+    } | Where-Object { $_ } | Select-Object -First 1
+
+    $candidates = @(
+        $fromRegistry,
+        "$env:ProgramFiles\Zen Browser",
+        "${env:ProgramFiles(x86)}\Zen Browser",
+        "$env:LOCALAPPDATA\Programs\Zen Browser",
+        "$env:LOCALAPPDATA\Zen Browser"
+    ) | Where-Object { $_ -and (Test-Path (Join-Path $_ "zen.exe")) }
+
+    $candidates | Select-Object -First 1
+}
+
+# ---------------------------------------------------------------------------
+# Which profile
+
+function Find-ProfileDir {
+    if ($ProfileDir) { return $ProfileDir }
+
+    $root = Join-Path $env:APPDATA "zen"
+    $ini = Join-Path $root "profiles.ini"
+    if (-not (Test-Path $ini)) { return $null }
+
+    # profiles.ini is the authority, not the folder listing: someone with several
+    # profiles would otherwise get the alphabetically-first one, which is rarely
+    # the one they use.
+    $lines = Get-Content $ini
+    $sections = @{}
+    $current = $null
+    foreach ($line in $lines) {
+        if ($line -match '^\[(.+)\]$') { $current = $matches[1]; $sections[$current] = @{} }
+        elseif ($current -and $line -match '^([^=]+)=(.*)$') { $sections[$current][$matches[1]] = $matches[2] }
+    }
+
+    # The [Install...] section points at the profile actually in use, and beats
+    # the Default=1 flag when both exist.
+    $path = $null
+    foreach ($name in $sections.Keys) {
+        if ($name -like "Install*" -and $sections[$name]["Default"]) {
+            $path = $sections[$name]["Default"]
+            break
+        }
+    }
+    if (-not $path) {
+        foreach ($name in $sections.Keys) {
+            if ($name -like "Profile*" -and $sections[$name]["Default"] -eq "1") {
+                $path = $sections[$name]["Path"]
+                break
+            }
+        }
+    }
+    if (-not $path) { return $null }
+
+    $path = $path -replace '/', '\'
+    if ([System.IO.Path]::IsPathRooted($path)) { $path } else { Join-Path $root $path }
+}
+
+# ---------------------------------------------------------------------------
+# Sources: a clone next to this script, or the repository over the network
+
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { $null }
+$fromClone = $scriptDir -and (Test-Path (Join-Path $scriptDir "src\zen-space-tab-groups.uc.mjs"))
+
+$staging = $null
+
+function Get-Source($relative) {
+    if ($fromClone) {
+        return Join-Path $scriptDir ($relative -replace '/', '\')
+    }
+    if (-not $script:staging) {
+        $script:staging = Join-Path ([System.IO.Path]::GetTempPath()) "spacekeeper-$(Get-Random)"
+        New-Item -ItemType Directory -Force $script:staging | Out-Null
+    }
+    $local = Join-Path $script:staging ($relative -replace '/', '\')
+    if (-not (Test-Path $local)) {
+        New-Item -ItemType Directory -Force (Split-Path $local -Parent) | Out-Null
+        $url = "https://raw.githubusercontent.com/$Repo/$Branch/$relative"
+        Invoke-WebRequest -Uri $url -OutFile $local -UseBasicParsing
+    }
+    $local
+}
+
+# ---------------------------------------------------------------------------
+
+$zen = Find-ZenDir
+$prof = Find-ProfileDir
+
+Say ""
+Say "Spacekeeper"
+Say ""
+
+if (-not $zen) {
+    Warn "Zen Browser not found. Pass -ZenDir with the folder containing zen.exe."
+    exit 1
+}
+if (-not $prof) {
+    Warn "Zen profile not found. Pass -ProfileDir with your profile folder."
+    Warn "You can see it in about:profiles, under 'Root Directory'."
+    exit 1
+}
+Say "  Zen:     $zen"
+Say "  Profile: $prof"
+Say ""
+
+# ---------------------------------------------------------------------------
+
+if ($Check) {
+    Say "Loader (deleted by every Zen update):"
+    $loaderOk = $true
+    foreach ($f in $LOADER) {
+        $target = Join-Path $zen $f.To
+        if (Test-Path $target) { Ok $f.To } else { Warn "$($f.To) MISSING"; $loaderOk = $false }
+    }
+    $utils = Join-Path $prof "chrome\utils\boot.sys.mjs"
+    if (Test-Path $utils) { Ok "chrome\utils" } else { Warn "chrome\utils MISSING"; $loaderOk = $false }
+
+    Say ""
+    Say "Spacekeeper:"
+    $modOk = $true
+    foreach ($f in $FILES) {
+        $target = Join-Path $prof $f.To
+        if (Test-Path $target) { Ok $f.To } else { Warn "$($f.To) MISSING"; $modOk = $false }
+    }
+
+    Say ""
+    if ($loaderOk -and $modOk) {
+        Say "Everything installed."
+        exit 0
+    }
+    if (-not $loaderOk) {
+        Say "The loader is missing - most likely Zen updated. Run this installer again."
+    }
+    exit 1
+}
+
+if ($Uninstall) {
+    foreach ($f in $FILES) {
+        $target = Join-Path $prof $f.To
+        if (Test-Path $target) { Remove-Item $target -Force; Ok "removed $($f.To)" }
+    }
+    Say ""
+    Say "The fx-autoconfig loader was left in place: other mods may be using it."
+    Say "Your preferences are kept, under zen.stg. in about:config."
+    Say "Restart Zen."
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
+# The loader needs administrator; Spacekeeper itself does not.
+
+$isAdmin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+$loaderPresent = ($LOADER | ForEach-Object { Test-Path (Join-Path $zen $_.To) }) -notcontains $false
+
+if (-not $loaderPresent -and -not $isAdmin) {
+    Say "The fx-autoconfig loader has to be written into the Zen program folder,"
+    Say "which requires administrator. Windows will ask for confirmation."
+    Say ""
+    $answer = Read-Host "Continue? [Y/n]"
+    if ($answer -and $answer -notmatch '^[YySs]') {
+        Say "Stopped. Nothing was changed."
+        exit 1
+    }
+
+    # Piped from the web there is no file to re-launch, so it is written out first.
+    $self = if ($PSCommandPath) { $PSCommandPath } else {
+        $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "spacekeeper-install.ps1"
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$Branch/install.ps1" -OutFile $tmp -UseBasicParsing
+        $tmp
+    }
+    $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $self,
+              "-Repo", $Repo, "-Branch", $Branch, "-ZenDir", $zen, "-ProfileDir", $prof)
+    Start-Process -FilePath "pwsh.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue
+    if ($LASTEXITCODE -ne 0 -and -not (Test-Path (Join-Path $zen "config.js"))) {
+        Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -Wait
+    }
+    exit 0
+}
+
+# ---- Loader ----
+if ($isAdmin) {
+    Say "Loader:"
+    New-Item -ItemType Directory -Force (Join-Path $zen "defaults\pref") | Out-Null
+    foreach ($f in $LOADER) {
+        Copy-Item (Get-Source $f.From) (Join-Path $zen $f.To) -Force
+        Ok $f.To
+    }
+
+    $utilsSource = Join-Path $prof "chrome\utils"
+    New-Item -ItemType Directory -Force (Join-Path $prof "chrome") | Out-Null
+    if ($fromClone) {
+        Copy-Item (Join-Path $scriptDir "vendor\fx-autoconfig\profile\chrome\utils") $utilsSource -Recurse -Force
+    }
+    else {
+        # Listed one by one on purpose: raw.githubusercontent serves files, not
+        # folders, and a wrong guess here leaves a loader that half-loads.
+        New-Item -ItemType Directory -Force $utilsSource | Out-Null
+        foreach ($u in @("boot.sys.mjs", "chrome.manifest", "fs.sys.mjs",
+                         "module_loader.mjs", "uc_api.sys.mjs", "utils.sys.mjs")) {
+            try {
+                Copy-Item (Get-Source "vendor/fx-autoconfig/profile/chrome/utils/$u") (Join-Path $utilsSource $u) -Force
+            } catch {
+                Warn "could not fetch utils/$u - $($_.Exception.Message)"
+            }
+        }
+    }
+    Ok "chrome\utils"
+    Say ""
+}
+else {
+    Say "Loader: already present, skipping (administrator not needed)."
+    Say ""
+}
+
+# ---- Spacekeeper ----
+Say "Spacekeeper:"
+foreach ($f in $FILES) {
+    $target = Join-Path $prof $f.To
+    New-Item -ItemType Directory -Force (Split-Path $target -Parent) | Out-Null
+    Copy-Item (Get-Source $f.From) $target -Force
+    Ok $f.To
+}
+
+if ($staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }
+
+Say ""
+Say "Done. Restart Zen, then open about:spacekeeper."
+Say ""
+Say "If nothing happens after the restart, clear the startup cache:"
+Say "  about:support -> Clear startup cache"
+Say ""
+Say "Re-run this installer after every Zen update - updates delete the loader."

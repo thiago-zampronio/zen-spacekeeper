@@ -1,0 +1,18 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Local test artifacts from the Zen profile
+*.local.mjs
+
+# Backup kept while the source was translated to English
+src/_backup-antes-traducao.mjs

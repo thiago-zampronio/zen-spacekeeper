@@ -1,0 +1,286 @@
+# Checks that specification, code, documentation and installation are in sync.
+#
+# Needs no administrator privilege and changes nothing — it only reads and compares.
+# Run it after any change, before archiving a change.
+#
+# What it does NOT do: verify behavior. This script catches a requirement with no
+# implementation, a pref with no documentation and a stale file in the profile — it
+# does not catch an implementation that is present and wrong. For behavior, use
+# `ZSTG.selfTest()` in the browser console.
+
+param(
+    [string]$Profile = "$env:APPDATA\zen\Profiles\eeijpino.Default (release)",
+    [string]$ZenDir = "C:\Program Files\Zen Browser"
+)
+
+$ErrorActionPreference = "Stop"
+$root = Split-Path $PSScriptRoot -Parent
+$failures = @()
+$warnings = @()
+
+# Re-reads PATH from the registry: a shell opened before Node was installed still
+# carries the old PATH, and the openspec wrapper calls `node` without a full path.
+$env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+            [Environment]::GetEnvironmentVariable("Path", "User") + ";" +
+            "$env:APPDATA\npm"
+
+function Section($title) {
+    Write-Output ""
+    Write-Output "-- $title"
+}
+
+function Check($ok, $text) {
+    Write-Output ("  {0} {1}" -f $(if ($ok) { "[ok]" } else { "[!!]" }), $text)
+    if (-not $ok) { $script:failures += $text }
+}
+
+# ---------------------------------------------------------------------------
+Section "OpenSpec"
+
+if ((Get-Command openspec -ErrorAction SilentlyContinue) -and
+    (Get-Command node -ErrorAction SilentlyContinue)) {
+    Push-Location $root
+    $specs = openspec validate --specs --strict 2>&1 | Out-String
+    Check ($specs -match "0 failed") "specs validated in strict mode"
+
+    $archived = openspec validate --archived 2>&1 | Out-String
+    Check ($archived -match "0 failed") "archived changes have all tasks complete"
+
+    $active = openspec list 2>&1 | Out-String
+    if ($active -notmatch "No active changes") {
+        $warnings += "there are active changes - check whether they should be archived"
+    }
+    Pop-Location
+}
+else {
+    $warnings += "openspec CLI not found; skipping spec validation"
+}
+
+# ---------------------------------------------------------------------------
+Section "Requirements with an implementation"
+
+# Every requirement in the spec needs an identifiable anchor in the code. The anchor
+# proves the mechanism exists; whether it is correct is ZSTG.selfTest()'s business.
+$anchors = [ordered]@{
+    "configuration/applies live"                   = 'Services.prefs.addObserver'
+    "configuration/prefs declared"                 = 'getDefaultBranch'
+    "configuration/master switch"                  = 'force = false'
+    "configuration/diagnostic log"                 = 'IOUtils.writeUTF8'
+    "configuration/tolerates invalid input"        = 'function parseRules'
+    "configuration/interface language"             = 'function chooseLanguage'
+    "favicon-colors/extraction"                    = 'getImageData'
+    "favicon-colors/classification by hue"         = 'function colorName'
+    "favicon-colors/does not block"                = 'function applyFaviconColor'
+    "favicon-colors/applies when the icon arrives" = 'function onTabAttrModified'
+    "favicon-colors/manual precedence"             = 'function recordManualColor'
+    "group-presentation/label from the key"        = 'label: info.label'
+    "group-presentation/identity by attribute"     = 'KEY_ATTR'
+    "group-presentation/collapse hides tabs"       = 'display: none'
+    "group-presentation/focus on the N recent"     = 'recentGroups'
+    "group-visuals/count"                          = 'COUNT_ATTR'
+    "group-visuals/count displayed"                = 'attr\(zstg-hidden-count\)'
+    "group-visuals/collapsed dimmed"               = 'collapsed\] \.tab-group-label'
+    "grouping-commands/scoped to current Space"    = 'function currentSpace'
+    "grouping-commands/regroup"                    = 'function regroup'
+    "grouping-commands/ungroup"                    = 'function ungroup'
+    "grouping-commands/rename"                     = 'function renameGroup'
+    "grouping-commands/collapse and expand"        = 'function setCollapsed'
+    "space-isolation/Space comes from the tab"     = 'function spaceOfTab'
+    "space-isolation/eligibility"                  = 'function isEligible'
+    "space-isolation/group by Space and key"       = 'function findGroup'
+    "space-scoped-tab-switch/filter"               = 'allUsedBrowsers'
+    "space-scoped-tab-switch/essentials"           = 'essential && !tabSpace'
+    "space-scoped-tab-switch/can be turned off"    = 'spaceScopedTabSwitch'
+    "space-scoped-tab-switch/failure delegates"    = 'delegating to native'
+    "tab-grouping/key by domain"                   = 'getBaseDomainFromHost'
+    "tab-grouping/subdomain"                       = 'groupBySubdomain'
+    "tab-grouping/custom rules"                    = 'rule:\$\{rule.name\}'
+    "tab-grouping/minimum tabs"                    = 'candidates.length < cfg\(\).minTabs'
+    "tab-grouping/non-groupable URLs"              = 'GROUPABLE_SCHEMES'
+    "tab-grouping/exclusion list"                  = 'c.excluded'
+    "tab-grouping/re-evaluation on navigation"     = 'onLocationChange'
+    "tab-grouping/leaves the old group"            = 'leftPreviousGroup'
+    "tab-grouping/reclaim after restart"           = 'function reclaimGroups'
+    "tab-grouping/recover unmarked groups"         = 'function recoverOldGroups'
+    "tab-grouping/persisted link"                  = 'function saveGroupMap'
+    "tab-grouping/empty groups"                    = 'function removeEmptyGroups'
+    "control-panel/registers about:"               = 'nsIAboutModule'
+    "control-panel/page is local only"             = 'chrome://userchrome/content/'
+}
+
+$js = Get-Content (Join-Path $root "src\zen-space-tab-groups.uc.mjs") -Raw
+$css = Get-Content (Join-Path $root "src\zen-space-tab-groups.uc.css") -Raw
+$panel = (Get-Content (Join-Path $root "src\resources\zstg-panel.html") -Raw) + (Get-Content (Join-Path $root "src\resources\zstg-i18n.mjs") -Raw)
+$missing = @()
+foreach ($name in $anchors.Keys) {
+    if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]))) {
+        $missing += $name
+    }
+}
+Check ($missing.Count -eq 0) "$($anchors.Count) requirements anchored in the code"
+foreach ($n in $missing) { Write-Output "       no anchor: $n" }
+
+# ---------------------------------------------------------------------------
+Section "Documentation"
+
+# The block is extracted by name. If the extraction comes back empty the loop below
+# has nothing to compare and every check passes without checking anything — which is
+# exactly what happened when `PADROES` was renamed to `DEFAULTS`. Hence the guard.
+$block = [regex]::Match($js, 'const DEFAULTS = \{(.+?)\n\};', 'Singleline').Groups[1].Value
+Check ($block.Length -gt 0) "the defaults block was found in the script"
+
+$prefs = [regex]::Matches($block, '(?m)^\s{2}(\w+):') | ForEach-Object { $_.Groups[1].Value }
+Check ($prefs.Count -ge 10) "$($prefs.Count) prefs read from the script"
+
+$readme = Get-Content (Join-Path $root "README.md") -Raw
+
+$undocumented = $prefs | Where-Object { -not ($readme -match [regex]::Escape("zen.stg.$_")) }
+Check ($undocumented.Count -eq 0) "$($prefs.Count) prefs documented in the README"
+foreach ($p in $undocumented) { Write-Output "       not documented: zen.stg.$p" }
+
+$nonexistent = [regex]::Matches($readme, 'zen\.stg\.(\w+)') |
+    ForEach-Object { $_.Groups[1].Value } |
+    Sort-Object -Unique |
+    Where-Object { $prefs -notcontains $_ }
+Check ($nonexistent.Count -eq 0) "the README cites no pref that does not exist"
+foreach ($p in $nonexistent) { Write-Output "       cited but absent from the code: zen.stg.$p" }
+
+# The public API is what the README teaches people to type in the console. A rename
+# that the README does not follow turns the documentation into a list of errors.
+$api = [regex]::Match($js, 'window\.ZSTG = \{(.+?)\n\};', 'Singleline').Groups[1].Value
+Check ($api.Length -gt 0) "the public API object was found in the script"
+$exposed = [regex]::Matches($api, '(?m)^\s{2}(\w+)') | ForEach-Object { $_.Groups[1].Value }
+$cited = [regex]::Matches($readme, 'ZSTG\.(\w+)') |
+    ForEach-Object { $_.Groups[1].Value } |
+    Sort-Object -Unique
+$broken = $cited | Where-Object { $exposed -notcontains $_ }
+Check ($broken.Count -eq 0) "the README cites only functions that exist ($($exposed.Count) exposed)"
+foreach ($m in $broken) { Write-Output "       cited but absent from the API: ZSTG.$m" }
+
+# ---------------------------------------------------------------------------
+Section "Interface texts"
+
+# Three catalogs edited by hand drift apart silently: a key added to one language
+# only shows up as a raw key on screen, and only in that language.
+$i18nPath = Join-Path $root "src\resources\zstg-i18n.mjs"
+if ((Test-Path $i18nPath) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    $uri = "file:///" + ($i18nPath -replace '\\', '/')
+    $code = @"
+import { LANGUAGES, BASE_LANGUAGE, CATALOG } from '$uri';
+const base = Object.keys(CATALOG[BASE_LANGUAGE]);
+const bad = [];
+for (const l of LANGUAGES) {
+  const missing = base.filter(k => !(k in CATALOG[l]));
+  const extra = Object.keys(CATALOG[l]).filter(k => !base.includes(k));
+  if (missing.length || extra.length) bad.push(l + ': ' + [...missing.map(k => '-' + k), ...extra.map(k => '+' + k)].join(' '));
+}
+console.log(base.length + '|' + LANGUAGES.length + '|' + bad.join(' ; '));
+"@
+    $out = node --input-type=module -e $code 2>&1 | Out-String
+    $parts = $out.Trim().Split("|")
+    if ($parts.Count -eq 3) {
+        Check ($parts[2].Trim().Length -eq 0) "$($parts[0]) texts present in all $($parts[1]) languages"
+        if ($parts[2].Trim()) { Write-Output "       $($parts[2].Trim())" }
+    }
+    else {
+        Check $false "could not read the text catalog: $($out.Trim())"
+    }
+}
+else {
+    $warnings += "text catalog or Node not found; skipping the language check"
+}
+
+# ---------------------------------------------------------------------------
+Section "Language of the source"
+
+# The project publishes its code and specification in English. A file that goes back
+# to Portuguese is caught here and not in review.
+$sources = @(
+    "src\zen-space-tab-groups.uc.mjs",
+    "src\zen-space-tab-groups.uc.css",
+    "src\resources\zstg-panel.html",
+    "install.ps1",
+    "scripts\verify.ps1",
+    "README.md"
+) + (Get-ChildItem (Join-Path $root "openspec\specs") -Recurse -Filter "*.md" |
+     ForEach-Object { $_.FullName.Substring($root.Length + 1) })
+
+$withAccents = @()
+foreach ($s in $sources) {
+    $p = Join-Path $root $s
+    if (-not (Test-Path $p)) { continue }
+    # The catalog is deliberately left out: it holds the translations.
+    $hits = Select-String -Path $p -Pattern '[\u00e3\u00e7\u00f5\u00ea\u00f4\u00e2\u00ed\u00fa]' -AllMatches
+    if ($hits) { $withAccents += "$s (line $($hits[0].LineNumber))" }
+}
+Check ($withAccents.Count -eq 0) "$($sources.Count) source files in English"
+foreach ($s in $withAccents) { Write-Output "       Portuguese found: $s" }
+
+# ---------------------------------------------------------------------------
+Section "Syntax"
+
+if (Get-Command node -ErrorAction SilentlyContinue) {
+    node --check (Join-Path $root "src\zen-space-tab-groups.uc.mjs") 2>&1 | Out-Null
+    Check ($LASTEXITCODE -eq 0) "script has no syntax error"
+    node --check $i18nPath 2>&1 | Out-Null
+    Check ($LASTEXITCODE -eq 0) "text catalog has no syntax error"
+}
+else {
+    $warnings += "Node not found; skipping the syntax check"
+}
+
+# ---------------------------------------------------------------------------
+Section "Installation"
+
+$destJs = Join-Path $Profile "chrome\JS\zen-space-tab-groups.uc.mjs"
+$destCss = Join-Path $Profile "chrome\CSS\zen-space-tab-groups.uc.css"
+
+if (Test-Path $destJs) {
+    $vRepo = [regex]::Match($js, '@version\s+(\S+)').Groups[1].Value
+    $vProfile = [regex]::Match((Get-Content $destJs -Raw), '@version\s+(\S+)').Groups[1].Value
+    Check ($vRepo -eq $vProfile) "script in the profile at the repository version ($vRepo / $vProfile)"
+}
+else {
+    Check $false "script not installed in the profile"
+}
+
+if (Test-Path $destCss) {
+    $hRepo = (Get-FileHash (Join-Path $root "src\zen-space-tab-groups.uc.css")).Hash
+    $hProfile = (Get-FileHash $destCss).Hash
+    Check ($hRepo -eq $hProfile) "stylesheet in the profile identical to the repository one"
+}
+else {
+    Check $false "stylesheet not installed in the profile"
+}
+
+# Resources are copied, not linked: an edit in the repository does not reach the
+# profile until install.ps1 runs again, and the panel keeps showing the old page.
+foreach ($res in (Get-ChildItem (Join-Path $root "src\resources") -File)) {
+    $destRes = Join-Path $Profile "chrome\resources\$($res.Name)"
+    if (Test-Path $destRes) {
+        Check ((Get-FileHash $res.FullName).Hash -eq (Get-FileHash $destRes).Hash) `
+              "resource in the profile up to date: $($res.Name)"
+    }
+    else {
+        Check $false "resource not installed in the profile: $($res.Name)"
+    }
+}
+
+# A Zen update deletes these two files; it is the most common failure in real use.
+Check (Test-Path (Join-Path $ZenDir "config.js")) "loader: config.js present"
+Check (Test-Path (Join-Path $ZenDir "defaults\pref\config-prefs.js")) "loader: config-prefs.js present"
+Check (Test-Path (Join-Path $Profile "chrome\utils\boot.sys.mjs")) "loader: utils in the profile"
+
+# ---------------------------------------------------------------------------
+Write-Output ""
+foreach ($w in $warnings) { Write-Output "warning: $w" }
+
+if ($failures.Count -eq 0) {
+    Write-Output "EVERYTHING IN SYNC"
+    Write-Output "Behavior is not verified here - run ZSTG.selfTest() in the console."
+    exit 0
+}
+
+Write-Output "$($failures.Count) check(s) failed:"
+foreach ($f in $failures) { Write-Output "  - $f" }
+exit 1
