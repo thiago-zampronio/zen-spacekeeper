@@ -333,8 +333,9 @@ retranslated after the fact.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). `vendor/fx-autoconfig/` is a vendored third-party
-copy under MPL 2.0 and keeps its own license.
+MIT — see [LICENSE](LICENSE). Third-party code is listed in [NOTICE](NOTICE):
+`vendor/fx-autoconfig/` is a vendored copy under MPL 2.0 and keeps its own
+license.
 
 ## Next steps
 

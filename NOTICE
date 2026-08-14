@@ -1,0 +1,14 @@
+Spacekeeper is distributed under the MIT License; see LICENSE.
+
+This repository also contains third-party code, which is NOT covered by that
+license and keeps its own:
+
+  vendor/fx-autoconfig/
+      A vendored copy of https://github.com/MrOtherGuy/fx-autoconfig
+      Copyright (c) MrOtherGuy and contributors
+      Mozilla Public License 2.0 — see vendor/fx-autoconfig/LICENSE
+
+It is vendored rather than fetched at install time so that installing Spacekeeper
+never depends on a third-party repository staying available, and so that the
+exact loader being written into the browser's program directory is the one you
+can read here.
