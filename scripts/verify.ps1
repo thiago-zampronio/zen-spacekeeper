@@ -106,6 +106,23 @@ $anchors = [ordered]@{
     "tab-grouping/empty groups"                    = 'function removeEmptyGroups'
     "control-panel/registers about:"               = 'nsIAboutModule'
     "control-panel/page is local only"             = 'chrome://userchrome/content/'
+    "diagnostics/version identifiable"             = 'const VERSION = '
+    "diagnostics/version shown in the panel"       = 'ZSTG\?\.version'
+    "diagnostics/self-test"                        = 'function selfTest'
+    "diagnostics/self-test checks real state"      = 'Invariants against the real state'
+    "diagnostics/inspection"                       = 'function inspect'
+    "diagnostics/stable command surface"           = 'window\.ZSTG = '
+    "grouping-commands/context menus"              = 'MENU_POPUPS'
+    "grouping-commands/keyboard shortcuts"         = 'function registerHotkeys'
+    "grouping-commands/outcome as a sentence"      = 'function sentence'
+    "grouping-commands/confirm before ungroup"     = 'cmd.confirmUngroup'
+    "configuration/log is bounded"                 = 'LOG_MAX_BYTES'
+    "configuration/log off by default"             = 'debugLog: false'
+    "favicon-colors/snapped to the palette"        = 'function colorName'
+    "favicon-colors/classified by hue"             = 'function rgbToHsl'
+    "languages/single catalog"                     = 'export const CATALOG'
+    "languages/base language fallback"             = 'BASE_LANGUAGE'
+    "languages/missing key is recorded"            = 'missingText'
 }
 
 $js = Get-Content (Join-Path $root "src\zen-space-tab-groups.uc.mjs") -Raw
@@ -168,6 +185,38 @@ Check ($broken.Count -eq 0) "the README cites only functions that exist ($($expo
 foreach ($m in $broken) { Write-Output "       cited but absent from the API: ZSTG.$m" }
 
 # ---------------------------------------------------------------------------
+Section "Installers"
+
+# Two installers for the same product drift: a file added to one and forgotten in
+# the other produces an install that is silently incomplete on that platform only.
+# Comparing the lists is the whole reason this check exists.
+$ps1 = Get-Content (Join-Path $root "install.ps1") -Raw
+$sh = Get-Content (Join-Path $root "install.sh") -Raw
+
+$psFiles = [regex]::Matches($ps1, 'From = "([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+$shFiles = [regex]::Matches($sh, '(src/[^:"]+|vendor/[^:"]+):') | ForEach-Object { $_.Groups[1].Value }
+
+Check ($psFiles.Count -gt 0) "install.ps1 declares a file list ($($psFiles.Count) entries)"
+Check ($shFiles.Count -gt 0) "install.sh declares a file list ($($shFiles.Count) entries)"
+
+$onlyPs = $psFiles | Where-Object { $shFiles -notcontains $_ }
+$onlySh = $shFiles | Where-Object { $psFiles -notcontains $_ }
+Check (($onlyPs.Count -eq 0) -and ($onlySh.Count -eq 0)) "both installers deploy the same files"
+foreach ($f in $onlyPs) { Write-Output "       only in install.ps1: $f" }
+foreach ($f in $onlySh) { Write-Output "       only in install.sh:  $f" }
+
+# The loader's profile-side utilities are listed by name in install.sh because
+# raw.githubusercontent serves files, not directories. A file added to the vendored
+# loader and not to that list yields a loader that half-loads.
+$vendorUtils = Get-ChildItem (Join-Path $root "vendor\fx-autoconfig\profile\chrome\utils") -File |
+    ForEach-Object { $_.Name }
+$listedUtils = [regex]::Match($sh, 'UTILS="([^"]+)"').Groups[1].Value -split '\s+' |
+    Where-Object { $_ }
+$missingUtils = $vendorUtils | Where-Object { $listedUtils -notcontains $_ }
+Check ($missingUtils.Count -eq 0) "install.sh lists every vendored loader utility ($($vendorUtils.Count))"
+foreach ($u in $missingUtils) { Write-Output "       not listed: $u" }
+
+# ---------------------------------------------------------------------------
 Section "Interface texts"
 
 # Three catalogs edited by hand drift apart silently: a key added to one language
@@ -210,6 +259,7 @@ $sources = @(
     "src\zen-space-tab-groups.uc.css",
     "src\resources\zstg-panel.html",
     "install.ps1",
+    "install.sh",
     "scripts\verify.ps1",
     "README.md"
 ) + (Get-ChildItem (Join-Path $root "openspec\specs") -Recurse -Filter "*.md" |

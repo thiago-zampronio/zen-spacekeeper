@@ -16,7 +16,7 @@ the other two:
 | --- | --- | --- | --- |
 | Runs JavaScript | yes, sandboxed | **no** | yes, privileged |
 | Sees Spaces | **no** | n/a | yes |
-| Installation | `about:addons` | mod store | one PowerShell command |
+| Installation | `about:addons` | mod store | one command, on Windows / macOS / Linux |
 
 - The WebExtensions API (`browser.tabs.group()`) does not expose the concept of a
   Space. An extension cannot read or choose a tab's Space — that is why tools like
@@ -31,39 +31,74 @@ What is left is a privileged chrome script (`.uc.mjs`) loaded by
 
 ## Installation
 
-Windows, in PowerShell:
+**Windows**, in PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.ps1 | iex
 ```
 
-Windows will ask for administrator once — the fx-autoconfig loader has to be
-written into Zen's program folder. Everything else goes into your profile and
-needs no privilege.
+**macOS and Linux**, in a terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh
+```
+
+You will be asked for administrator rights once — the fx-autoconfig loader has to
+be written into Zen's application directory. Everything else goes into your
+profile and needs no privilege.
+
+If you would rather read a script before running it, download it first:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh
+less install.sh && sh install.sh
+```
 
 Then: close Zen, open `about:support` and click **Clear startup cache**. Without
 that, Zen ignores the freshly installed loader. Reopen it and go to
 `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** shows
-`[ZSTG] 0.16.0 ready — active Space …`.
+`[ZSTG] 0.17.0 ready — active Space …`.
+
+### When detection needs help
 
 The installer finds Zen and your profile on its own, reading `profiles.ini`
 rather than guessing — if you have more than one profile, it picks the one Zen
-actually uses. Override it when needed:
+actually uses, which is frequently **not** the one flagged as default.
+
+When it cannot find something it stops rather than guessing, and tells you which
+option to pass. Read the values in `about:profiles` (profile) and
+`about:support` (application):
 
 ```powershell
 .\install.ps1 -ProfileDir "C:\path\to\profile" -ZenDir "C:\path\to\Zen Browser"
 ```
 
-From a clone, `.\install.ps1` uses the local files instead of downloading.
+```sh
+./install.sh --profile-dir ~/path/to/profile --zen-dir /Applications/Zen.app/Contents/Resources
+```
 
-Other flags:
+Run from a clone, both installers use the local files instead of downloading.
+
+### Other options
 
 ```powershell
 .\install.ps1 -Check       # what is installed, and what a Zen update removed
 .\install.ps1 -Uninstall   # removes the mod, keeps the loader and your settings
 ```
+
+```sh
+./install.sh --check
+./install.sh --uninstall
+```
+
+Uninstalling leaves the loader in place, because other mods may depend on it, and
+keeps your preferences so a reinstall finds your configuration.
+
+**A flatpak Zen** keeps its application files in a read-only image, so the loader
+cannot be installed into it this way. The installer says so and stops instead of
+reporting a success that would never load.
 
 ## After every Zen update
 
@@ -77,6 +112,11 @@ same command:
 ```powershell
 .\install.ps1 -Check   # tells you what is missing
 .\install.ps1          # puts it back
+```
+
+```sh
+./install.sh --check
+./install.sh
 ```
 
 The profile side (`chrome/utils`, `chrome/JS`, `chrome/resources`) is not
@@ -215,12 +255,17 @@ ZSTG.reloadConfig()  // re-reads the prefs
 ### Log file
 
 With `zen.stg.debugLog` on, the script writes one JSON line per event to
-`<perfil>/zstg-debug.log`: initialization, recognition of restored groups, group
+`<profile>/zstg-debug.log`: initialization, recognition of restored groups, group
 creation and movement, and every tab switch with the Space before and after.
 
 It exists because the hardest moments to diagnose — session restore and group
 recognition — happen before any console is open. The file is truncated once it
-passes 1 MB, and write failures show up in the console instead of being swallowed.
+passes 1 MB, so leaving it on does not grow a file forever, and write failures show
+up in the console instead of being swallowed.
+
+It ships **off**, and that is deliberate: every line records the site of the tab
+involved, so the file amounts to a history of the sites you visit, in plain text
+inside your profile. Turn it on to investigate something, not by default.
 
 ## Appearance
 
@@ -242,12 +287,19 @@ The taste adjustments live in variables at the top of the file:
 
 | Variable | Effect |
 | --- | --- |
-| `--zstg-raio` | corners of the label chip |
-| `--zstg-respiro` | vertical separation between groups |
+| `--zstg-radius` | corners of the label chip |
+| `--zstg-breathing` | vertical separation between groups |
 
-Limitation inherited from the browser: the native group accepts **nine colors**.
-Sites with dark logos collide on `gray`, and multicolored logos (like Google's)
-always pick arbitrarily among their colors.
+**The colors are approximate by construction, not by defect.** The browser's native
+groups accept a fixed palette of **nine colors**, so the color read from a logo is
+snapped to the nearest one it contains. Sites with dark logos land on `gray`, and a
+multicolored logo settles on whichever of its colors wins. An orange group for a red
+logo is the feature working, not failing.
+
+Classification is by hue rather than by distance to fixed values: the native colors
+resolve differently under the light and dark themes, so a fixed table would be right
+in one and wrong in the other, and a group would change color when you switched
+themes.
 
 ## What the script never touches
 

@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.16.0
+// @version        0.17.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.16.0";
+const VERSION = "0.17.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1157,9 +1157,9 @@ const lastKey = new WeakMap();
 const progressListener = {
   onLocationChange(browser, _webProgress, _request, _location, flags) {
     // Ignore anchor/hash changes: they do not change the site
-    const MESMO_DOC =
+    const SAME_DOC =
       globalThis.Ci?.nsIWebProgressListener?.LOCATION_CHANGE_SAME_DOCUMENT ?? 0x1;
-    if (flags & MESMO_DOC) {
+    if (flags & SAME_DOC) {
       return;
     }
     const tab = window.gBrowser.getTabForBrowser(browser);

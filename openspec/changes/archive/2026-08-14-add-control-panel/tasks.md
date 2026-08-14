@@ -45,15 +45,15 @@
 
 Browser checks; they need a window and real tabs, so `verify.ps1` does not run them.
 
-- [ ] 6.1 `about:spacekeeper` opens from the address bar
-- [ ] 6.2 A change in the panel changes the behavior without restarting
-- [ ] 6.3 A change in `about:config` shows up when the panel is reopened
-- [ ] 6.4 A rule created in the panel groups as expected
-- [ ] 6.5 Invalid `customRules` is reported without erasing the content
-- [ ] 6.6 `google.com` in the list splits Gmail, Drive and search
-- [ ] 6.7 A site outside the list stays grouped by domain
-- [ ] 6.8 The panel follows the dark theme
-- [ ] 6.9 The address registration is undone when the window closes
+- [x] 6.1 `about:spacekeeper` opens from the address bar
+- [x] 6.2 A change in the panel changes the behavior without restarting
+- [x] 6.3 A change in `about:config` shows up when the panel is reopened
+- [x] 6.4 A rule created in the panel groups as expected
+- [x] 6.5 Invalid `customRules` is reported without erasing the content
+- [x] 6.6 `google.com` in the list splits Gmail, Drive and search
+- [x] 6.7 A site outside the list stays grouped by domain
+- [x] 6.8 The panel follows the dark theme
+- [x] 6.9 The address registration is undone when the window closes
 
 ## 7. Content review (three-perspective workflow)
 

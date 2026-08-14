@@ -59,6 +59,8 @@ site with subdomains.
 - **WHEN** a group is created for `https://google.com`
 - **THEN** the group label is `google`
 
+## ADDED Requirements
+
 ### Requirement: Label style for subdomain grouping
 
 The system SHALL allow choosing between labeling subdomain groups by the host

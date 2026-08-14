@@ -27,13 +27,13 @@
 
 Browser checks; they need tabs and a window, so they are not run by `verify.ps1`.
 
-- [ ] 4.1 Browser in English, Portuguese and Spanish shows each language
-- [ ] 4.2 Browser in an unavailable language shows English
-- [ ] 4.3 European Portuguese shows Brazilian Portuguese
-- [ ] 4.4 A pinned language beats the browser's, without restarting
-- [ ] 4.5 A key missing in one language shows in English and is recorded
-- [ ] 4.6 Browser menu and panel change together
-- [ ] 4.7 Failing to import the catalog does not break the interface
+- [x] 4.1 Browser in English, Portuguese and Spanish shows each language
+- [x] 4.2 Browser in an unavailable language shows English
+- [x] 4.3 European Portuguese shows Brazilian Portuguese
+- [x] 4.4 A pinned language beats the browser's, without restarting
+- [x] 4.5 A key missing in one language shows in English and is recorded
+- [x] 4.6 Browser menu and panel change together
+- [x] 4.7 Failing to import the catalog does not break the interface
 
 ## 5. Documentation
 
