@@ -1,0 +1,22 @@
+# Line endings are not cosmetic here.
+#
+# A shell script that reaches Linux with CRLF fails as `bad interpreter: /bin/sh^M`,
+# and the message points at the interpreter rather than at the line endings, which
+# makes it a genuinely confusing half hour. The repository is developed on Windows,
+# so without this the outcome depends on each machine's core.autocrlf.
+
+* text=auto
+
+*.sh text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.manifest text eol=lf
+
+# PowerShell stays CRLF: it is Windows-only, and some older hosts are unhappy with
+# LF in a script they are executing.
+*.ps1 text eol=crlf
