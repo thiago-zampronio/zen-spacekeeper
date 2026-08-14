@@ -5,6 +5,10 @@
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
+// Kept in step with @version above by verify.ps1. It was duplicated as a literal
+// in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
+// so the one number people are asked for when reporting a problem was wrong.
+const VERSION = "0.16.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -788,7 +792,7 @@ function organize(tab, force = false) {
   });
 
   if (!group) {
-    dbg("addTabGroupRetornouNulo", { key: info.key, space: spaceId });
+    dbg("addTabGroupReturnedNull", { key: info.key, space: spaceId });
     return;
   }
   markAsOurs(group, info.key, spaceId);
@@ -1447,7 +1451,7 @@ function selfTest() {
 
 function inspect() {
   return {
-    version: "0.2.0",
+    version: VERSION,
     config: cfg(),
     activeSpace: currentSpace(),
     tabs: [...window.gBrowser.tabs].map(t => ({
@@ -1461,7 +1465,7 @@ function inspect() {
       label: g.label,
       key: g.getAttribute(KEY_ATTR),
       space: g.getAttribute(SPACE_ATTR),
-      nosso: isOurGroup(g),
+      ours: isOurGroup(g),
       isFolder: !!g.isZenFolder,
       tabs: g.tabs.length,
       collapsed: !!g.collapsed,
@@ -1817,13 +1821,13 @@ async function start() {
   );
 
   console.log(
-    `${LOG} 0.16.0 ready — active Space ${currentSpace()}, ` +
-      `grouping ${cfg().enabled ? "on" : "deson"}, minTabs ${cfg().minTabs}`
+    `${LOG} ${VERSION} ready — active Space ${currentSpace()}, ` +
+      `grouping ${cfg().enabled ? "on" : "off"}, minTabs ${cfg().minTabs}`
   );
 
   const spaces = window.gZenWorkspaces;
   dbg("started", {
-    version: "0.16.0",
+    version: VERSION,
     activeSpace: currentSpace(),
     spaceName: spaces?.getWorkspaceFromId?.(currentSpace())?.name ?? null,
     config: { ...cfg(), colors: undefined, groups: undefined },
@@ -1833,7 +1837,7 @@ async function start() {
 }
 
 window.ZSTG = {
-  version: "0.16.0",
+  version: VERSION,
   inspect,
   selfTest,
   keyFromText,

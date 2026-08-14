@@ -132,6 +132,16 @@ Check ($block.Length -gt 0) "the defaults block was found in the script"
 $prefs = [regex]::Matches($block, '(?m)^\s{2}(\w+):') | ForEach-Object { $_.Groups[1].Value }
 Check ($prefs.Count -ge 10) "$($prefs.Count) prefs read from the script"
 
+# The version is the one thing a user is asked for when reporting a problem. It used
+# to be four separate literals, and inspect() drifted to reporting 0.2.0 while the
+# script was 0.16.0 - the number was wrong in exactly the place it mattered most.
+$vHeader = [regex]::Match($js, '@version\s+(\S+)').Groups[1].Value
+$vConst = [regex]::Match($js, 'const VERSION = "([^"]+)"').Groups[1].Value
+Check ($vConst.Length -gt 0) "the version constant was found in the script"
+Check ($vHeader -eq $vConst) "the header version matches the constant ($vHeader / $vConst)"
+$vLiterals = [regex]::Matches($js, 'version: "[^"]+"').Count
+Check ($vLiterals -eq 0) "the version is not duplicated as a literal ($vLiterals found)"
+
 $readme = Get-Content (Join-Path $root "README.md") -Raw
 
 $undocumented = $prefs | Where-Object { -not ($readme -match [regex]::Escape("zen.stg.$_")) }

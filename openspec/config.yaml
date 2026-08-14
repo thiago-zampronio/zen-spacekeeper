@@ -1,68 +1,90 @@
 schema: spec-driven
 
 context: |
-  PROJETO: zen-space-tab-groups
+  PROJECT: Spacekeeper (repository zen-spacekeeper)
 
-  Agrupamento automático de abas por domínio no Zen Browser, respeitando os Spaces
-  (workspaces) do navegador.
+  Automatic domain-based tab grouping in the Zen Browser, respecting the browser's
+  Spaces (workspaces).
 
-  ORIGEM
-  O ponto de partida é a extensão Auto Tab Groups (github.com/nitzanpap/auto-tab-groups),
-  que agrupa por domínio mas é cega a Spaces: ela indexa grupos apenas por domínio, então
-  ao abrir youtube.com no Space 2 a aba é adotada pelo grupo "youtube" que já existe no
-  Space 1 — e a aba é arrastada junto para o Space 1.
+  LANGUAGE
+  Everything written in this repository is in English: specification, proposals,
+  code, identifiers, comments, commit messages and user-visible text. The only
+  exception is openspec/changes/archive/, kept in Portuguese as the record of
+  decisions made before that rule existed; it is never retranslated.
 
-  CAUSA RAIZ (verificada no omni.ja do Zen instalado)
-  Cada Space tem seu próprio container de abas no DOM
-  (gZenWorkspaces.activeWorkspaceElement.tabsContainer, em modules/zen/ZenSpaceManager.mjs).
-  Um grupo vive fisicamente dentro do strip de um Space, então group.addTabs() reparenta a
-  aba para aquele Space. A correção é indexar grupos por (Space, chave) em vez de só chave.
+  ORIGIN
+  The starting point is the Auto Tab Groups extension
+  (github.com/nitzanpap/auto-tab-groups), which groups by domain but is blind to
+  Spaces: it indexes groups by domain alone, so opening youtube.com in Space 2 gets
+  the tab adopted by the "youtube" group that already exists in Space 1 — and the
+  tab is dragged into Space 1 along with it.
 
-  DECISÕES DE ARQUITETURA
-  - Não é extensão: a API WebExtensions (browser.tabs.group) não expõe Spaces do Zen.
-  - Não é Zen Mod oficial: mods do marketplace são CSS + preferences.json, não executam JS.
-  - É um script privilegiado de chrome (.uc.mjs) carregado por fx-autoconfig.
-  - Usa gBrowser.addTabGroup (grupo comum, abas seguem desafixadas), NÃO
-    gZenFolders.createFolder — este último chama pinTab e fixaria toda aba agrupada.
-  - Identidade de grupo por atributos (zstg-key + zen-workspace-id), não pelo rótulo
-    visível, para o usuário poder renomear grupos sem quebrar o pareamento.
+  ROOT CAUSE (verified in the installed Zen's omni.ja)
+  Each Space has its own tab container in the DOM
+  (gZenWorkspaces.activeWorkspaceElement.tabsContainer, in
+  modules/zen/ZenSpaceManager.mjs). A group lives physically inside one Space's
+  strip, so group.addTabs() reparents the tab into that Space. The fix is to index
+  groups by (Space, key) instead of by key alone.
 
-  API INTERNA DO ZEN USADA
-  - Space ativo (uuid): gZenWorkspaces.activeWorkspace
-  - Space de uma aba: atributo zen-workspace-id na <tab>
-  - Container de abas do space: gZenWorkspaces.activeWorkspaceElement.tabsContainer
-  - Criar grupo comum: gBrowser.addTabGroup(tabs, { label, color, insertBefore })
-  - Grupos existentes: gBrowser.tabGroups
-  - Folder nativa do Zen: gZenFolders.createFolder() — fixa as abas, não usamos
+  ARCHITECTURE DECISIONS
+  - Not an extension: the WebExtensions API (browser.tabs.group) does not expose
+    Zen's Spaces.
+  - Not an official Zen Mod: marketplace mods are CSS + preferences.json and do not
+    execute JS.
+  - It is a privileged chrome script (.uc.mjs) loaded by fx-autoconfig.
+  - Uses gBrowser.addTabGroup (a regular group, tabs stay unpinned), NOT
+    gZenFolders.createFolder — that one calls pinTab and would pin every grouped tab.
+  - Group identity comes from attributes (zstg-key + zen-workspace-id), never from
+    the visible label, so the user can rename groups without breaking the matching.
 
-  AMBIENTE
-  - Windows 11
-  - Zen Browser em C:\Program Files\Zen Browser
-  - Perfil ativo: %APPDATA%\zen\Profiles\eeijpino.Default (release)
+  ZEN INTERNAL API IN USE
+  - Active Space (uuid): gZenWorkspaces.activeWorkspace
+  - A tab's Space: the zen-workspace-id attribute on the <tab>
+  - The Space's tab container: gZenWorkspaces.activeWorkspaceElement.tabsContainer
+  - Create a regular group: gBrowser.addTabGroup(tabs, { label, color, insertBefore })
+  - Existing groups: gBrowser.tabGroups
+  - Native Zen folder: gZenFolders.createFolder() — pins the tabs, not used
 
-  CONVENÇÕES
-  - Especificação e discussão em PT-BR. Palavras-chave normativas (SHALL, GIVEN, WHEN,
-    THEN) permanecem em inglês por exigência de formato do OpenSpec.
-  - Toda mudança de comportamento passa por proposta antes da implementação.
+  NAMES THAT MUST NEVER CHANGE
+  Renaming any of these silently breaks the groups users already have on screen,
+  because they are the stored identity:
+  - the zstg-key and zen-workspace-id attributes
+  - the zen.stg. preference prefix and every preference name under it
+  - the "host" and "sub" values of zen.stg.subdomainLabel
+
+  DEVELOPMENT ENVIRONMENT
+  - The author develops on Windows 11, with Zen in C:\Program Files\Zen Browser.
+  - The product is meant to work on Windows, macOS and Linux; a change that only
+    works on one of them is incomplete.
+
+  CONVENTIONS
+  - Every behavior change goes through a proposal before implementation.
+  - scripts/verify.ps1 must pass before a change is archived.
+  - Verification tasks that require a running browser are never marked complete
+    from code reading alone — only the user confirms those.
 
 # Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - Write in English.
+    - State what is out of scope explicitly.
+  design:
+    - Write in English.
+    - Record why a decision was taken, not only what was decided; a rejected
+      alternative is worth naming.
+    - State the cost of a decision plainly instead of softening it.
+  tasks:
+    - Write in English.
+    - Keep tasks that need a running browser in a section of their own, so it is
+      clear they cannot be verified by reading code.
+  specs:
+    - Write in English. SHALL, GIVEN, WHEN, THEN and AND stay uppercase.
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+operations:
+  apply:
+    guidance:
+      - Run scripts/verify.ps1 after implementing, and report its actual output.
+      - Never mark a browser-verification task complete without the user saying so.
+  archive:
+    guidance:
+      - Do not archive while browser-verification tasks are still unchecked.
