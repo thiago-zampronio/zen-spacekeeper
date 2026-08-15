@@ -61,6 +61,21 @@ in the guard script; the panel invokes that same path, so the installer's
 uninstall, the panel's uninstall and the guard's self-disarm converge on one
 implementation and one end state.
 
+**Dialog format, settled by an adversarial design review (two rounds).** The
+"two popups" complaint was uninstall-only; the fix is hybrid. Uninstall: ONE
+`Services.prompt.confirmEx` dialog — buttons "Uninstall"/"Cancel" (Cancel as the
+keyboard default, so Enter cannot blast through a destructive action) and a
+"Restart Zen now" checkbox born checked, with the body disclosing what the restart
+dissolves and that the groups are not recreated. Update: no pre-confirmation (the
+check-then-update sequence is already two informed clicks, and a restart answer
+collected before a fallible fetch would be a conditional promise); the restart
+dialog appears only after success, buttons "Restart now"/"Not now" with "Not now"
+as the keyboard default because the modal appears asynchronously. The loader-
+changed reminder rides in that dialog's body — the output area does not survive
+the restart the dialog invites. A failed operation discards the reset answer.
+`resetAndRestart` checks the restart utility BEFORE dissolving anything, so its
+`false` always means "nothing happened" and the manual-steps message stays true.
+
 ## Risks / Trade-offs
 
 - [An updater is remote code into a privileged context] → bounded by: user click

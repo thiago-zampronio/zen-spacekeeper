@@ -54,11 +54,18 @@ contacts the network.
 
 ### Requirement: A clean handover is offered, never imposed
 
-After an update completes and after an uninstall completes, the panel SHALL state
-up front that a restart with a startup-cache clear finishes the job, and SHALL
-offer a yes-or-no choice to do the full reset now: dissolve every group the system
-created, in every Space, clear the startup cache and restart the browser. Declining
-SHALL change nothing beyond showing the manual steps.
+The panel SHALL offer the full reset — dissolve every group the system created, in
+every Space, clear the startup cache and restart the browser — without ever
+imposing it, in the shape each flow calls for. In the uninstall flow the offer is a
+checkbox on the single confirmation dialog, born checked, whose consequences —
+including that the dissolved groups are NOT recreated, since the thing that would
+recreate them is being removed — are stated in that dialog's body. In the update
+flow the offer is a dialog shown only after the update succeeded, with explicit
+button labels, where the restarting button SHALL NOT be the keyboard default (the
+dialog appears asynchronously; a keystroke in flight must not restart the
+browser). Dialog buttons SHALL carry action labels, never a bare OK. Declining, in
+either flow, SHALL change nothing beyond showing the manual steps; a failed
+operation SHALL discard the reset answer entirely.
 
 Dissolving the groups is what makes structure changes safe: the next start finds no
 group carrying an old marking, and the new version rebuilds the organization from

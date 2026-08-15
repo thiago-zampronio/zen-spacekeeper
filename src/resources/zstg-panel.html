@@ -975,10 +975,36 @@
       const btnUpdate = el("button", { text: t("update.apply") });
       btnUpdate.hidden = true;
 
-      // The clean handover: dissolve every group of ours, clear the startup cache
-      // and restart — offered after an update and after an uninstall, never imposed.
-      function offerReset() {
-        if (window.confirm(t("reset.confirm"))) {
+      // Real dialogs, not window.confirm: confirmEx gives the buttons their own
+      // labels (the native OK/Cancel never said "Uninstall" or "Restart"), and a
+      // native checkbox where a second question would otherwise mean a second
+      // popup. In BOTH dialogs the keyboard default is the harmless button.
+      const PR = S.prompt;
+      const DIALOG_FLAGS =
+        PR.BUTTON_POS_0 * PR.BUTTON_TITLE_IS_STRING +
+        PR.BUTTON_POS_1 * PR.BUTTON_TITLE_IS_STRING +
+        PR.BUTTON_POS_1_DEFAULT;
+
+      // Shown only after a SUCCESSFUL update. "Not now" is the keyboard default
+      // on purpose: this modal appears asynchronously, seconds after the click,
+      // and an Enter in flight must not restart the browser. The loader reminder
+      // rides in the dialog body because the output area under the buttons does
+      // not survive the restart the dialog invites.
+      function offerRestart(loaderChanged) {
+        const body =
+          t("restart.body") + (loaderChanged ? "\n\n" + t("restart.loaderNote") : "");
+        const ret = PR.confirmEx(
+          window,
+          t("restart.title"),
+          body,
+          DIALOG_FLAGS,
+          t("restart.action"),
+          t("restart.later"),
+          null,
+          null,
+          { value: false }
+        );
+        if (ret === 0) {
           const restarted = ZSTG?.resetAndRestart?.();
           if (!restarted) {
             maintOutput.textContent += "\n" + t("reset.manual");
@@ -1038,8 +1064,9 @@
           maintOutput.textContent = r.loaderChanged
             ? t("update.doneLoaderChanged")
             : t("update.done");
-          offerReset();
+          offerRestart(r.loaderChanged);
         } catch (ex) {
+          // A failed update restarts nothing: the files were left untouched.
           maintOutput.textContent = t("update.failed", { error: String(ex) });
         }
       });
@@ -1050,14 +1077,43 @@
           maintOutput.textContent = t("noWindow");
           return;
         }
-        if (!window.confirm(t("uninstall.confirm"))) {
+        // ONE dialog for both decisions: remove, and whether to restart now. The
+        // checkbox label is intentionally short — the body's second paragraph is
+        // its required disclosure (what the restart dissolves, and that the
+        // groups are NOT recreated, since the thing that would recreate them is
+        // being removed); do not trim or move that paragraph. The checkbox is
+        // born checked because the restart completes what the user just asked
+        // for and closes no tab; the destructive gate is the Uninstall button,
+        // with Cancel as the keyboard default so Enter cannot blast through.
+        const check = { value: true };
+        const ret = PR.confirmEx(
+          window,
+          t("uninstall.title"),
+          t("uninstall.body"),
+          DIALOG_FLAGS,
+          t("uninstall.action"),
+          t("common.cancel"),
+          null,
+          t("uninstall.checkbox"),
+          check
+        );
+        if (ret !== 0) {
           return;
         }
         try {
           await ZSTG.uninstallSelf();
           maintOutput.textContent = t("uninstall.done");
-          offerReset();
+          if (check.value) {
+            const restarted = ZSTG?.resetAndRestart?.();
+            if (!restarted) {
+              maintOutput.textContent += "\n" + t("reset.manual");
+            }
+          } else {
+            maintOutput.textContent += "\n" + t("reset.manual");
+          }
         } catch (ex) {
+          // A failed removal discards the checkbox answer: nothing was removed,
+          // so there is nothing to finish with a restart.
           maintOutput.textContent = t("uninstall.failed", { error: String(ex) });
         }
       });

@@ -146,21 +146,31 @@ const en = {
   "update.upToDate": "You are on {version}, the latest release.",
   "update.available": "Update available: {current} → {latest}.",
   "update.applying": "Updating…",
-  "update.done": "Updated. A restart makes the new version live.",
+  "update.done": "Updated. The new version takes effect when Zen restarts.",
   "update.doneLoaderChanged":
-    "Updated. This release also changed the loader — run the installer once to update it too.",
+    "Updated. This release also changed the loader, which the panel cannot update by itself — run the installer once to finish.",
   "update.failed": "It did not work: {error}. Nothing was changed.",
   "update.disclosure":
     "Checking and updating contact the project's repository. Nothing else here ever touches the network.",
   "uninstall.button": "Uninstall Spacekeeper",
-  "uninstall.confirm":
-    "Remove Spacekeeper?\n\nRemoved: the mod's files and, if installed, the guard.\nKept: the loader (other mods may use it) and your settings, so a reinstall finds everything.\n\nThe current session keeps working; the mod disappears on the next restart.",
-  "uninstall.done": "Removed. The mod disappears on the next restart.",
+  "uninstall.title": "Uninstall Spacekeeper?",
+  "uninstall.body":
+    "This removes Spacekeeper's files — and the guard, if installed. Your settings and the loader are kept; other mods may use the loader. The removal takes effect when Zen restarts.\n\nIf you restart now, every group Spacekeeper created is dissolved first — no tab is closed — and the startup cache is cleared. Since Spacekeeper is being removed, the groups are not recreated.",
+  "uninstall.action": "Uninstall",
+  "uninstall.checkbox": "Restart Zen now",
+  "uninstall.done":
+    "Removed. Spacekeeper keeps working in this session and disappears when Zen restarts. Your settings were kept, so a reinstall finds everything again.",
   "uninstall.failed": "Removal failed: {error}",
-  "reset.confirm":
-    "Finish with a clean restart?\n\nYes: every group Spacekeeper created is dissolved (no tab is closed), the startup cache is cleared and Zen restarts. After an update, the new version regroups everything from scratch.\nNo: nothing else happens now.",
+  "common.cancel": "Cancel",
+  "restart.title": "Restart Zen now?",
+  "restart.body":
+    "Before restarting, every group Spacekeeper created is dissolved. No tab is closed. The startup cache is also cleared. After the restart, the new version regroups everything from scratch.",
+  "restart.loaderNote":
+    "This release also changed the loader — after the restart, run the installer once to update it too.",
+  "restart.action": "Restart now",
+  "restart.later": "Not now",
   "reset.manual":
-    "Then do it manually when convenient: restart Zen and, if something looks stale, clear the startup cache in about:support.",
+    "Zen was not restarted. Restart it whenever you like; if anything looks stale after that, clear the startup cache in about:support.",
 
   "menu.root": "Spacekeeper",
   "menu.preferences": "Preferences…",
@@ -290,21 +300,31 @@ const pt = {
   "update.upToDate": "Você está na {version}, a versão mais recente.",
   "update.available": "Atualização disponível: {current} → {latest}.",
   "update.applying": "Atualizando…",
-  "update.done": "Atualizado. Reiniciar o Zen ativa a nova versão.",
+  "update.done": "Atualizado. A nova versão passa a valer quando o Zen reiniciar.",
   "update.doneLoaderChanged":
-    "Atualizado. Esta versão também mudou o loader — rode o instalador uma vez para atualizá-lo também.",
+    "Atualizado. Esta versão também mudou o loader, que o painel não consegue atualizar sozinho — rode o instalador uma vez para concluir.",
   "update.failed": "Não deu certo: {error}. Nada foi alterado.",
   "update.disclosure":
     "Verificar e atualizar consultam o repositório do projeto. Nada mais aqui acessa a rede.",
   "uninstall.button": "Desinstalar o Spacekeeper",
-  "uninstall.confirm":
-    "Remover o Spacekeeper?\n\nRemovido: os arquivos do mod e, se instalado, o guard.\nMantido: o loader (outros mods podem usá-lo) e as suas configurações, para uma reinstalação encontrar tudo.\n\nA sessão atual continua funcionando; o mod some no próximo reinício.",
-  "uninstall.done": "Removido. O mod some no próximo reinício.",
+  "uninstall.title": "Desinstalar o Spacekeeper?",
+  "uninstall.body":
+    "Isto remove os arquivos do Spacekeeper — e o guard, se estiver instalado. Suas configurações e o loader são mantidos; outros mods podem usar o loader. A remoção passa a valer quando o Zen reiniciar.\n\nSe você reiniciar agora, todos os grupos que o Spacekeeper criou são desfeitos antes — nenhuma aba é fechada — e o cache de inicialização é limpo. Como o Spacekeeper está sendo removido, os grupos não são recriados.",
+  "uninstall.action": "Desinstalar",
+  "uninstall.checkbox": "Reiniciar o Zen agora",
+  "uninstall.done":
+    "Removido. O Spacekeeper continua funcionando nesta sessão e some quando o Zen reiniciar. Suas configurações foram mantidas, então uma reinstalação encontra tudo de novo.",
   "uninstall.failed": "A remoção falhou: {error}",
-  "reset.confirm":
-    "Terminar com um reinício limpo?\n\nSim: todos os grupos criados pelo Spacekeeper são desfeitos (nenhuma aba é fechada), o cache de inicialização é limpo e o Zen reinicia. Depois de uma atualização, a nova versão reagrupa tudo do zero.\nNão: nada mais acontece agora.",
+  "common.cancel": "Cancelar",
+  "restart.title": "Reiniciar o Zen agora?",
+  "restart.body":
+    "Antes de reiniciar, todos os grupos que o Spacekeeper criou são desfeitos. Nenhuma aba é fechada. O cache de inicialização também é limpo. Depois do reinício, a nova versão reagrupa tudo do zero.",
+  "restart.loaderNote":
+    "Esta versão também mudou o loader — depois do reinício, rode o instalador uma vez para atualizá-lo também.",
+  "restart.action": "Reiniciar agora",
+  "restart.later": "Agora não",
   "reset.manual":
-    "Então faça manualmente quando for conveniente: reinicie o Zen e, se algo parecer desatualizado, limpe o cache de inicialização em about:support.",
+    "O Zen não foi reiniciado. Reinicie quando quiser; se algo parecer desatualizado depois, limpe o cache de inicialização em about:support.",
 
   "menu.root": "Spacekeeper",
   "menu.preferences": "Preferências…",
@@ -434,21 +454,31 @@ const es = {
   "update.upToDate": "Estás en la {version}, la versión más reciente.",
   "update.available": "Actualización disponible: {current} → {latest}.",
   "update.applying": "Actualizando…",
-  "update.done": "Actualizado. Reiniciar Zen activa la nueva versión.",
+  "update.done": "Actualizado. La nueva versión se activa cuando Zen se reinicie.",
   "update.doneLoaderChanged":
-    "Actualizado. Esta versión también cambió el loader: ejecuta el instalador una vez para actualizarlo también.",
+    "Actualizado. Esta versión también cambió el loader, que el panel no puede actualizar por sí solo — ejecuta el instalador una vez para terminar.",
   "update.failed": "No funcionó: {error}. Nada fue modificado.",
   "update.disclosure":
     "Verificar y actualizar consultan el repositorio del proyecto. Nada más aquí accede a la red.",
   "uninstall.button": "Desinstalar Spacekeeper",
-  "uninstall.confirm":
-    "¿Eliminar Spacekeeper?\n\nSe elimina: los archivos del mod y, si está instalado, el guard.\nSe conserva: el loader (otros mods pueden usarlo) y tu configuración, para que una reinstalación encuentre todo.\n\nLa sesión actual sigue funcionando; el mod desaparece en el próximo reinicio.",
-  "uninstall.done": "Eliminado. El mod desaparece en el próximo reinicio.",
+  "uninstall.title": "¿Desinstalar Spacekeeper?",
+  "uninstall.body":
+    "Esto elimina los archivos de Spacekeeper — y el guard, si está instalado. Tu configuración y el loader se conservan; otros mods pueden usar el loader. La eliminación tiene efecto cuando Zen se reinicie.\n\nSi reinicias ahora, antes se disuelven todos los grupos que Spacekeeper creó — no se cierra ninguna pestaña — y se limpia la caché de inicio. Como Spacekeeper se está eliminando, los grupos no se recrean.",
+  "uninstall.action": "Desinstalar",
+  "uninstall.checkbox": "Reiniciar Zen ahora",
+  "uninstall.done":
+    "Eliminado. Spacekeeper sigue funcionando en esta sesión y desaparece cuando Zen se reinicie. Tu configuración se conservó, así que una reinstalación encuentra todo de nuevo.",
   "uninstall.failed": "La eliminación falló: {error}",
-  "reset.confirm":
-    "¿Terminar con un reinicio limpio?\n\nSí: todos los grupos creados por Spacekeeper se deshacen (ninguna pestaña se cierra), la caché de inicio se limpia y Zen se reinicia. Después de una actualización, la nueva versión reagrupa todo desde cero.\nNo: nada más sucede ahora.",
+  "common.cancel": "Cancelar",
+  "restart.title": "¿Reiniciar Zen ahora?",
+  "restart.body":
+    "Antes de reiniciar, se disuelven todos los grupos que Spacekeeper creó. No se cierra ninguna pestaña. También se limpia la caché de inicio. Tras el reinicio, la nueva versión reagrupa todo desde cero.",
+  "restart.loaderNote":
+    "Esta versión también cambió el loader — tras el reinicio, ejecuta el instalador una vez para actualizarlo también.",
+  "restart.action": "Reiniciar ahora",
+  "restart.later": "Ahora no",
   "reset.manual":
-    "Entonces hazlo manualmente cuando convenga: reinicia Zen y, si algo parece desactualizado, limpia la caché de inicio en about:support.",
+    "Zen no se reinició. Reinícialo cuando quieras; si algo parece desactualizado después, limpia la caché de inicio en about:support.",
 
   "menu.root": "Spacekeeper",
   "menu.preferences": "Preferencias…",
