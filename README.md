@@ -26,24 +26,32 @@ dragged out of the Space you put it in**.
   plain language, no JSON editing. English, Portuguese and Spanish.
 - **Respects your organization** — pinned tabs, essential tabs, Zen folders,
   split view and groups you made by hand are never touched.
-- **Private by design** — no telemetry, no network requests, everything stays on
-  your machine. MIT licensed, spec-driven, self-testable.
-- **One-command install** on Windows, macOS and Linux — and `--restart` finishes
-  the job for you, startup-cache clearing included.
+- **Private by design** — no telemetry, everything stays on your machine, and the
+  only action that ever contacts the network is the update you explicitly click.
+  MIT licensed, spec-driven, self-testable.
+- **Takes care of itself** — one-command install on Windows, macOS and Linux; an
+  optional guard that notices when a Zen update removes the loader (within
+  seconds) and restores or tells you; updates and uninstall are one click inside
+  `about:spacekeeper`.
 
 ## Installation
 
 **Windows**, in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.ps1 | iex
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.ps1))) -Guard -Restart
 ```
 
 **macOS and Linux**, in a terminal:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh -s -- --guard --restart
 ```
+
+That is the everything-handled command: install, the update guard, restart with
+the startup cache cleared. Prefer to keep it minimal? Drop the flags —
+`irm … | iex` on Windows, `curl … | sh` elsewhere — and you get the plain
+install, restart questions asked instead of assumed, no watcher created.
 
 You will be asked for administrator rights once — the fx-autoconfig loader has to
 be written into Zen's application directory. Everything else goes into your
@@ -62,7 +70,7 @@ that, Zen ignores the freshly installed loader. Reopen it and go to
 [Restarting for you](#restarting-for-you).
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.20.0 ready — active Space …`.
+`[ZSTG] 0.21.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -101,7 +109,10 @@ Both installers also take a source override — `-Repo` and `-Branch` on Windows
 repository or branch. Useful mainly for development.
 
 Uninstalling leaves the loader in place, because other mods may depend on it, and
-keeps your preferences so a reinstall finds your configuration.
+keeps your preferences so a reinstall finds your configuration. Updating and
+uninstalling are also one click inside `about:spacekeeper` (Updates and removal) —
+no installer needed; both end offering a clean restart that dissolves the mod's
+groups and clears the startup cache for you.
 
 ### Restarting for you
 
@@ -127,6 +138,22 @@ everything as it was, cache included. The cache cleared is only the
 `startupCache` of the profile it detected; when the profile lives outside the
 known profile root, the installer skips that step and says so rather than guess
 at someone else's cache.
+
+### The guard
+
+`--guard` / `-Guard` installs a small watcher — a LaunchAgent on macOS, a systemd
+user path unit on Linux, a Scheduled Task on Windows — that notices within seconds
+when a Zen update deletes the loader. Where the system allows a background write
+it restores the loader from a copy cached in your profile (byte-for-byte, no
+network); where it does not — macOS protects application bundles from background
+processes — it notifies you with the exact next step instead. It never asks for a
+password: a background process asking for one is indistinguishable from malware.
+
+The guard is honest about its footprint: everything lives in one profile directory
+(`<profile>/spacekeeper/`) plus the single watcher entry, `--check` reports it,
+`--uninstall` removes it — and it removes **itself** if you ever delete the mod by
+hand, so it never outlives its reason to exist. Once installed it depends on
+nothing else: you can delete the installer and any clone.
 
 **A flatpak Zen** keeps its application files in a read-only image, so the loader
 cannot be installed into it this way. The installer says so and stops instead of
@@ -162,10 +189,12 @@ What is left is a privileged chrome script (`.uc.mjs`) loaded by
 This has already been observed in practice: a staged update was applied on a
 restart and removed `config.js` and `defaults/pref/config-prefs.js`.
 
-Symptom: the mod simply stops loading, with no error — `about:spacekeeper` shows
-"invalid address", the context menu entry is gone, and the console has no `[ZSTG]`
-line. Diagnosis and fix are the same command, and they work without a clone,
-exactly like the install did:
+**With the guard installed, this stops being your problem**: within seconds you
+get a notification — either "restored, it loads on the next start" or the exact
+command to run. Without it, the symptom is the mod simply not loading, with no
+error — `about:spacekeeper` shows "invalid address", the context menu entry is
+gone, and the console has no `[ZSTG]` line. Diagnosis and fix are the same
+command, and they work without a clone, exactly like the install did:
 
 ```powershell
 $i = irm https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.ps1

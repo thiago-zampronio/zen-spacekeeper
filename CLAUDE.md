@@ -58,6 +58,7 @@ eslint.config.mjs        no-undef + no-unused-vars over src/, nothing of style
 package.json             dev tooling only (eslint); the mod has no dependencies
 package-lock.json        pins that tooling
 src/*.uc.mjs             the chrome script (window-scoped ES module)
+src/guard/               the loader guard scripts, deployed to <profile>/spacekeeper/
 src/*.uc.css             collapse and appearance, scoped to tab-group[zstg-key]
 src/resources/           served over chrome://userchrome/content/
   zstg-panel.html        the about:spacekeeper panel, chrome-privileged

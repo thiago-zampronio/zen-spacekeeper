@@ -315,6 +315,7 @@
       <section id="appearance"></section>
       <section id="actions"></section>
       <section id="diagnostics"></section>
+      <section id="maintenance"></section>
     </main>
 
     <script>
@@ -959,6 +960,114 @@
         row(t("log.title"), t("log.short"), toggle("debugLog"), null, t("log.help")),
         el("div", { class: "actions" }, testButton),
         testOutput
+      );
+
+      // ---- Maintenance: update and uninstall ----
+      // The buttons only ask the chrome script; every fetch happens THERE, so this
+      // page keeps loading nothing remote. Checking/updating are the one action in
+      // the whole product that contacts the network, and only when clicked.
+      const sMaintenance = document.getElementById("maintenance");
+      heading("maintenance", "sec.maintenance", t("maintenance.help"));
+      const maintOutput = el("pre", { text: "—" });
+      let updateTag = null;
+
+      const btnCheck = el("button", { text: t("update.check") });
+      const btnUpdate = el("button", { text: t("update.apply") });
+      btnUpdate.hidden = true;
+
+      // The clean handover: dissolve every group of ours, clear the startup cache
+      // and restart — offered after an update and after an uninstall, never imposed.
+      function offerReset() {
+        if (window.confirm(t("reset.confirm"))) {
+          const restarted = ZSTG?.resetAndRestart?.();
+          if (!restarted) {
+            maintOutput.textContent += "\n" + t("reset.manual");
+          }
+        } else {
+          maintOutput.textContent += "\n" + t("reset.manual");
+        }
+      }
+
+      // Numeric, per segment: the spec offers an update only when the release is
+      // NEWER — a maintainer running ahead of the latest release must not be
+      // offered a downgrade.
+      function isNewer(latest, current) {
+        const a = String(latest).split(".").map(Number);
+        const b = String(current).split(".").map(Number);
+        for (let i = 0; i < Math.max(a.length, b.length); i++) {
+          const d = (a[i] || 0) - (b[i] || 0);
+          if (d) {
+            return d > 0;
+          }
+        }
+        return false;
+      }
+
+      btnCheck.addEventListener("click", async () => {
+        if (!ZSTG?.checkForUpdate) {
+          maintOutput.textContent = t("noWindow");
+          return;
+        }
+        maintOutput.textContent = t("update.checking");
+        try {
+          const r = await ZSTG.checkForUpdate();
+          if (!r.version || !isNewer(r.version, ZSTG.version)) {
+            btnUpdate.hidden = true;
+            maintOutput.textContent = t("update.upToDate", { version: ZSTG.version });
+          } else {
+            updateTag = r.tag;
+            btnUpdate.hidden = false;
+            maintOutput.textContent = t("update.available", {
+              current: ZSTG.version,
+              latest: r.version,
+            });
+          }
+        } catch (ex) {
+          maintOutput.textContent = t("update.failed", { error: String(ex) });
+        }
+      });
+
+      btnUpdate.addEventListener("click", async () => {
+        if (!updateTag || !ZSTG?.applyUpdate) {
+          return;
+        }
+        maintOutput.textContent = t("update.applying");
+        try {
+          const r = await ZSTG.applyUpdate(updateTag);
+          btnUpdate.hidden = true;
+          maintOutput.textContent = r.loaderChanged
+            ? t("update.doneLoaderChanged")
+            : t("update.done");
+          offerReset();
+        } catch (ex) {
+          maintOutput.textContent = t("update.failed", { error: String(ex) });
+        }
+      });
+
+      const btnUninstall = el("button", { text: t("uninstall.button") });
+      btnUninstall.addEventListener("click", async () => {
+        if (!ZSTG?.uninstallSelf) {
+          maintOutput.textContent = t("noWindow");
+          return;
+        }
+        if (!window.confirm(t("uninstall.confirm"))) {
+          return;
+        }
+        try {
+          await ZSTG.uninstallSelf();
+          maintOutput.textContent = t("uninstall.done");
+          offerReset();
+        } catch (ex) {
+          maintOutput.textContent = t("uninstall.failed", { error: String(ex) });
+        }
+      });
+
+      const disclosure = el("p", { class: "help", text: t("update.disclosure") });
+      disclosure.hidden = false;
+      sMaintenance.append(
+        disclosure,
+        el("div", { class: "actions" }, btnCheck, btnUpdate, btnUninstall),
+        maintOutput
       );
 
       // Fields commit on `change`, which needs a blur. Closing the tab or quitting

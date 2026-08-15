@@ -96,6 +96,17 @@ those two things by hand IS a complete uninstall, no scavenger hunt.
 
 ## Settled Questions
 
+- **macOS: the watcher fires in about a second; the background write is TCC-denied.**
+  Verified on a real machine (macOS 15.7): `WatchPaths` must watch the application
+  DIRECTORY — launchd fires on a watched file's creation and modification but not
+  on its deletion — and with the directory watched, deleting the loader woke the
+  guard within one second. The restore `cp` into the bundle then failed with
+  `Operation not permitted` although the directory tests POSIX-writable: macOS App
+  Management denies background processes writing into application bundles. On
+  macOS the guard's value is therefore detection-plus-notification in seconds
+  (against days of silent death); the full auto-restore works where that
+  protection does not apply, such as Linux user-directory installs.
+
 - **Policies spike, resolved: they cannot bootstrap autoconfig.** The `Preferences`
   enterprise policy sets only an explicit allowlist of prefixes
   (mozilla/policy-templates docs, "Preferences that start with the following

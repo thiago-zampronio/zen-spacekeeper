@@ -15,6 +15,8 @@
 # Nothing of Spacekeeper's touches the network at runtime: the files are copied
 # once, and the mod reads only your own preferences afterwards. The vendored
 # fx-autoconfig loader ships its own update check, which is off by default.
+# The one exception is the update the user explicitly clicks in the
+# about:spacekeeper panel - one request, never on its own.
 #
 # POSIX sh on purpose: some minimal images ship dash as /bin/sh, and nothing here
 # needs arrays or [[ ]].
@@ -27,6 +29,7 @@ ZEN_DIR=""
 PROFILE_DIR=""
 ACTION="install"
 RESTART=0
+GUARD=0
 
 # How long the offered restart waits for Zen to exit before giving up. Kept equal
 # in install.ps1 ($RestartWaitSeconds); verify.ps1 fails if the two disagree.
@@ -64,6 +67,9 @@ Usage: install.sh [options]
   --restart         After installing, close Zen, clear the startup cache and open
                     it again, without asking. Without this flag you are asked,
                     when a terminal is available to answer.
+  --guard           Also install the loader guard: an OS watcher that restores the
+                    loader when a Zen update deletes it (or notifies you, when
+                    restoring would need privilege). Opt-in; removed by --uninstall.
   --zen-dir DIR     Zen application directory. Set only if detection is wrong.
   --profile-dir DIR Zen profile directory. Set only if detection is wrong.
   --repo OWNER/NAME Source repository when fetching over the network.
@@ -77,6 +83,7 @@ while [ $# -gt 0 ]; do
         --check) ACTION="check" ;;
         --uninstall) ACTION="uninstall" ;;
         --restart) RESTART=1 ;;
+        --guard) GUARD=1 ;;
         --zen-dir) ZEN_DIR="${2:?--zen-dir needs a directory}"; shift ;;
         --profile-dir) PROFILE_DIR="${2:?--profile-dir needs a directory}"; shift ;;
         --repo) REPO="${2:?--repo needs OWNER/NAME}"; shift ;;
@@ -315,6 +322,111 @@ do_restart() {
 }
 
 # ---------------------------------------------------------------------------
+# The loader guard
+#
+# An OS-level watcher — a LaunchAgent on macOS, a systemd user path unit on
+# Linux — that runs <profile>/spacekeeper/guard.sh when the loader file changes
+# or disappears, and once per login. Everything the guard needs is deployed here;
+# after this install, the installer and any clone can be deleted.
+
+GUARD_DIR_NAME="spacekeeper"
+AGENT_PLIST="$HOME/Library/LaunchAgents/org.spacekeeper.guard.plist"
+UNIT_DIR="$HOME/.config/systemd/user"
+
+guard_installed() {
+    [ -f "$PROF/$GUARD_DIR_NAME/guard.sh" ]
+}
+
+guard_watcher_installed() {
+    if [ "$OS" = macos ]; then
+        [ -f "$AGENT_PLIST" ]
+    else
+        [ -f "$UNIT_DIR/spacekeeper-guard.path" ]
+    fi
+}
+
+install_guard() {
+    if [ "$OS" = linux ] && ! command -v systemctl >/dev/null 2>&1; then
+        die "The guard needs systemd on Linux (a user path unit is the watcher).
+Without it, re-run the installer after Zen updates, as before."
+    fi
+
+    say "Guard: a watcher will be created to restore the loader after Zen updates."
+    say "  script and cache: $PROF/$GUARD_DIR_NAME/"
+    if [ "$OS" = macos ]; then
+        say "  watcher: $AGENT_PLIST"
+    else
+        say "  watcher: $UNIT_DIR/spacekeeper-guard.path"
+    fi
+
+    mkdir -p "$PROF/$GUARD_DIR_NAME/loader-cache"
+    cp -f "$(fetch "src/guard/guard.sh")" "$PROF/$GUARD_DIR_NAME/guard.sh"
+    chmod +x "$PROF/$GUARD_DIR_NAME/guard.sh"
+    cp -f "$(fetch "vendor/fx-autoconfig/program/config.js")" \
+        "$PROF/$GUARD_DIR_NAME/loader-cache/config.js"
+    cp -f "$(fetch "vendor/fx-autoconfig/program/defaults/pref/config-prefs.js")" \
+        "$PROF/$GUARD_DIR_NAME/loader-cache/config-prefs.js"
+    printf '%s' "$ZEN" > "$PROF/$GUARD_DIR_NAME/zen-dir"
+    date -u +%Y-%m-%d > "$PROF/$GUARD_DIR_NAME/cache-date"
+
+    if [ "$OS" = macos ]; then
+        mkdir -p "$(dirname "$AGENT_PLIST")"
+        cat > "$AGENT_PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>org.spacekeeper.guard</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>$PROF/$GUARD_DIR_NAME/guard.sh</string>
+    </array>
+    <key>WatchPaths</key>
+    <!-- The DIRECTORY, deliberately: launchd fires on a watched file's creation
+         and modification but not on its deletion, and deletion is the one event
+         this exists for. Removing a file inside modifies the directory. -->
+    <array><string>$ZEN</string></array>
+    <key>RunAtLoad</key><true/>
+</dict>
+</plist>
+PLIST
+        launchctl bootout "gui/$(id -u)" "$AGENT_PLIST" 2>/dev/null || true
+        launchctl bootstrap "gui/$(id -u)" "$AGENT_PLIST" 2>/dev/null ||
+            launchctl load -w "$AGENT_PLIST" 2>/dev/null || true
+    else
+        mkdir -p "$UNIT_DIR"
+        cat > "$UNIT_DIR/spacekeeper-guard.service" <<UNIT
+[Unit]
+Description=Spacekeeper loader guard
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh $PROF/$GUARD_DIR_NAME/guard.sh
+
+[Install]
+WantedBy=default.target
+UNIT
+        cat > "$UNIT_DIR/spacekeeper-guard.path" <<UNIT
+[Unit]
+Description=Watch the Spacekeeper loader
+
+[Path]
+# The DIRECTORY, deliberately: a watch on the file itself is lost the moment the
+# file is deleted, and deletion is the one event this exists for.
+PathModified=$ZEN
+
+[Install]
+WantedBy=default.target
+UNIT
+        systemctl --user daemon-reload 2>/dev/null || true
+        systemctl --user enable --now spacekeeper-guard.path 2>/dev/null || true
+        systemctl --user enable spacekeeper-guard.service 2>/dev/null || true
+    fi
+    ok "guard installed"
+}
+
+# ---------------------------------------------------------------------------
 # Sources: a clone next to this script, or the repository over the network
 
 SCRIPT_DIR=""
@@ -433,6 +545,22 @@ $FILES
 EOF
 
     say ""
+    say "Guard (optional):"
+    if guard_installed || guard_watcher_installed; then
+        guard_broken=0
+        guard_installed || { warn "guard script MISSING"; guard_broken=1; }
+        guard_watcher_installed || { warn "guard watcher MISSING"; guard_broken=1; }
+        [ -f "$PROF/$GUARD_DIR_NAME/loader-cache/config.js" ] || { warn "guard cache MISSING"; guard_broken=1; }
+        if [ "$guard_broken" = 0 ]; then
+            ok "installed (cache of $(cat "$PROF/$GUARD_DIR_NAME/cache-date" 2>/dev/null || printf 'unknown date'))"
+        else
+            warn "partially installed - run this installer with --guard to repair it"
+        fi
+    else
+        say "  not installed (--guard adds a watcher that restores the loader after updates)"
+    fi
+
+    say ""
     if [ "$loader_missing" = 0 ] && [ "$mod_missing" = 0 ]; then
         say "Everything installed."
         exit 0
@@ -450,6 +578,22 @@ if [ "$ACTION" = uninstall ]; then
     done <<EOF
 $FILES
 EOF
+    if guard_installed; then
+        sh "$PROF/$GUARD_DIR_NAME/guard.sh" --remove
+        ok "removed the guard (watcher, script and cache)"
+    elif guard_watcher_installed; then
+        # A leftover watcher with no script cannot remove itself.
+        if [ "$OS" = macos ]; then
+            launchctl bootout "gui/$(id -u)" "$AGENT_PLIST" 2>/dev/null || true
+            rm -f "$AGENT_PLIST"
+        else
+            systemctl --user disable --now spacekeeper-guard.path spacekeeper-guard.service 2>/dev/null || true
+            rm -f "$UNIT_DIR/spacekeeper-guard.path" "$UNIT_DIR/spacekeeper-guard.service"
+            systemctl --user daemon-reload 2>/dev/null || true
+        fi
+        rm -rf "$PROF/$GUARD_DIR_NAME"
+        ok "removed the guard watcher"
+    fi
     say ""
     say "The fx-autoconfig loader was left in place: other mods may be using it."
     say "Your preferences are kept, under zen.stg. in about:config."
@@ -538,6 +682,11 @@ while IFS=: read -r src dest; do
 done <<EOF
 $FILES
 EOF
+
+if [ "$GUARD" = 1 ]; then
+    say ""
+    install_guard
+fi
 
 # ---------------------------------------------------------------------------
 # Offer to finish the job: close Zen, clear the startup cache, open Zen again.

@@ -187,6 +187,15 @@ $anchors = [ordered]@{
     "languages/base language fallback"             = 'BASE_LANGUAGE'
     "languages/missing key is recorded"            = 'missingText'
     "tab-grouping/binding map pruned in-session"   = 'prune: true \}\)\), 60000'
+    "loader-guard/self-disarm"                     = 'remove_all'
+    "loader-guard/never elevates"                  = 'indistinguishable from malware'
+    "loader-guard/restore from cache"              = 'loader-cache/config.js'
+    "loader-guard/removal invokable"               = '"--remove"'
+    "self-update/release not branch"               = 'releases/latest'
+    "self-update/all-or-nothing staging"           = 'spacekeeper-staging'
+    "self-update/loader reported not applied"      = 'loaderChanged'
+    "control-panel/one-click uninstall"            = 'uninstallSelf'
+    "control-panel/clean handover reset"           = 'resetAndRestart'
     "diagnostics/contract canary"                  = 'function checkZenContract'
     "configuration/log records hosts only"         = 'function hostOnly'
     "configuration/log recovers on toggle"         = 'logUnavailable = false'
@@ -203,10 +212,11 @@ $anchors = [ordered]@{
 $js = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.mjs") -Raw
 $css = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.css") -Raw
 $coreSrc = Get-Content (Join-Path $root "src/resources/zstg-core.mjs") -Raw
+$guardSrc = (Get-Content (Join-Path $root "src/guard/guard.sh") -Raw) + (Get-Content (Join-Path $root "src/guard/guard.ps1") -Raw)
 $panel = (Get-Content (Join-Path $root "src/resources/zstg-panel.html") -Raw) + (Get-Content (Join-Path $root "src/resources/zstg-i18n.mjs") -Raw)
 $missing = @()
 foreach ($name in $anchors.Keys) {
-    if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]) -or ($coreSrc -match $anchors[$name]))) {
+    if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]) -or ($coreSrc -match $anchors[$name]) -or ($guardSrc -match $anchors[$name]))) {
         $missing += $name
     }
 }
@@ -402,6 +412,36 @@ $phantomOpts += $readmeShOpts | Where-Object { $shOptions -notcontains $_ }
 $phantomOpts += $readmePsOpts | Where-Object { $psOptions -notcontains $_ } | ForEach-Object { "-$_" }
 Check ($phantomOpts.Count -eq 0) "the README cites no installer option that does not exist"
 foreach ($o in $phantomOpts) { Write-Output "       cited but absent: $o" }
+
+# The two guard scripts must tell the user the same things, the same way the two
+# installers must.
+$guardSh = Get-Content (Join-Path $root "src/guard/guard.sh") -Raw
+$guardPs = Get-Content (Join-Path $root "src/guard/guard.ps1") -Raw
+$guardWording = @(
+    'A Zen update removed the Spacekeeper loader. Re-run the installer to restore it.',
+    'Restored from the copy of',
+    'Zen is not where it was installed.',
+    'never outlives its reason to exist'
+)
+$guardNotShared = $guardWording | Where-Object {
+    -not (($guardSh -match [regex]::Escape($_)) -and ($guardPs -match [regex]::Escape($_)))
+}
+Check ($guardNotShared.Count -eq 0) "guard wording matches between the two scripts"
+foreach ($s in $guardNotShared) { Write-Output "       differs: $s" }
+
+# The panel updates the same files the installers deploy; a file added to one and
+# forgotten in the other yields updates that silently skip part of the install.
+$updateDests = @(
+    [regex]::Matches($js, '"(chrome/[^"]+)"\]') | ForEach-Object { $_.Groups[1].Value }
+) | Sort-Object -Unique
+$shDests = @(
+    [regex]::Matches($sh, '(?m):(chrome/[^"\s]+?)"?$') | ForEach-Object { $_.Groups[1].Value }
+) | Sort-Object -Unique
+$destsDiffer = (Compare-Object $updateDests $shDests | Measure-Object).Count -gt 0
+Check ((-not $destsDiffer) -and ($updateDests.Count -gt 0)) "the panel updater and the installers deploy the same files ($($updateDests.Count))"
+if ($destsDiffer) {
+    Compare-Object $updateDests $shDests | ForEach-Object { Write-Output "       $($_.SideIndicator) $($_.InputObject)" }
+}
 
 # ---------------------------------------------------------------------------
 Section "Interface texts"

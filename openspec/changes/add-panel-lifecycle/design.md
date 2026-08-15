@@ -47,6 +47,15 @@ needs elevation and never fails for lack of it.
 cache-clear utility; when available the result offers "restart now", otherwise it
 states the manual steps. Same graceful-degradation pattern as everything else.
 
+**The reset dissolves only what is ours, everywhere.** The existing per-Space
+ungroup gains an all-Spaces variant used only by the reset: iterate every
+`tab-group[zstg-key]`, release its tabs in place, remove the group. Tabs never
+close and never change Space. After an update this guarantees no group survives
+carrying a previous version's structure — the new version regroups a blank slate on
+restart; after an uninstall it guarantees the sidebar is not left with orphaned
+markings no code will ever manage again. The binding map is cleared with the
+groups; the color memory is kept with the other preferences.
+
 **Uninstall reuses the guard's own removal.** The guard change ships removal logic
 in the guard script; the panel invokes that same path, so the installer's
 uninstall, the panel's uninstall and the guard's self-disarm converge on one

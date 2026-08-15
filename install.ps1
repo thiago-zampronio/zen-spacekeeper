@@ -14,6 +14,8 @@
 # Nothing of Spacekeeper's touches the network at runtime: the files are copied
 # once, and the mod reads only your own preferences afterwards. The vendored
 # fx-autoconfig loader ships its own update check, which is off by default.
+# The one exception is the update the user explicitly clicks in the
+# about:spacekeeper panel - one request, never on its own.
 
 [CmdletBinding()]
 param(
@@ -32,6 +34,10 @@ param(
     # without asking. Without this flag you are asked, when a terminal is
     # available to answer.
     [switch]$Restart,
+    # Also install the loader guard: an OS watcher that restores the loader when a
+    # Zen update deletes it (or notifies you, when restoring would need
+    # privilege). Opt-in; removed by -Uninstall.
+    [switch]$Guard,
     # Internal: set by the self-elevation relaunch. The elevated window closes as
     # soon as the script ends, so everything the user must read or answer — the
     # restart offer, the final instructions — is skipped there and printed by the
@@ -253,6 +259,45 @@ function Invoke-PostInstall {
 }
 
 # ---------------------------------------------------------------------------
+# The loader guard
+#
+# A Scheduled Task (logon + daily) that runs <profile>\spacekeeper\guard.ps1.
+# Everything the guard needs is deployed here; after this install, the installer
+# and any clone can be deleted.
+
+$GuardTaskName = "Spacekeeper Guard"
+
+function Test-GuardInstalled { Test-Path (Join-Path $prof "spacekeeper\guard.ps1") }
+function Test-GuardWatcherInstalled {
+    $null -ne (Get-ScheduledTask -TaskName $GuardTaskName -ErrorAction SilentlyContinue)
+}
+
+function Install-Guard {
+    $guardDir = Join-Path $prof "spacekeeper"
+    Say "Guard: a watcher will be created to restore the loader after Zen updates."
+    Say "  script and cache: $guardDir"
+    Say "  watcher: Scheduled Task '$GuardTaskName' (logon + daily)"
+
+    New-Item -ItemType Directory -Force (Join-Path $guardDir "loader-cache") | Out-Null
+    Copy-Item (Get-Source "src/guard/guard.ps1") (Join-Path $guardDir "guard.ps1") -Force
+    Copy-Item (Get-Source "vendor/fx-autoconfig/program/config.js") `
+        (Join-Path $guardDir "loader-cache\config.js") -Force
+    Copy-Item (Get-Source "vendor/fx-autoconfig/program/defaults/pref/config-prefs.js") `
+        (Join-Path $guardDir "loader-cache\config-prefs.js") -Force
+    Set-Content -Path (Join-Path $guardDir "zen-dir") -Value $zen -NoNewline
+    Set-Content -Path (Join-Path $guardDir "cache-date") -Value ((Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")) -NoNewline
+
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$guardDir\guard.ps1`""
+    $triggers = @(
+        (New-ScheduledTaskTrigger -AtLogOn),
+        (New-ScheduledTaskTrigger -Daily -At "12:00")
+    )
+    Register-ScheduledTask -TaskName $GuardTaskName -Action $action -Trigger $triggers -Force | Out-Null
+    Ok "guard installed"
+}
+
+# ---------------------------------------------------------------------------
 # Sources: a clone next to this script, or the repository over the network
 
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { $null }
@@ -320,6 +365,26 @@ if ($Check) {
     }
 
     Say ""
+    Say "Guard (optional):"
+    if ((Test-GuardInstalled) -or (Test-GuardWatcherInstalled)) {
+        $guardBroken = $false
+        if (-not (Test-GuardInstalled)) { Warn "guard script MISSING"; $guardBroken = $true }
+        if (-not (Test-GuardWatcherInstalled)) { Warn "guard watcher MISSING"; $guardBroken = $true }
+        if (-not (Test-Path (Join-Path $prof "spacekeeper\loader-cache\config.js"))) { Warn "guard cache MISSING"; $guardBroken = $true }
+        if (-not $guardBroken) {
+            $guardDate = Get-Content (Join-Path $prof "spacekeeper\cache-date") -ErrorAction SilentlyContinue
+            if (-not $guardDate) { $guardDate = "unknown date" }
+            Ok "installed (cache of $guardDate)"
+        }
+        else {
+            Warn "partially installed - run this installer with -Guard to repair it"
+        }
+    }
+    else {
+        Say "  not installed (-Guard adds a watcher that restores the loader after updates)"
+    }
+
+    Say ""
     if ($loaderOk -and $modOk) {
         Say "Everything installed."
         exit 0
@@ -334,6 +399,16 @@ if ($Uninstall) {
     foreach ($f in $FILES) {
         $target = Join-Path $prof $f.To
         if (Test-Path $target) { Remove-Item $target -Force; Ok "removed $($f.To)" }
+    }
+    if (Test-GuardInstalled) {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $prof "spacekeeper\guard.ps1") -Remove
+        Ok "removed the guard (watcher, script and cache)"
+    }
+    elseif (Test-GuardWatcherInstalled) {
+        # A leftover watcher with no script cannot remove itself.
+        Unregister-ScheduledTask -TaskName $GuardTaskName -Confirm:$false -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $prof "spacekeeper") -Recurse -Force -ErrorAction SilentlyContinue
+        Ok "removed the guard watcher"
     }
     Say ""
     Say "The fx-autoconfig loader was left in place: other mods may be using it."
@@ -380,8 +455,14 @@ if (-not $loaderPresent -and -not $isAdmin) {
         Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -Wait
     }
     # The elevated window is gone; whatever the user must read or answer happens
-    # here. The restart offer needs no privilege.
+    # here. The guard and the restart offer need no privilege - and the guard must
+    # NOT be created by the elevated child, or its Scheduled Task would be born in
+    # the administrator's context.
     if (Test-Path (Join-Path $zen "config.js")) {
+        if ($Guard) {
+            Say ""
+            Install-Guard
+        }
         Invoke-PostInstall
         exit 0
     }
@@ -440,6 +521,11 @@ foreach ($f in $FILES) {
     New-Item -ItemType Directory -Force (Split-Path $target -Parent) | Out-Null
     Copy-Item (Get-Source $f.From) $target -Force
     Ok $f.To
+}
+
+if ($Guard) {
+    Say ""
+    Install-Guard
 }
 
 if ($staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }

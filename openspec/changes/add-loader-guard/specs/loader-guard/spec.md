@@ -21,32 +21,36 @@ operating system survives the update.
 - **WHEN** a browser update deletes the loader files
 - **THEN** the guard detects it without the browser's help
 
-### Requirement: Restore when unprivileged, notify when not
+### Requirement: Restore when the system allows it, notify when it does not
 
-The guard SHALL restore the loader files from the profile-side cache when the
-application directory is writable without elevation, and SHALL only notify the
-user when it is not. It SHALL NOT request elevation from the background, and it
-SHALL notify what it did in either case.
+The guard SHALL attempt to restore the loader files from the profile-side cache,
+and SHALL fall back to notifying the user whenever the write is denied — whether
+by file permissions or by an OS protection such as macOS App Management, which
+denies background writes into application bundles even when POSIX permissions
+would allow them. It SHALL NOT request elevation or any permission grant from the
+background, SHALL notify what it did in either case, and SHALL log the denial's
+actual reason.
 
-A background process asking for a password is indistinguishable from malware
-asking for one. The guard's job is to make the failure visible and, when possible,
-already fixed.
+A background process asking for a password or a permission is indistinguishable
+from malware asking for one. The guard's job is to make the failure visible within
+seconds and, where the system allows, already fixed.
 
-#### Scenario: Application directory writable
+#### Scenario: The write is allowed
 
 - **GIVEN** the loader files are missing
-- **AND** the application directory is writable by the user
+- **AND** the operating system allows the guard to write them
 - **WHEN** the guard runs
 - **THEN** the loader files are restored from the cache
 - **AND** the user is notified that a restore happened
 
-#### Scenario: Application directory not writable
+#### Scenario: The write is denied
 
 - **GIVEN** the loader files are missing
-- **AND** writing them would require elevation
+- **AND** the write is denied by permissions or by an OS protection
 - **WHEN** the guard runs
-- **THEN** nothing is written and no elevation is requested
+- **THEN** no elevation or permission is requested
 - **AND** the user is notified to re-run the installer
+- **AND** the denial's reason is logged
 
 #### Scenario: Nothing is missing
 

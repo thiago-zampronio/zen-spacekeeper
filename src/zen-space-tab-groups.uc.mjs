@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.20.0
+// @version        0.21.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.20.0";
+const VERSION = "0.21.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1039,6 +1039,206 @@ function setCollapsed(collapsed) {
 }
 
 // ---------------------------------------------------------------------------
+// Lifecycle: update and uninstall, driven from the panel
+// ---------------------------------------------------------------------------
+
+const REPO = "thiago-zampronio/zen-spacekeeper";
+
+// Kept equal to the installers' file lists; verify.ps1 fails if they disagree.
+// The fetch happens HERE, in the chrome script, never in the panel document —
+// the panel's CSP stays exactly as strict as it is.
+const UPDATE_FILES = [
+  ["src/zen-space-tab-groups.uc.mjs", "chrome/JS/zen-space-tab-groups.uc.mjs"],
+  ["src/zen-space-tab-groups.uc.css", "chrome/CSS/zen-space-tab-groups.uc.css"],
+  ["src/resources/zstg-panel.html", "chrome/resources/zstg-panel.html"],
+  ["src/resources/zstg-i18n.mjs", "chrome/resources/zstg-i18n.mjs"],
+  ["src/resources/zstg-core.mjs", "chrome/resources/zstg-core.mjs"],
+];
+const LOADER_SOURCES = [
+  ["vendor/fx-autoconfig/program/config.js", "config.js"],
+  ["vendor/fx-autoconfig/program/defaults/pref/config-prefs.js", "defaults/pref/config-prefs.js"],
+];
+
+function profilePath(relative) {
+  return PathUtils.join(PathUtils.profileDir, ...relative.split("/"));
+}
+
+/**
+ * The single deliberate exception to "nothing touches the network": one request,
+ * in direct response to the user's click in the panel, for the latest RELEASE —
+ * never a moving branch. A check downloads nothing but the version.
+ */
+async function checkForUpdate() {
+  const r = await window.fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+    headers: { Accept: "application/vnd.github+json" },
+  });
+  if (!r.ok) {
+    throw new Error(`HTTP ${r.status}`);
+  }
+  const release = await r.json();
+  const tag = String(release.tag_name ?? "");
+  dbg("updateCheck", { tag });
+  return { tag, version: tag.replace(/^v/, "") };
+}
+
+async function fetchRaw(tag, path) {
+  const r = await window.fetch(`https://raw.githubusercontent.com/${REPO}/${tag}/${path}`);
+  if (!r.ok) {
+    throw new Error(`${path}: HTTP ${r.status}`);
+  }
+  return r.text();
+}
+
+/**
+ * All-or-nothing: every file lands in a staging directory first, and only then
+ * replaces the installed ones — a half-fetched update must leave the previous
+ * install untouched. Only profile-side files are ever written; a release that
+ * also changed the loader is reported, because the application directory belongs
+ * to the installer, where a human is present to grant privilege.
+ */
+async function applyUpdate(tag) {
+  const staging = profilePath("spacekeeper-staging");
+  await IOUtils.makeDirectory(staging, { ignoreExisting: true });
+  const fetched = [];
+  for (const [src, dest] of UPDATE_FILES) {
+    const text = await fetchRaw(tag, src);
+    const stagePath = PathUtils.join(staging, dest.replace(/\//g, "_"));
+    await IOUtils.writeUTF8(stagePath, text);
+    fetched.push([stagePath, dest]);
+  }
+
+  // The loader comparison reads the release and the installed application
+  // directory (GreD); nothing there is ever written from here.
+  let loaderChanged = false;
+  const appDir = Services.dirsvc.get("GreD", Ci.nsIFile).path;
+  for (const [src, installedRel] of LOADER_SOURCES) {
+    const releaseText = await fetchRaw(tag, src);
+    let installedText = null;
+    try {
+      installedText = await IOUtils.readUTF8(
+        PathUtils.join(appDir, ...installedRel.split("/"))
+      );
+    } catch {
+      loaderChanged = true;
+    }
+    if (installedText !== null && installedText !== releaseText) {
+      loaderChanged = true;
+    }
+  }
+
+  for (const [stagePath, dest] of fetched) {
+    await IOUtils.move(stagePath, profilePath(dest));
+  }
+  await IOUtils.remove(staging, { recursive: true, ignoreAbsent: true });
+
+  // A guard cache that matches the (unchanged) loader gets its date refreshed,
+  // so the restore notification keeps naming a meaningful date.
+  if (!loaderChanged && (await IOUtils.exists(profilePath("spacekeeper/guard.sh")).catch(() => false) ||
+      await IOUtils.exists(profilePath("spacekeeper/guard.ps1")).catch(() => false))) {
+    await IOUtils.writeUTF8(
+      profilePath("spacekeeper/cache-date"),
+      new Date().toISOString().slice(0, 10)
+    ).catch(() => {});
+  }
+
+  dbg("updated", { tag, files: fetched.length, loaderChanged });
+  return { updated: fetched.length, loaderChanged };
+}
+
+function runProcess(executable, args) {
+  return new Promise((resolve, reject) => {
+    try {
+      const file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+      file.initWithPath(executable);
+      const proc = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
+      proc.init(file);
+      proc.runAsync(args, args.length, {
+        observe(_subject, topic) {
+          if (topic === "process-finished") {
+            resolve();
+          } else {
+            reject(new Error(topic));
+          }
+        },
+      });
+    } catch (ex) {
+      reject(ex);
+    }
+  });
+}
+
+/**
+ * Removes everything Spacekeeper put in the profile: the mod files and, when
+ * installed, the guard — through the guard's own removal, so the installer's
+ * uninstall, the panel's uninstall and the self-disarm all leave the same
+ * machine behind. The loader stays (other mods may use it); the preferences
+ * stay (a reinstall finds the configuration). The running session keeps
+ * working: these files are only read at startup.
+ */
+async function uninstallSelf() {
+  for (const [, dest] of UPDATE_FILES) {
+    await IOUtils.remove(profilePath(dest), { ignoreAbsent: true });
+  }
+  const guardSh = profilePath("spacekeeper/guard.sh");
+  const guardPs = profilePath("spacekeeper/guard.ps1");
+  try {
+    if (await IOUtils.exists(guardSh)) {
+      await runProcess("/bin/sh", [guardSh, "--remove"]);
+    } else if (await IOUtils.exists(guardPs)) {
+      await runProcess(
+        "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", guardPs, "-Remove"]
+      );
+    }
+  } catch (ex) {
+    dbg("guardRemovalFailed", { error: String(ex) });
+  }
+  await IOUtils.remove(profilePath("spacekeeper"), { recursive: true, ignoreAbsent: true });
+  dbg("uninstalled", {});
+  return true;
+}
+
+/**
+ * Dissolves every group of ours, in every Space — no tab closes, no tab changes
+ * Space. Used only by the clean-handover reset: after an update it guarantees no
+ * group survives carrying a previous version's structure, and after an uninstall
+ * it leaves no orphaned markings behind.
+ */
+function ungroupAllOurs() {
+  let n = 0;
+  for (const g of [...window.gBrowser.tabGroups]) {
+    if (!isOurGroup(g)) {
+      continue;
+    }
+    for (const t of [...g.tabs]) {
+      window.gBrowser.ungroupTab(t);
+      n++;
+    }
+    g.remove();
+  }
+  saveGroupMap({});
+  if (_cfg) {
+    _cfg.groups = {};
+  }
+  return n;
+}
+
+/**
+ * The clean handover: dissolve our groups everywhere, then restart with the
+ * startup cache invalidated (fx-autoconfig's own utility). Returns false when
+ * the utility is unavailable, and the panel shows the manual steps instead.
+ */
+function resetAndRestart() {
+  guarded(ungroupAllOurs);
+  const restart = window.UC_API?.Runtime?.restart;
+  if (typeof restart !== "function") {
+    return false;
+  }
+  dbg("resetAndRestart", {});
+  return restart(true);
+}
+
+// ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
 
@@ -1720,6 +1920,10 @@ if (core) {
     collapseAll: () => setCollapsed(true),
     expandAll: () => setCollapsed(false),
     keyFromTab,
+    checkForUpdate,
+    applyUpdate,
+    uninstallSelf,
+    resetAndRestart,
     reloadConfig: () => {
       _cfg = null;
       _t = null;

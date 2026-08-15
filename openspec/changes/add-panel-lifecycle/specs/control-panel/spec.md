@@ -51,3 +51,39 @@ contacts the network.
 - **WHEN** the user looks at the update controls
 - **THEN** a plain-language note states that clicking them contacts the repository
 - **AND** nothing else in the product does
+
+### Requirement: A clean handover is offered, never imposed
+
+After an update completes and after an uninstall completes, the panel SHALL state
+up front that a restart with a startup-cache clear finishes the job, and SHALL
+offer a yes-or-no choice to do the full reset now: dissolve every group the system
+created, in every Space, clear the startup cache and restart the browser. Declining
+SHALL change nothing beyond showing the manual steps.
+
+Dissolving the groups is what makes structure changes safe: the next start finds no
+group carrying an old marking, and the new version rebuilds the organization from
+scratch (after an update) or the sidebar is simply clean (after an uninstall). Tabs
+are never closed — only the system's own groups are dissolved; manual groups,
+folders, pinned and essential tabs stay untouched, as always.
+
+#### Scenario: Accepting the reset after an update
+
+- **GIVEN** an update finished
+- **WHEN** the user accepts the reset
+- **THEN** every group the system created, in every Space, is dissolved
+- **AND** no tab is closed and no tab changes Space
+- **AND** the startup cache is cleared and the browser restarts
+- **AND** the new version regroups on the next start
+
+#### Scenario: Accepting the reset after an uninstall
+
+- **GIVEN** an uninstall finished
+- **WHEN** the user accepts the reset
+- **THEN** every group the system created is dissolved before the restart
+- **AND** the browser comes back without the mod and without its groups
+
+#### Scenario: Declining the reset
+
+- **WHEN** the user declines
+- **THEN** nothing is dissolved and nothing restarts
+- **AND** the manual steps (restart, startup cache) are shown
