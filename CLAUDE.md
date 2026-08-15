@@ -100,7 +100,9 @@ A release is a version bump plus a push to `main` — the piped installers serve
 whatever `main` holds. The version lives in three places that `verify.ps1` keeps
 honest: the `@version` header and the `VERSION` constant in the script, and the
 `[ZSTG] x.y.z ready` literal in the README. Bump all three, run the installer to
-refresh your profile, run `verify.ps1`, and only then push.
+refresh your profile, run `verify.ps1`, and only then push. For milestones, also
+tag it and publish notes (`gh release create vX.Y.Z`) — releases are where new
+users judge whether the project is alive.
 
 `verify.ps1` catches a requirement with no implementation, a pref with no
 documentation, a README citing a function that no longer exists, and a stale file in
