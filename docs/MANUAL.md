@@ -437,5 +437,4 @@ retranslated after the fact.
 
 ## Next steps
 
-- Catch-all group for tabs that do not form a group of their own.
 - Configurable delay in focus mode.
