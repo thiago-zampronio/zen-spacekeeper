@@ -187,6 +187,8 @@ $anchors = [ordered]@{
     "languages/base language fallback"             = 'BASE_LANGUAGE'
     "languages/missing key is recorded"            = 'missingText'
     "tab-grouping/binding map pruned in-session"   = 'prune: true \}\)\), 60000'
+    "tab-grouping/system group for internal pages" = 'SYSTEM_SCHEMES'
+    "tab-grouping/loose tabs settle below groups"  = 'function settleLooseTabs'
     "installation/profile from profiles.ini"       = 'profiles\.ini'
     "installation/loader separate from mod"        = 'Loader \(deleted by every Zen update\)'
     "installation/guard offered, never imposed"    = '--guard\) GUARD=1'
@@ -559,12 +561,13 @@ if ((Test-Path $corePath) -and (Get-Command node -ErrorAction SilentlyContinue))
     $coreCode = @"
 import { keyFromParts, runDerivationTests, makeTestETLD } from '$coreUri';
 const etld = makeTestETLD();
-const noRules = { rules: [], excluded: [], groupBySubdomain: false, subdomainDomains: [], subdomainLabel: 'host' };
+const noRules = { rules: [], excluded: [], groupBySubdomain: false, subdomainDomains: [], subdomainLabel: 'host', systemGroup: false };
 const keyFromText = (url, over) => {
   let u;
   try { u = new URL(url); } catch { return null; }
   const c = { ...noRules, ...over };
-  return keyFromParts(u.protocol.replace(':', ''), u.hostname, c, etld);
+  const path = u.pathname.replace(/^\/*/, '') || u.hostname;
+  return keyFromParts(u.protocol.replace(':', ''), u.hostname, c, etld, path);
 };
 const cases = runDerivationTests(keyFromText);
 const failures = cases.filter(c => !c.ok);

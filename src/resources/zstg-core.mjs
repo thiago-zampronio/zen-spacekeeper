@@ -18,6 +18,11 @@ export const COLORS = [
 
 export const GROUPABLE_SCHEMES = new Set(["http", "https"]);
 
+// Browser-internal pages: these share no domain to group by, but they share an
+// obvious home — the System group. file: stays out on purpose (user documents,
+// not system pages), and about:blank is excluded by path in keyFromParts.
+export const SYSTEM_SCHEMES = new Set(["about", "chrome"]);
+
 /**
  * Turns the raw pref text into usable rules. Invalid text never takes grouping
  * down: it becomes an empty list.
@@ -105,12 +110,24 @@ export function colorName(h) {
  * @param {string} scheme
  * @param {string} host
  * @param {object} c resolved configuration: rules, excluded, groupBySubdomain,
- *   subdomainDomains, subdomainLabel
+ *   subdomainDomains, subdomainLabel, systemGroup
  * @param {{getBaseDomainFromHost: Function, getPublicSuffixFromHost: Function}} etld
  *   Public Suffix knowledge; both methods throw for a host with no known suffix.
+ * @param {string} [path] the part after the scheme, used only to keep
+ *   about:blank out of the System group.
  * @returns {{key: string, label: string}|null} null when not groupable.
  */
-export function keyFromParts(scheme, host, c, etld) {
+export function keyFromParts(scheme, host, c, etld, path = "") {
+  // Internal pages first: they have no host, so the host gate below would drop
+  // them. The English label is the pure default; the chrome-side caller swaps it
+  // for the catalog's translation. about:blank is a placeholder tabs pass
+  // through — grouping it would flicker groups into existence mid-navigation.
+  if (c.systemGroup && SYSTEM_SCHEMES.has(scheme)) {
+    if (scheme === "about" && (path === "" || path === "blank")) {
+      return null;
+    }
+    return { key: "system:", label: "System" };
+  }
   if (!GROUPABLE_SCHEMES.has(scheme) || !host) {
     return null;
   }
@@ -239,9 +256,18 @@ export function runDerivationTests(keyFromText) {
     true
   );
 
-  // Non-groupable schemes
-  check("ignores about:", k("about:config"), null);
+  // Non-groupable schemes (the baseline config has systemGroup off)
+  check("ignores about: when the system group is off", k("about:config"), null);
   check("ignores file:", k("file:///C:/temp/nota.html"), null);
+
+  // The System group
+  const sys = { systemGroup: true };
+  check("system group: about page joins", k("about:config", sys), "system:");
+  check("system group: chrome page joins", k("chrome://browser/content/browser.xhtml", sys), "system:");
+  check("system group: one shared key", k("about:config", sys) === k("about:preferences", sys), true);
+  check("system group: English label by default", lbl("about:config", sys), "System");
+  check("system group: about:blank stays out", k("about:blank", sys), null);
+  check("system group: files stay out", k("file:///C:/temp/nota.html", sys), null);
 
   // Subdomain
   check(

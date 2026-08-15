@@ -70,7 +70,7 @@ that, Zen ignores the freshly installed loader. Reopen it and go to
 [Restarting for you](#restarting-for-you).
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.25.0 ready — active Space …`.
+`[ZSTG] 0.26.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -239,6 +239,8 @@ restarting.
 | `zen.stg.focusKeep` | int | `3` | how many groups focus mode keeps open (`1` = only the active one) |
 | `zen.stg.faviconColors` | bool | `true` | derives the group color from the site's favicon |
 | `zen.stg.spaceScopedTabSwitch` | bool | `true` | prevents "switch to tab" from taking you out of the current Space |
+| `zen.stg.systemGroup` | bool | `true` | `about:` and `chrome:` pages share one System group per Space |
+| `zen.stg.looseTabsAtBottom` | bool | `true` | ungrouped tabs settle below the last group of their Space |
 | `zen.stg.excludedDomains` | string | `""` | domains that are never grouped, comma-separated |
 | `zen.stg.customRules` | string | `[]` | named rules, in JSON |
 | `zen.stg.debugLog` | bool | `false` | writes diagnostics to `zstg-debug.log` in the profile |

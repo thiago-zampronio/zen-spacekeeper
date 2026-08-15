@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.25.0
+// @version        0.26.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.25.0";
+const VERSION = "0.26.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -28,6 +28,7 @@ const core = (() => {
 const {
   COLORS,
   GROUPABLE_SCHEMES,
+  SYSTEM_SCHEMES,
   parseRules,
   hashColor,
   rgbToHsl,
@@ -55,6 +56,11 @@ const DEFAULTS = {
   // reduces that motion without losing the effect.
   focusKeep: 3,
   spaceScopedTabSwitch: true,
+  // Internal pages (about:, chrome:) share one System group per Space.
+  systemGroup: true,
+  // Ungrouped tabs settle below the last group of their Space, where they are
+  // findable, instead of staying wedged between groups.
+  looseTabsAtBottom: true,
   faviconColors: true,
   excludedDomains: "",
   customRules: "[]",
@@ -276,6 +282,8 @@ function cfg() {
     focusMode: prefBool("focusMode"),
     focusKeep: Math.max(1, prefInt("focusKeep")),
     spaceScopedTabSwitch: prefBool("spaceScopedTabSwitch"),
+    systemGroup: prefBool("systemGroup"),
+    looseTabsAtBottom: prefBool("looseTabsAtBottom"),
     faviconColors: prefBool("faviconColors"),
     excluded: prefStr("excludedDomains")
       .split(",")
@@ -317,20 +325,30 @@ function saveColors(map) {
  * @returns {{key: string, label: string}|null} null when the tab is not groupable.
  */
 function keyFromURI(uri, over) {
-  if (!uri || !GROUPABLE_SCHEMES.has(uri.scheme)) {
+  if (!uri || (!GROUPABLE_SCHEMES.has(uri.scheme) && !SYSTEM_SCHEMES.has(uri.scheme))) {
     return null;
   }
-  let host;
+  // Internal pages have no host; both are read defensively and the core decides.
+  let host = "";
   try {
-    host = uri.host;
+    host = uri.host ?? "";
   } catch {
-    return null;
+    host = "";
   }
-  if (!host) {
-    return null;
+  let path = "";
+  try {
+    path = uri.spec.slice(uri.scheme.length + 1).split(/[?#]/)[0];
+  } catch {
+    path = "";
   }
   const c = over ? { ...cfg(), ...over } : cfg();
-  return keyFromParts(uri.scheme, host, c, Services.eTLD);
+  const info = keyFromParts(uri.scheme, host, c, Services.eTLD, path);
+  // The core is i18n-free and labels the System group in English; the display
+  // label follows the catalog. The key never changes with the language.
+  if (info && info.key === "system:") {
+    return { key: info.key, label: t("group.system") };
+  }
+  return info;
 }
 
 function keyFromTab(tab) {
@@ -801,6 +819,74 @@ function removeEmptyGroups() {
   }
 }
 
+/**
+ * Loose tabs live below the groups: grouping forms islands around whatever was
+ * open, and the tabs left out end up wedged between islands — the hardest place
+ * to find them. This settles every misplaced loose tab of ONE Space after that
+ * Space's last group, preserving their relative order. It runs only at the
+ * moments the system already organizes, so a manual drag is not fought in real
+ * time; it moves nothing when nothing is misplaced; and it never touches what
+ * eligibility already protects (pinned, essential, folders, manual groups) nor
+ * any tab outside the given Space.
+ */
+function settleLooseTabs(spaceId) {
+  if (!spaceId || !cfg().looseTabsAtBottom) {
+    return;
+  }
+  const container = spaceContainer(spaceId);
+  if (!container) {
+    return;
+  }
+  const groups = [...container.querySelectorAll("tab-group")];
+  if (!groups.length) {
+    return;
+  }
+  const lastGroup = groups[groups.length - 1];
+
+  const misplaced = [];
+  for (const tab of window.gBrowser.tabs) {
+    if (spaceOfTab(tab) !== spaceId || tab.group || !isEligible(tab)) {
+      continue;
+    }
+    if (
+      lastGroup.compareDocumentPosition(tab) &
+      window.Node.DOCUMENT_POSITION_PRECEDING
+    ) {
+      misplaced.push(tab);
+    }
+  }
+
+  // Moved one at a time to the Space's current end, in their original order —
+  // each move makes the moved tab the new end, so the relative order survives.
+  // Always through the browser's move API, never raw DOM: raw reparenting would
+  // lie to everything that tracks tab order. The object signature carries
+  // forceUngrouped so landing beside a group does not join it; the numeric
+  // fallback covers older signatures, with an explicit ungroup as the net.
+  for (const tab of misplaced) {
+    const spaceTabs = [...window.gBrowser.tabs].filter(
+      t => spaceOfTab(t) === spaceId
+    );
+    const last = spaceTabs[spaceTabs.length - 1];
+    if (!last || last === tab) {
+      continue;
+    }
+    try {
+      try {
+        window.gBrowser.moveTabTo(tab, { tabIndex: last._tPos, forceUngrouped: true });
+      } catch {
+        window.gBrowser.moveTabTo(tab, last._tPos);
+      }
+      if (tab.group) {
+        window.gBrowser.ungroupTab(tab);
+      }
+      dbg("looseSettled", { space: spaceId, key: keyFromTab(tab)?.key ?? null });
+    } catch (ex) {
+      dbg("looseSettleFailed", { space: spaceId, error: String(ex) });
+      break;
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Visual finishing
 // ---------------------------------------------------------------------------
@@ -908,6 +994,7 @@ function regroup() {
       organize(t, true);
     }
     removeEmptyGroups();
+    settleLooseTabs(spaceId);
     updateHiddenCounts();
     console.log(`${LOG} regroup: ${targets.length} tabs evaluated in Space ${spaceId}`);
     return targets.length;
@@ -1255,7 +1342,10 @@ function schedule(tab) {
   scheduled.add(tab);
   window.setTimeout(() => {
     scheduled.delete(tab);
-    guarded(() => organize(tab));
+    guarded(() => {
+      organize(tab);
+      settleLooseTabs(spaceOfTab(tab));
+    });
   }, 120);
 }
 
@@ -1278,7 +1368,10 @@ const progressListener = {
       return;
     }
     lastKey.set(tab, next);
-    guarded(() => organize(tab));
+    guarded(() => {
+      organize(tab);
+      settleLooseTabs(spaceOfTab(tab));
+    });
   },
 };
 
@@ -1376,6 +1469,7 @@ function selfTest() {
     groupBySubdomain: false,
     subdomainDomains: [],
     subdomainLabel: "host",
+    systemGroup: false,
   };
   const cases = runDerivationTests((url, over) =>
     keyFromText(url, { ...noRules, ...over })
@@ -1849,7 +1943,14 @@ async function start() {
   // Zen restores tabs and groups after this point; the delayed passes reach what
   // did not exist yet.
   for (const delay of [1000, 3000, 8000]) {
-    window.setTimeout(() => guarded(reclaimGroups), delay);
+    window.setTimeout(
+      () =>
+        guarded(() => {
+          reclaimGroups();
+          settleLooseTabs(currentSpace());
+        }),
+      delay
+    );
   }
   // The binding map's only housekeeping used to be the manual regroup command;
   // whoever never ran it accumulated dead ids forever. One restore-safe prune per

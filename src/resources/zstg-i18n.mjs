@@ -52,6 +52,16 @@ const en = {
   "noJump.help":
     "When you type an address that is already open, Zen looks for that tab across every Space and takes you there, even if it belongs to another context. The effect is confusing: no new tab appears and the browser seems to jump on its own. Turned on (the default), that search is limited to the current Space and nothing moves you without asking. In exchange, if the page is open in another Space, Zen no longer jumps there — it opens a new tab here.",
 
+  "group.system": "System",
+  "system.title": "Group system pages",
+  "system.short": "about:config and other internal pages share one System group.",
+  "system.help":
+    "Browser pages — settings, about:config, this panel — have no site to group by, so they used to drift loose through the sidebar. With this on, each Space gets one System group that collects them. It is a regular group: rename it, recolor it, collapse it. Blank tabs never join it. Turn it off and internal pages stay loose, as before.",
+  "bottom.title": "Keep loose tabs at the bottom",
+  "bottom.short": "Tabs without a group stay below the groups.",
+  "bottom.help":
+    "Groups form around whatever is open, and the tabs left without a group end up wedged between them — the hardest place to find anything. With this on, whenever tabs are organized, loose tabs settle below the last group of their Space, keeping their order among themselves. Pinned tabs, essential tabs, folders and groups you made are never moved. Turn it off and loose tabs stay wherever they are.",
+
   "subGlobal.title": "Split every subdomain",
   "subGlobal.short": "mail.google.com and drive.google.com become two groups, everywhere.",
   "subGlobal.help":
@@ -206,6 +216,16 @@ const pt = {
   "noJump.help":
     "Quando você digita um endereço que já está aberto, o Zen procura essa aba em todos os Spaces e leva você até ela, mesmo que esteja em outro contexto. O efeito é confuso: nenhuma aba nova aparece e o navegador parece pular sozinho. Ligado (o padrão), essa busca fica restrita ao Space atual e nada muda você de lugar sem você mandar. Em troca, se a página já estiver aberta em outro Space, o Zen não vai mais pular para lá — ele abre uma aba nova aqui.",
 
+  "group.system": "Sistema",
+  "system.title": "Agrupar páginas do sistema",
+  "system.short": "about:config e outras páginas internas dividem um grupo Sistema.",
+  "system.help":
+    "Páginas do navegador — configurações, about:config, este painel — não têm site para agrupar, então ficavam soltas pela barra lateral. Com isto ligado, cada Space ganha um grupo Sistema que as recolhe. É um grupo normal: renomeie, mude a cor, recolha. Abas em branco nunca entram nele. Desligue e as páginas internas voltam a ficar soltas, como antes.",
+  "bottom.title": "Manter abas soltas embaixo",
+  "bottom.short": "Abas sem grupo ficam abaixo dos grupos.",
+  "bottom.help":
+    "Os grupos se formam em volta do que está aberto, e as abas que ficam sem grupo acabam espremidas entre eles — o pior lugar para achar qualquer coisa. Com isto ligado, sempre que as abas são organizadas, as soltas descem para baixo do último grupo do seu Space, mantendo a ordem entre elas. Abas fixadas, essenciais, pastas e grupos que você criou nunca são movidos. Desligue e as abas soltas ficam onde estiverem.",
+
   "subGlobal.title": "Separar todos os subdomínios",
   "subGlobal.short": "mail.google.com e drive.google.com viram dois grupos, em todos os sites.",
   "subGlobal.help":
@@ -359,6 +379,16 @@ const es = {
   "noJump.short": "Abrir una dirección ya abierta en otro Space no te lleva allí.",
   "noJump.help":
     "Cuando escribes una dirección que ya está abierta, Zen busca esa pestaña en todos los Spaces y te lleva hasta ella, aunque pertenezca a otro contexto. El efecto es confuso: no aparece ninguna pestaña nueva y el navegador parece saltar solo. Activado (por defecto), esa búsqueda queda limitada al Space actual y nada te mueve de lugar sin pedirlo. A cambio, si la página ya está abierta en otro Space, Zen ya no salta allí — abre una pestaña nueva aquí.",
+
+  "group.system": "Sistema",
+  "system.title": "Agrupar páginas del sistema",
+  "system.short": "about:config y otras páginas internas comparten un grupo Sistema.",
+  "system.help":
+    "Las páginas del navegador — ajustes, about:config, este panel — no tienen sitio por el que agrupar, así que quedaban sueltas por la barra lateral. Con esto activado, cada Space recibe un grupo Sistema que las recoge. Es un grupo normal: renómbralo, cámbiale el color, contráelo. Las pestañas en blanco nunca entran. Desactívalo y las páginas internas vuelven a quedar sueltas, como antes.",
+  "bottom.title": "Mantener las pestañas sueltas abajo",
+  "bottom.short": "Las pestañas sin grupo quedan debajo de los grupos.",
+  "bottom.help":
+    "Los grupos se forman alrededor de lo que está abierto, y las pestañas que quedan sin grupo terminan encajadas entre ellos — el peor lugar para encontrar algo. Con esto activado, cada vez que se organizan las pestañas, las sueltas bajan debajo del último grupo de su Space, conservando el orden entre ellas. Las pestañas fijadas, las esenciales, las carpetas y los grupos que creaste nunca se mueven. Desactívalo y las pestañas sueltas se quedan donde estén.",
 
   "subGlobal.title": "Separar todos los subdominios",
   "subGlobal.short": "mail.google.com y drive.google.com se vuelven dos grupos, en todos los sitios.",
