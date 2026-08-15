@@ -14,6 +14,12 @@ dragged out of the Space you put it in**.
 </p>
 <p align="center"><em>Groups appear in the sidebar as you browse; everything is configured in <code>about:spacekeeper</code>.</em></p>
 
+<p align="center">
+  <img src="docs/two-spaces.png" width="640"
+       alt="Two Zen Spaces side by side: the Personal Space has a youtube group with three tabs, the Work Space has its own youtube group with four different tabs, plus a System group — two independent groups for the same site.">
+</p>
+<p align="center"><em>The claim, proven: the same site forms an independent group in each Space — and no tab ever crosses over.</em></p>
+
 ## Install in one command
 
 **macOS and Linux**, in a terminal:
