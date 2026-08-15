@@ -142,6 +142,7 @@ $anchors = [ordered]@{
     "group-presentation/motion presets"            = 'zstg-motion'
     "group-presentation/measured animation cap"    = '--zstg-row-cap'
     "group-presentation/panel motion preview"      = 'playMotionPreview'
+    "group-presentation/motion speed setting"      = '--zstg-motion-scale'
     "group-presentation/reduced motion wins"       = 'prefers-reduced-motion'
     "group-presentation/focus close delay"         = 'focusDelay'
     "group-presentation/focus on the N recent"     = 'recentGroups'

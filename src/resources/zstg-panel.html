@@ -294,38 +294,38 @@
       .mprev[data-state="collapsed"] .mfade { opacity: 0; }
       .mprev[data-motion="swift"] .mmove {
         transition:
-          transform 140ms cubic-bezier(0, 0, 0.2, 1),
-          opacity 100ms cubic-bezier(0, 0, 0.2, 1) 40ms;
+          transform calc(140ms * var(--s, 1)) cubic-bezier(0, 0, 0.2, 1),
+          opacity calc(100ms * var(--s, 1)) cubic-bezier(0, 0, 0.2, 1) calc(40ms * var(--s, 1));
       }
       .mprev[data-motion="swift"][data-state="collapsed"] .mmove {
         transition:
-          transform 110ms cubic-bezier(0.4, 0, 1, 1),
-          opacity 80ms cubic-bezier(0.4, 0, 1, 1);
+          transform calc(110ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1),
+          opacity calc(80ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1);
       }
       .mprev[data-motion="fold"] .mmove {
         transition:
-          transform 300ms cubic-bezier(0.05, 0.7, 0.1, 1),
-          opacity 200ms cubic-bezier(0, 0, 0.2, 1) 60ms;
+          transform calc(300ms * var(--s, 1)) cubic-bezier(0.05, 0.7, 0.1, 1),
+          opacity calc(200ms * var(--s, 1)) cubic-bezier(0, 0, 0.2, 1) calc(60ms * var(--s, 1));
       }
       .mprev[data-motion="fold"][data-state="collapsed"] .mmove {
         transition:
-          transform 180ms cubic-bezier(0.3, 0, 0.8, 0.15),
-          opacity 130ms cubic-bezier(0.3, 0, 0.8, 0.15);
+          transform calc(180ms * var(--s, 1)) cubic-bezier(0.3, 0, 0.8, 0.15),
+          opacity calc(130ms * var(--s, 1)) cubic-bezier(0.3, 0, 0.8, 0.15);
       }
       .mprev[data-motion="cascade"] .mmove {
         transition:
-          transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
-          opacity 150ms cubic-bezier(0, 0, 0.2, 1);
+          transform calc(200ms * var(--s, 1)) cubic-bezier(0.2, 0.8, 0.2, 1),
+          opacity calc(150ms * var(--s, 1)) cubic-bezier(0, 0, 0.2, 1);
       }
-      .mprev[data-motion="cascade"] .mrows > :nth-child(2) { transition-delay: 30ms; }
-      .mprev[data-motion="cascade"] .mrows > :nth-child(3) { transition-delay: 60ms; }
-      .mprev[data-motion="cascade"] .mrows > :nth-child(4) { transition-delay: 90ms; }
+      .mprev[data-motion="cascade"] .mrows > :nth-child(2) { transition-delay: calc(30ms * var(--s, 1)); }
+      .mprev[data-motion="cascade"] .mrows > :nth-child(3) { transition-delay: calc(60ms * var(--s, 1)); }
+      .mprev[data-motion="cascade"] .mrows > :nth-child(4) { transition-delay: calc(90ms * var(--s, 1)); }
       /* Same specificity as the stagger rules above, later on purpose: the
          cascade collapse is one un-staggered beat, exactly like the real one. */
       .mprev[data-motion="cascade"][data-state="collapsed"] .mmove {
         transition:
-          transform 140ms cubic-bezier(0.4, 0, 1, 1),
-          opacity 110ms cubic-bezier(0.4, 0, 1, 1);
+          transform calc(140ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1),
+          opacity calc(110ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1);
         transition-delay: 0ms;
       }
       /* When the OS asks for reduced motion the real collapse is instant, so a
@@ -1068,7 +1068,11 @@
         clearTimeout(motionPreviewTimer);
         motionPreview.removeAttribute("data-state");
         motionPreview.setAttribute("data-motion", value);
-        const collapseMs = { swift: 110, fold: 180, cascade: 140 }[value] ?? 0;
+        // The preview obeys the speed pref like the real thing: --s multiplies
+        // its durations exactly as --zstg-motion-scale multiplies the sidebar's.
+        const scale = 100 / Math.min(400, Math.max(25, readInt("motionSpeed", 100)));
+        motionPreview.style.setProperty("--s", String(scale));
+        const collapseMs = ({ swift: 110, fold: 180, cascade: 140 }[value] ?? 0) * scale;
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             motionPreview.setAttribute("data-state", "collapsed");
@@ -1102,6 +1106,21 @@
       motionWrap.append(motionChoice, motionPreviewBox);
       sAppearance.append(motionHeader, motionWrap);
       headerHelp(motionHeader, t("motion.help"));
+      // The speed field replays the preview on change, so slowing down and
+      // watching is one gesture — the field exists exactly for that comparison.
+      const nSpeed = number("motionSpeed", 25, 400);
+      nSpeed.addEventListener("change", () =>
+        playMotionPreview(readStr("collapseMotion", "swift"))
+      );
+      sAppearance.append(
+        row(
+          t("motionSpeed.title"),
+          t("motionSpeed.short"),
+          nSpeed,
+          null,
+          t("motionSpeed.help")
+        )
+      );
       playMotionPreview(currentMotion);
 
       sAppearance.append(

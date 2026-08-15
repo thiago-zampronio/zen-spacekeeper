@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.34.0 ready — active Space …`.
+`[ZSTG] 0.35.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -184,6 +184,7 @@ restarting.
 | `zen.stg.focusKeep` | int | `3` | how many groups focus mode keeps open (`1` = only the active one) |
 | `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
 | `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |
+| `zen.stg.motionSpeed` | int | `100` | speed of the motion presets, in percent (25-400); lower is slower, handy for comparing them |
 | `zen.stg.faviconColors` | bool | `true` | derives the group color from the site's favicon |
 | `zen.stg.spaceScopedTabSwitch` | bool | `true` | prevents "switch to tab" from taking you out of the current Space |
 | `zen.stg.systemGroup` | bool | `true` | `about:` and `chrome:` pages share one System group per Space |
@@ -335,7 +336,9 @@ Zen folders and groups you created are not affected.
   the selected preset once, so you know what to expect before feeling it on
   real tabs. The height each row animates through is measured from a real tab
   (published as `--zstg-row-cap`), and the OS reduced-motion setting makes
-  everything instant regardless of the preset.
+  everything instant regardless of the preset. A speed field under the choices
+  stretches every preset by the same factor — slow them down to compare, put
+  100 back to live with one.
 
 The taste adjustments live in variables at the top of the file:
 

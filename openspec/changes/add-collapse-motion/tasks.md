@@ -26,6 +26,11 @@
 - [x] 2.2 Focus mode: per-group cancellable timers — collapse only if the group is
       still outside the keep-set when the timer fires; cancel on re-entry, clear
       on unload and when focus mode turns off
+- [x] 2.3 Pref `zen.stg.motionSpeed` (int percent, default 100, clamped 25-400):
+      published as the inverse to `--zstg-motion-scale` on the root, applied at
+      startup and on pref change; every preset duration and stagger delay in the
+      stylesheet multiplies by it — asked for by the user as a magnifying glass
+      to judge the presets
 
 ## 3. Panel and docs
 
@@ -39,6 +44,10 @@
       OS reduced motion; vertically centered against the list with a caption —
       top-aligned it sat in front of the first option and read as belonging
       to it
+- [x] 3.4 Motion speed field under the radio group (percent, 25-400): the panel
+      preview obeys it through the same scale factor and replays on change, so
+      slowing down and watching is one gesture; strings in three languages;
+      MANUAL pref row
 
 ## 4. Verification
 

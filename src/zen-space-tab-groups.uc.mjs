@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.34.0
+// @version        0.35.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.34.0";
+const VERSION = "0.35.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -61,6 +61,10 @@ const DEFAULTS = {
   // The collapse/expand motion preset: "off", "swift", "fold" or "cascade".
   // Settled by a designer-vs-product review under the HIG frequency rule.
   collapseMotion: "swift",
+  // Speed of the motion presets, in percent. 100 = the designed timing; lower
+  // is slower. Exists as a magnifying glass — at 25% the character of each
+  // preset is legible enough to judge — and as taste once judged.
+  motionSpeed: 100,
   spaceScopedTabSwitch: true,
   // Internal pages (about:, chrome:) share one System group per Space.
   systemGroup: true,
@@ -298,6 +302,7 @@ function cfg() {
     focusMode: prefBool("focusMode"),
     focusKeep: Math.max(1, prefInt("focusKeep")),
     focusDelay: prefIntZero("focusDelay"),
+    motionSpeed: Math.min(400, Math.max(25, prefInt("motionSpeed"))),
     collapseMotion: (() => {
       const v = prefStr("collapseMotion");
       return ["off", "swift", "fold", "cascade"].includes(v) ? v : DEFAULTS.collapseMotion;
@@ -813,6 +818,18 @@ function restampMotionAll() {
       stampMotion(g);
     }
   }
+}
+
+/*
+ * The stylesheet multiplies every preset duration and stagger delay by
+ * --zstg-motion-scale. The pref is a speed in percent (100 = the designed
+ * timing, lower = slower), so the scale is its inverse: 25% -> 4x longer.
+ */
+function applyMotionSpeed() {
+  window.document.documentElement.style.setProperty(
+    "--zstg-motion-scale",
+    String(100 / cfg().motionSpeed)
+  );
 }
 
 function markAsOurs(group, key, spaceId) {
@@ -1756,6 +1773,10 @@ const prefObserver = {
       _cfg = null;
       restampMotionAll();
     }
+    if (data === PREF_PREFIX + "motionSpeed") {
+      _cfg = null;
+      applyMotionSpeed();
+    }
     // Turning focus mode off must not leave collapses in flight.
     if (data === PREF_PREFIX + "focusMode") {
       clearFocusTimers();
@@ -2309,6 +2330,7 @@ async function start() {
   registerHotkeys();
   installSpaceScopedSwitch();
   registerPanel();
+  applyMotionSpeed();
   checkZenContract();
 
   window.addEventListener(

@@ -68,15 +68,15 @@ tab-group[zstg-key][collapsed] > .tab-group-container > .tabbrowser-tab:not([sel
    height leads and opacity trails, so rows never fade into missing space. */
 tab-group[zstg-key][zstg-motion="swift"] > .tab-group-container > .tabbrowser-tab {
   transition:
-    max-height 140ms cubic-bezier(0, 0, 0.2, 1),
-    margin 140ms cubic-bezier(0, 0, 0.2, 1),
-    opacity 100ms cubic-bezier(0, 0, 0.2, 1) 40ms !important;
+    max-height calc(140ms * var(--zstg-motion-scale, 1)) cubic-bezier(0, 0, 0.2, 1),
+    margin calc(140ms * var(--zstg-motion-scale, 1)) cubic-bezier(0, 0, 0.2, 1),
+    opacity calc(100ms * var(--zstg-motion-scale, 1)) cubic-bezier(0, 0, 0.2, 1) calc(40ms * var(--zstg-motion-scale, 1)) !important;
 }
 tab-group[zstg-key][zstg-motion="swift"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
-    max-height 110ms cubic-bezier(0.4, 0, 1, 1),
-    margin 110ms cubic-bezier(0.4, 0, 1, 1),
-    opacity 80ms cubic-bezier(0.4, 0, 1, 1) !important;
+    max-height calc(110ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1),
+    margin calc(110ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1),
+    opacity calc(80ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1) !important;
 }
 
 /* Fold — the group closes as one sheet and discloses open, native-sidebar
@@ -87,15 +87,15 @@ tab-group[zstg-key][zstg-motion="swift"][collapsed] > .tab-group-container > .ta
    collapse stays inside the frequent-action budget. */
 tab-group[zstg-key][zstg-motion="fold"] > .tab-group-container > .tabbrowser-tab {
   transition:
-    max-height 300ms cubic-bezier(0.05, 0.7, 0.1, 1),
-    margin 300ms cubic-bezier(0.05, 0.7, 0.1, 1),
-    opacity 200ms cubic-bezier(0, 0, 0.2, 1) 60ms !important;
+    max-height calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.05, 0.7, 0.1, 1),
+    margin calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.05, 0.7, 0.1, 1),
+    opacity calc(200ms * var(--zstg-motion-scale, 1)) cubic-bezier(0, 0, 0.2, 1) calc(60ms * var(--zstg-motion-scale, 1)) !important;
 }
 tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
-    max-height 180ms cubic-bezier(0.3, 0, 0.8, 0.15),
-    margin 180ms cubic-bezier(0.3, 0, 0.8, 0.15),
-    opacity 130ms cubic-bezier(0.3, 0, 0.8, 0.15) !important;
+    max-height calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.3, 0, 0.8, 0.15),
+    margin calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.3, 0, 0.8, 0.15),
+    opacity calc(130ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.3, 0, 0.8, 0.15) !important;
 }
 
 /* Cascade — rows tuck up into the colored chip and deal back out from it: the
@@ -107,23 +107,23 @@ tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tab
    as Fold; 30ms is where the dealing-out becomes the thing you see. */
 tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab {
   transition:
-    max-height 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    margin 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 150ms cubic-bezier(0, 0, 0.2, 1) !important;
+    max-height calc(200ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin calc(200ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform calc(200ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity calc(150ms * var(--zstg-motion-scale, 1)) cubic-bezier(0, 0, 0.2, 1) !important;
   transform: translateY(0);
 }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(2) { transition-delay: 30ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(3) { transition-delay: 60ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(4) { transition-delay: 90ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(5) { transition-delay: 120ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(n+6) { transition-delay: 150ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(2) { transition-delay: calc(30ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(3) { transition-delay: calc(60ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(4) { transition-delay: calc(90ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(5) { transition-delay: calc(120ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(n+6) { transition-delay: calc(150ms * var(--zstg-motion-scale, 1)) !important; }
 tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
-    max-height 140ms cubic-bezier(0.4, 0, 1, 1),
-    margin 140ms cubic-bezier(0.4, 0, 1, 1),
-    transform 140ms cubic-bezier(0.4, 0, 1, 1),
-    opacity 110ms cubic-bezier(0.4, 0, 1, 1) !important;
+    max-height calc(140ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1),
+    margin calc(140ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1),
+    transform calc(140ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1),
+    opacity calc(110ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1) !important;
   transition-delay: 0ms !important;
   transform: translateY(-10px);
 }

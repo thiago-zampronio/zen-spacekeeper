@@ -16,8 +16,10 @@ back to instant when the operating system asks for reduced motion or when the
 instant option is chosen; SHALL start the animated height at the measured height
 of a real tab row, so no dead headroom eats the visible motion; SHALL show, in
 the panel, one animated preview of the selected preset that plays once per
-selection change and then rests; and SHALL keep the animation scoped to the
-groups the system created.
+selection change and then rests; SHALL scale every preset's timing — and the
+preview's — by a user-set speed percentage, where 100 is the designed timing and
+lower is slower; and SHALL keep the animation scoped to the groups the system
+created.
 
 An instant collapse initiated by the system (focus mode) looks like a glitch; the
 motion is what marks it as intended. But motion on a frequent action is a tax the
@@ -45,6 +47,14 @@ motion tells, and the frequency rule bounds every option.
 - **THEN** a single thumbnail beside the choices plays that preset's collapse and
   expand once, with the preset's own durations, and then rests expanded
 - **AND** under OS reduced motion the preview is instant, like the real thing
+
+#### Scenario: The speed setting stretches every motion
+
+- **GIVEN** the motion speed is set below 100
+- **WHEN** a group collapses or expands, or the panel preview plays
+- **THEN** every duration and stagger delay stretches by the same factor, so a
+  preset can be studied in slow motion without changing its character
+- **AND** the instant option and OS reduced motion stay instant regardless
 
 #### Scenario: No preset gates a click
 

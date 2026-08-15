@@ -65,6 +65,10 @@ const en = {
   "motion.cascade": "Cascade",
   "motion.cascade.desc": "Rows tuck into the colored chip and deal back out — the most visible.",
   "motion.preview": "Plays the motion you pick",
+  "motionSpeed.title": "Motion speed",
+  "motionSpeed.short": "100 = as designed. Lower it to watch each motion in slow motion.",
+  "motionSpeed.help":
+    "A percentage over every preset's timing. 100 is the designed speed; 25 plays everything four times slower — useful for comparing the presets before picking one. It never affects Off or a system asking for reduced motion.",
   "focusDelay.title": "Focus close delay",
   "focusDelay.short": "How long a group waits before collapsing, in milliseconds.",
   "focusDelay.help":
@@ -245,6 +249,10 @@ const pt = {
   "motion.cascade": "Cascade",
   "motion.cascade.desc": "As linhas se recolhem para o chip colorido e saem dele — a mais visível.",
   "motion.preview": "Mostra a animação que você escolher",
+  "motionSpeed.title": "Velocidade da animação",
+  "motionSpeed.short": "100 = como desenhada. Diminua para ver cada animação em câmera lenta.",
+  "motionSpeed.help":
+    "Um percentual sobre o tempo de todos os presets. 100 é a velocidade desenhada; 25 toca tudo quatro vezes mais devagar — útil para comparar as animações antes de escolher. Não afeta o Desligada nem um sistema pedindo movimento reduzido.",
   "focusDelay.title": "Espera para recolher no foco",
   "focusDelay.short": "Quanto tempo um grupo espera antes de recolher, em milissegundos.",
   "focusDelay.help":
@@ -425,6 +433,10 @@ const es = {
   "motion.cascade": "Cascade",
   "motion.cascade.desc": "Las filas se recogen hacia el chip de color y salen de él — la más visible.",
   "motion.preview": "Muestra la animación que elijas",
+  "motionSpeed.title": "Velocidad de la animación",
+  "motionSpeed.short": "100 = como fue diseñada. Bájala para ver cada animación en cámara lenta.",
+  "motionSpeed.help":
+    "Un porcentaje sobre el tiempo de todos los presets. 100 es la velocidad diseñada; 25 reproduce todo cuatro veces más lento — útil para comparar las animaciones antes de elegir. No afecta a Apagada ni a un sistema que pida movimiento reducido.",
   "focusDelay.title": "Espera para contraer en el enfoque",
   "focusDelay.short": "Cuánto espera un grupo antes de contraerse, en milisegundos.",
   "focusDelay.help":
