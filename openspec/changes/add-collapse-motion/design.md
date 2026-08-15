@@ -38,13 +38,20 @@ tab critical path):
   80ms — the cheapest motion that still reads as caused; invisible by hour two.
   Default by the frequency rule: both directions are frequent in focus mode, so
   the binding HIG constraint is frequent-equals-faster, not the 200-300ms budget.
-- `fold` (150ms / 200ms, tuned down from 180/240): the group closes as one sheet
-  and discloses open — native-sidebar vocabulary, a touch calmer.
-- `cascade` (140ms collapse, single beat / 180ms expand with a 15ms-per-row
-  stagger capped at row 6): rows tuck into the chip and deal back out. The
-  product review caught the original stagger (25ms, cap 8) keeping the last row
-  unclickable for 150ms+ on every expand — the tuned numbers keep the last row
-  reachable from ~75ms and settled by ~255ms.
+- `fold` (180ms collapse / 300ms expand): the group closes as one sheet and
+  discloses open — native-sidebar vocabulary, the deliberate end of the spread.
+  First shipped at 150/200 ("tuned down from 180/240" by the frequency rule) and
+  field-tested indistinguishable from Swift: a 40-60ms gap between presets sits
+  under the noticing threshold. The presets only earn their existence if they
+  differ, so Fold carries the slow end — its collapse still inside the
+  frequent-action budget, its expand more than double Swift's.
+- `cascade` (140ms collapse, single beat / 200ms expand with a 30ms-per-row
+  stagger capped at row 6, translateY -10px): rows tuck into the chip and deal
+  back out. The original review feared a long stagger gating clicks, but a row
+  is clickable the moment the group expands, mid-flight — the stagger delays
+  sight, never reach. Field-tested at 15ms it read as Fold; at 30ms the
+  dealing-out becomes the thing you see (last row visible from 150ms, settled
+  by ~350ms).
 - `off`: instant, exactly today's behavior — a peer choice in the same radio
   group, anchoring the baseline the other three are judged against.
 

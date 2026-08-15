@@ -4,9 +4,12 @@
       collapsed state (max-height + opacity + overflow + pointer-events per tab
       row), scoped to `tab-group[zstg-key]`, selected tab excluded
 - [x] 1.2 Preset transition blocks keyed by the `zstg-motion` attribute:
-      swift (110ms collapse / 140ms expand, opacity leads), fold (150/200,
-      one-sheet), cascade (140 single-beat collapse / 180 expand with 15ms-per-row
-      stagger capped at row 6, translateY(-6px) toward the chip)
+      swift (110ms collapse / 140ms expand, opacity leads), fold (180/300,
+      one-sheet), cascade (140 single-beat collapse / 200 expand with 30ms-per-row
+      stagger capped at row 6, translateY(-10px) toward the chip) — spread
+      widened after the field test: at fold 150/200 and a 15ms stagger the three
+      presets were indistinguishable, a 40-60ms gap sits under the noticing
+      threshold
 - [x] 1.3 `prefers-reduced-motion: reduce` zeroes every preset's durations
 - [x] 1.4 The animated cap is measured, not guessed: the script publishes a real
       row's height as `--zstg-row-cap` (re-measured on pref change), so the
@@ -33,7 +36,9 @@
 - [x] 3.3 One animated preview beside the radio group, in the mockup style:
       plays the selected preset's collapse and expand once on selection change
       (mirroring the real durations and easings), rests expanded, instant under
-      OS reduced motion
+      OS reduced motion; vertically centered against the list with a caption —
+      top-aligned it sat in front of the first option and read as belonging
+      to it
 
 ## 4. Verification
 

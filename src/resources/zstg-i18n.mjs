@@ -64,6 +64,7 @@ const en = {
   "motion.fold.desc": "The group folds shut and discloses open, like a native sidebar.",
   "motion.cascade": "Cascade",
   "motion.cascade.desc": "Rows tuck into the colored chip and deal back out — the most visible.",
+  "motion.preview": "Plays the motion you pick",
   "focusDelay.title": "Focus close delay",
   "focusDelay.short": "How long a group waits before collapsing, in milliseconds.",
   "focusDelay.help":
@@ -243,6 +244,7 @@ const pt = {
   "motion.fold.desc": "O grupo se dobra ao fechar e se revela ao abrir, como uma sidebar nativa.",
   "motion.cascade": "Cascade",
   "motion.cascade.desc": "As linhas se recolhem para o chip colorido e saem dele — a mais visível.",
+  "motion.preview": "Mostra a animação que você escolher",
   "focusDelay.title": "Espera para recolher no foco",
   "focusDelay.short": "Quanto tempo um grupo espera antes de recolher, em milissegundos.",
   "focusDelay.help":
@@ -422,6 +424,7 @@ const es = {
   "motion.fold.desc": "El grupo se pliega al cerrar y se revela al abrir, como una barra lateral nativa.",
   "motion.cascade": "Cascade",
   "motion.cascade.desc": "Las filas se recogen hacia el chip de color y salen de él — la más visible.",
+  "motion.preview": "Muestra la animación que elijas",
   "focusDelay.title": "Espera para contraer en el enfoque",
   "focusDelay.short": "Cuánto espera un grupo antes de contraerse, en milisegundos.",
   "focusDelay.help":

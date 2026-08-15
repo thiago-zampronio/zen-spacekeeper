@@ -80,38 +80,44 @@ tab-group[zstg-key][zstg-motion="swift"][collapsed] > .tab-group-container > .ta
 }
 
 /* Fold — the group closes as one sheet and discloses open, native-sidebar
-   vocabulary. The deliberate direction (expand) gets the fuller motion. */
+   vocabulary. The deliberate direction (expand) gets the fuller motion.
+   Field-tested at 150/200 the presets blurred together: a 40-60ms gap between
+   presets sits under the noticing threshold, so Fold now carries the slow end
+   of the spread — expand at 300ms, more than double Swift's — while the
+   collapse stays inside the frequent-action budget. */
 tab-group[zstg-key][zstg-motion="fold"] > .tab-group-container > .tabbrowser-tab {
   transition:
-    max-height 200ms cubic-bezier(0.05, 0.7, 0.1, 1),
-    margin 200ms cubic-bezier(0.05, 0.7, 0.1, 1),
-    opacity 140ms cubic-bezier(0, 0, 0.2, 1) 40ms !important;
+    max-height 300ms cubic-bezier(0.05, 0.7, 0.1, 1),
+    margin 300ms cubic-bezier(0.05, 0.7, 0.1, 1),
+    opacity 200ms cubic-bezier(0, 0, 0.2, 1) 60ms !important;
 }
 tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
-    max-height 150ms cubic-bezier(0.3, 0, 0.8, 0.15),
-    margin 150ms cubic-bezier(0.3, 0, 0.8, 0.15),
-    opacity 110ms cubic-bezier(0.3, 0, 0.8, 0.15) !important;
+    max-height 180ms cubic-bezier(0.3, 0, 0.8, 0.15),
+    margin 180ms cubic-bezier(0.3, 0, 0.8, 0.15),
+    opacity 130ms cubic-bezier(0.3, 0, 0.8, 0.15) !important;
 }
 
 /* Cascade — rows tuck up into the colored chip and deal back out from it: the
-   motion draws where the tabs live. The stagger exists on EXPAND ONLY (15ms per
-   row, capped at row 6 so the last row is reachable from ~75ms — the product
-   review killed a longer stagger for gating clicks); the collapse is one
-   un-staggered beat, because focus mode fires it many times per minute. */
+   motion draws where the tabs live. The stagger exists on EXPAND ONLY (30ms per
+   row, capped at row 6, so the last row starts appearing from 150ms — a row is
+   clickable the moment the group expands, mid-flight, so the stagger delays
+   sight, never reach); the collapse is one un-staggered beat, because focus
+   mode fires it many times per minute. Field-tested at 15ms the stagger read
+   as Fold; 30ms is where the dealing-out becomes the thing you see. */
 tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab {
   transition:
-    max-height 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    margin 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 140ms cubic-bezier(0, 0, 0.2, 1) !important;
+    max-height 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 150ms cubic-bezier(0, 0, 0.2, 1) !important;
   transform: translateY(0);
 }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(2) { transition-delay: 15ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(3) { transition-delay: 30ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(4) { transition-delay: 45ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(5) { transition-delay: 60ms !important; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(n+6) { transition-delay: 75ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(2) { transition-delay: 30ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(3) { transition-delay: 60ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(4) { transition-delay: 90ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(5) { transition-delay: 120ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(n+6) { transition-delay: 150ms !important; }
 tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
     max-height 140ms cubic-bezier(0.4, 0, 1, 1),
@@ -119,7 +125,7 @@ tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .
     transform 140ms cubic-bezier(0.4, 0, 1, 1),
     opacity 110ms cubic-bezier(0.4, 0, 1, 1) !important;
   transition-delay: 0ms !important;
-  transform: translateY(-6px);
+  transform: translateY(-10px);
 }
 
 /* The OS accessibility setting beats every preset: reduced motion means instant,
