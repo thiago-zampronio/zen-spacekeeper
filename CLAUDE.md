@@ -50,6 +50,7 @@ that node's parent — which is what guarantees the group is born in the right S
 
 ```
 install.ps1              Windows installer: loader + mod, detects Zen and profile
+install.sh               the same installer for macOS and Linux (POSIX sh)
 src/*.uc.mjs             the chrome script (window-scoped ES module)
 src/*.uc.css             collapse and appearance, scoped to tab-group[zstg-key]
 src/resources/           served over chrome://userchrome/content/
@@ -68,12 +69,14 @@ key means adding it to all three languages — `verify.ps1` fails otherwise.
 ## Working loop
 
 ```powershell
-.\install.ps1            # copy src/ into the profile
+.\install.ps1            # copy src/ into the profile (macOS/Linux: ./install.sh)
 .\scripts\verify.ps1     # spec, docs, syntax, languages, installed files
 ```
 
 Then restart Zen. If the script does not load, clear the startup cache in
 `about:support` — a stale cache is the most common cause of "my change did nothing".
+The installer's `-Restart` / `--restart` option does the restart and the cache
+clearing in one step.
 
 `verify.ps1` catches a requirement with no implementation, a pref with no
 documentation, a README citing a function that no longer exists, and a stale file in
@@ -94,9 +97,10 @@ Reading `prefs.js` from disk beats asking what the configuration is.
 
 - **Every Zen update deletes the loader** (`config.js` and
   `defaults/pref/config-prefs.js` in the program directory). The symptom is the mod
-  silently not loading. `.\install.ps1 -Check` diagnoses it; `.\install.ps1` fixes it.
+  silently not loading. `.\install.ps1 -Check` / `./install.sh --check` diagnoses
+  it; running the installer again fixes it.
 - **`chrome/resources/` is copied, not linked.** Editing the panel in `src/` changes
-  nothing until `install.ps1` runs again.
+  nothing until the installer runs again.
 - **The panel page runs with UI privilege.** It reads and writes prefs directly. Keep
   it strictly local: no font, image, script or fetch from the network. Its CSP
   (`default-src chrome:`) enforces this, and a requirement in the spec depends on it.

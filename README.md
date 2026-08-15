@@ -59,7 +59,7 @@ that, Zen ignores the freshly installed loader. Reopen it and go to
 `about:spacekeeper`. The installer offers to do all of that for you — see
 [Restarting for you](#restarting-for-you).
 
-To confirm it loaded, **Ctrl+Shift+J** shows
+To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
 `[ZSTG] 0.17.0 ready — active Space …`.
 
 ### When detection needs help
@@ -217,7 +217,7 @@ To add a language:
 
 - **Right-click a tab → "Spacekeeper" → "Regroup this Space"**
 - **Ctrl+Alt+A** regroups the current Space · **Ctrl+Alt+D** ungroups the current Space
-- From the console (Ctrl+Shift+J): `ZSTG.regroup()`, `ZSTG.ungroup()`,
+- From the console (Ctrl+Shift+J; Cmd+Shift+J on macOS): `ZSTG.regroup()`, `ZSTG.ungroup()`,
   `ZSTG.collapseAll()`, `ZSTG.expandAll()`, `ZSTG.recoverOldGroups()`
 
 `ZSTG.recoverOldGroups()` exists for migration: groups created by earlier versions
@@ -392,7 +392,8 @@ real tabs and must be checked by hand.
 ## Structure
 
 ```
-install.ps1              installer: loader + mod, detects Zen and the profile
+install.ps1              Windows installer: loader + mod, detects Zen and the profile
+install.sh               the same installer for macOS and Linux
 src/                     script, stylesheet and panel (source of truth)
 src/resources/           panel page and text catalog, served over chrome://
 scripts/verify.ps1       checks spec, code, docs and installation are in sync
