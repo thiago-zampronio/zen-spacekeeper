@@ -143,6 +143,11 @@
          note is always light, including under the dark theme. */
       .row-box { position: relative; }
 
+      /* An always-visible inline note. NOT .help: that class is the floating
+         (i) tooltip — absolutely positioned and hidden by default — and a note
+         wearing it becomes a permanent bubble anchored to the wrong place. */
+      .note { color: var(--secondary); margin: 0; padding: 14px 18px 0; font-size: 0.9em; }
+
       .help {
         position: absolute;
         z-index: 20;
@@ -1157,8 +1162,7 @@
         }
       });
 
-      const disclosure = el("p", { class: "help", text: t("update.disclosure") });
-      disclosure.hidden = false;
+      const disclosure = el("p", { class: "note", text: t("update.disclosure") });
       // Uninstall gets a row of its own, under a divider: when the Update button
       // appears after a check, it must never materialize NEXT TO the destructive
       // button — adjacent targets that change is how misclicks happen.
