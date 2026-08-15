@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.29.0
+// @version        0.30.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.29.0";
+const VERSION = "0.30.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -55,6 +55,12 @@ const DEFAULTS = {
   // the sidebar flicker on every tab switch; keeping the N most recent ones
   // reduces that motion without losing the effect.
   focusKeep: 3,
+  // How long focus mode waits before collapsing a group that left the recent
+  // set; returning to it in time cancels the collapse. 0 restores immediacy.
+  focusDelay: 800,
+  // The collapse/expand motion preset: "off", "swift", "fold" or "cascade".
+  // Settled by a designer-vs-product review under the HIG frequency rule.
+  collapseMotion: "swift",
   spaceScopedTabSwitch: true,
   // Internal pages (about:, chrome:) share one System group per Space.
   systemGroup: true,
@@ -202,6 +208,16 @@ function prefInt(name) {
   }
 }
 
+/** Like prefInt, but zero is a meaningful value (e.g. "no delay"), not garbage. */
+function prefIntZero(name) {
+  try {
+    const v = Services.prefs.getIntPref(PREF_PREFIX + name, DEFAULTS[name]);
+    return v >= 0 ? v : DEFAULTS[name];
+  } catch {
+    return DEFAULTS[name];
+  }
+}
+
 function prefStr(name) {
   try {
     return Services.prefs.getStringPref(PREF_PREFIX + name, DEFAULTS[name]);
@@ -281,6 +297,11 @@ function cfg() {
     minTabs: prefInt("minTabs"),
     focusMode: prefBool("focusMode"),
     focusKeep: Math.max(1, prefInt("focusKeep")),
+    focusDelay: prefIntZero("focusDelay"),
+    collapseMotion: (() => {
+      const v = prefStr("collapseMotion");
+      return ["off", "swift", "fold", "cascade"].includes(v) ? v : DEFAULTS.collapseMotion;
+    })(),
     spaceScopedTabSwitch: prefBool("spaceScopedTabSwitch"),
     systemGroup: prefBool("systemGroup"),
     looseTabsAtBottom: prefBool("looseTabsAtBottom"),
@@ -750,11 +771,25 @@ function organize(tab, force = false) {
  * a restored group looks like a user group and a second group for the same key
  * ends up being created.
  */
+/** The motion preset rides on an attribute: CSS cannot read prefs. */
+function stampMotion(group) {
+  group.setAttribute("zstg-motion", cfg().collapseMotion);
+}
+
+function restampMotionAll() {
+  for (const g of window.gBrowser.tabGroups) {
+    if (isOurGroup(g)) {
+      stampMotion(g);
+    }
+  }
+}
+
 function markAsOurs(group, key, spaceId) {
   group.setAttribute(KEY_ATTR, key);
   if (spaceId) {
     group.setAttribute(SPACE_ATTR, spaceId);
   }
+  stampMotion(group);
   const map = cfg().groups;
   if (map[group.id] !== key) {
     map[group.id] = key;
@@ -783,6 +818,7 @@ function reclaimGroups({ prune = false } = {}) {
     liveIds.add(g.id);
     if (!g.hasAttribute(KEY_ATTR)) {
       g.setAttribute(KEY_ATTR, key);
+      stampMotion(g);
       reclaimed++;
     }
     if (!g.getAttribute(SPACE_ATTR)) {
@@ -1093,6 +1129,26 @@ function updateHiddenCounts() {
 /** Groups by recent use, most recent first. Ids only, so we hold no nodes. */
 let recentGroups = [];
 
+// Pending focus-mode collapses, one cancellable timer per group id. The delay is
+// what keeps fast group-switching from shaking the sidebar: a group the user
+// returns to before its timer fires never collapses at all.
+const focusTimers = new Map();
+
+function cancelFocusTimer(id) {
+  const timer = focusTimers.get(id);
+  if (timer) {
+    window.clearTimeout(timer);
+    focusTimers.delete(id);
+  }
+}
+
+function clearFocusTimers() {
+  for (const timer of focusTimers.values()) {
+    window.clearTimeout(timer);
+  }
+  focusTimers.clear();
+}
+
 function applyFocusMode() {
   if (!cfg().focusMode) {
     return;
@@ -1115,13 +1171,44 @@ function applyFocusMode() {
   const keep = new Set(recentGroups.slice(0, cfg().focusKeep));
 
   const spaceId = spaceOfTab(activeTab);
+  const delay = cfg().focusDelay;
   for (const g of window.gBrowser.tabGroups) {
     if (!isOurGroup(g) || g.getAttribute(SPACE_ATTR) !== spaceId) {
       continue;
     }
-    const shouldCollapse = !keep.has(g.id);
-    if (g.collapsed !== shouldCollapse) {
-      g.collapsed = shouldCollapse;
+    if (keep.has(g.id)) {
+      cancelFocusTimer(g.id);
+      if (g.collapsed) {
+        g.collapsed = false;
+      }
+    } else if (!g.collapsed && !focusTimers.has(g.id)) {
+      if (delay <= 0) {
+        g.collapsed = true;
+        continue;
+      }
+      const id = g.id;
+      focusTimers.set(
+        id,
+        window.setTimeout(() => {
+          focusTimers.delete(id);
+          guarded(() => {
+            // The world may have moved while the timer ran: collapse only if the
+            // group is STILL outside the keep-set, and only if focus mode still is.
+            if (!cfg().focusMode) {
+              return;
+            }
+            const keepNow = new Set(recentGroups.slice(0, cfg().focusKeep));
+            if (keepNow.has(id)) {
+              return;
+            }
+            for (const gg of window.gBrowser.tabGroups) {
+              if (gg.id === id && isOurGroup(gg) && !gg.collapsed) {
+                gg.collapsed = true;
+              }
+            }
+          });
+        }, delay)
+      );
     }
   }
 }
@@ -1631,6 +1718,16 @@ const prefObserver = {
     // precisely for the moments things are going wrong.
     if (data === PREF_PREFIX + "debugLog") {
       logUnavailable = false;
+    }
+    // The motion preset lives on the groups as an attribute; a change in the
+    // panel must reach the groups already on screen.
+    if (data === PREF_PREFIX + "collapseMotion") {
+      _cfg = null;
+      restampMotionAll();
+    }
+    // Turning focus mode off must not leave collapses in flight.
+    if (data === PREF_PREFIX + "focusMode") {
+      clearFocusTimers();
     }
     // The language is resolved once and memoized; changing it has to invalidate
     // that too, or the panel would save the choice and nothing would change.
@@ -2198,6 +2295,7 @@ async function start() {
       Services.prefs.removeObserver(PREF_PREFIX, prefObserver);
       removeMenu();
       uninstallSpaceScopedSwitch();
+      clearFocusTimers();
       unregisterPanel();
     },
     { once: true }

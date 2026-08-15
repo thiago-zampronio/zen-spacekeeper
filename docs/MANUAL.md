@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.29.0 ready — active Space …`.
+`[ZSTG] 0.30.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -182,6 +182,8 @@ restarting.
 | `zen.stg.minTabs` | int | `1` | minimum tabs with the same key to create a group |
 | `zen.stg.focusMode` | bool | `false` | keeps only the most recently used groups open |
 | `zen.stg.focusKeep` | int | `3` | how many groups focus mode keeps open (`1` = only the active one) |
+| `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
+| `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |
 | `zen.stg.faviconColors` | bool | `true` | derives the group color from the site's favicon |
 | `zen.stg.spaceScopedTabSwitch` | bool | `true` | prevents "switch to tab" from taking you out of the current Space |
 | `zen.stg.systemGroup` | bool | `true` | `about:` and `chrome:` pages share one System group per Space |

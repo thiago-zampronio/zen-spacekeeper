@@ -53,6 +53,21 @@ const en = {
     "When you type an address that is already open, Zen looks for that tab across every Space and takes you there, even if it belongs to another context. The effect is confusing: no new tab appears and the browser seems to jump on its own. Turned on (the default), that search is limited to the current Space and nothing moves you without asking. In exchange, if the page is open in another Space, Zen no longer jumps there — it opens a new tab here.",
 
   "group.system": "System",
+  "motion.title": "Collapse motion",
+  "motion.help":
+    "How groups close and open. The collapse happens often in focus mode, so every option keeps it faster than the opening, and none of them ever delays clicking a tab. If your system asks for reduced motion, everything is instant regardless of this choice.",
+  "motion.off": "Off",
+  "motion.off.desc": "Instant. Nothing moves — the original behavior.",
+  "motion.swift": "Swift",
+  "motion.swift.desc": "A blink with a trace: the fastest motion that still reads as intended.",
+  "motion.fold": "Fold",
+  "motion.fold.desc": "The group folds shut and discloses open, like a native sidebar.",
+  "motion.cascade": "Cascade",
+  "motion.cascade.desc": "Rows tuck into the colored chip and deal back out — the most visible.",
+  "focusDelay.title": "Focus close delay",
+  "focusDelay.short": "How long a group waits before collapsing, in milliseconds.",
+  "focusDelay.help":
+    "In focus mode, a group you leave does not collapse immediately: it waits this long, and if you come back in time it never collapses at all — so switching quickly between groups stops shaking the sidebar. 0 collapses immediately, as before.",
   "system.title": "Group system pages",
   "system.short": "about:config and other internal pages share one System group.",
   "system.help":
@@ -217,6 +232,21 @@ const pt = {
     "Quando você digita um endereço que já está aberto, o Zen procura essa aba em todos os Spaces e leva você até ela, mesmo que esteja em outro contexto. O efeito é confuso: nenhuma aba nova aparece e o navegador parece pular sozinho. Ligado (o padrão), essa busca fica restrita ao Space atual e nada muda você de lugar sem você mandar. Em troca, se a página já estiver aberta em outro Space, o Zen não vai mais pular para lá — ele abre uma aba nova aqui.",
 
   "group.system": "Sistema",
+  "motion.title": "Animação de recolher",
+  "motion.help":
+    "Como os grupos fecham e abrem. O recolhimento acontece com frequência no modo foco, então toda opção o mantém mais rápido que a abertura, e nenhuma delas atrasa o clique numa aba. Se o seu sistema pedir menos movimento, tudo fica instantâneo independente desta escolha.",
+  "motion.off": "Desligada",
+  "motion.off.desc": "Instantâneo. Nada se move — o comportamento original.",
+  "motion.swift": "Swift",
+  "motion.swift.desc": "Um piscar com rastro: o movimento mais rápido que ainda parece intencional.",
+  "motion.fold": "Fold",
+  "motion.fold.desc": "O grupo se dobra ao fechar e se revela ao abrir, como uma sidebar nativa.",
+  "motion.cascade": "Cascade",
+  "motion.cascade.desc": "As linhas se recolhem para o chip colorido e saem dele — a mais visível.",
+  "focusDelay.title": "Espera para recolher no foco",
+  "focusDelay.short": "Quanto tempo um grupo espera antes de recolher, em milissegundos.",
+  "focusDelay.help":
+    "No modo foco, um grupo que você deixa não recolhe na hora: ele espera este tempo, e se você voltar antes ele nem chega a recolher — assim trocar rápido entre grupos para de sacudir a sidebar. 0 recolhe imediatamente, como antes.",
   "system.title": "Agrupar páginas do sistema",
   "system.short": "about:config e outras páginas internas dividem um grupo Sistema.",
   "system.help":
@@ -381,6 +411,21 @@ const es = {
     "Cuando escribes una dirección que ya está abierta, Zen busca esa pestaña en todos los Spaces y te lleva hasta ella, aunque pertenezca a otro contexto. El efecto es confuso: no aparece ninguna pestaña nueva y el navegador parece saltar solo. Activado (por defecto), esa búsqueda queda limitada al Space actual y nada te mueve de lugar sin pedirlo. A cambio, si la página ya está abierta en otro Space, Zen ya no salta allí — abre una pestaña nueva aquí.",
 
   "group.system": "Sistema",
+  "motion.title": "Animación al contraer",
+  "motion.help":
+    "Cómo se cierran y abren los grupos. La contracción ocurre a menudo en el modo de enfoque, así que toda opción la mantiene más rápida que la apertura, y ninguna retrasa el clic en una pestaña. Si tu sistema pide menos movimiento, todo es instantáneo sin importar esta elección.",
+  "motion.off": "Apagada",
+  "motion.off.desc": "Instantáneo. Nada se mueve — el comportamiento original.",
+  "motion.swift": "Swift",
+  "motion.swift.desc": "Un parpadeo con rastro: el movimiento más rápido que aún parece intencional.",
+  "motion.fold": "Fold",
+  "motion.fold.desc": "El grupo se pliega al cerrar y se revela al abrir, como una barra lateral nativa.",
+  "motion.cascade": "Cascade",
+  "motion.cascade.desc": "Las filas se recogen hacia el chip de color y salen de él — la más visible.",
+  "focusDelay.title": "Espera para contraer en el enfoque",
+  "focusDelay.short": "Cuánto espera un grupo antes de contraerse, en milisegundos.",
+  "focusDelay.help":
+    "En el modo de enfoque, un grupo que dejas no se contrae al instante: espera este tiempo, y si vuelves antes nunca llega a contraerse — así cambiar rápido entre grupos deja de sacudir la barra lateral. 0 contrae de inmediato, como antes.",
   "system.title": "Agrupar páginas del sistema",
   "system.short": "about:config y otras páginas internas comparten un grupo Sistema.",
   "system.help":
