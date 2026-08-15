@@ -25,6 +25,11 @@ BRANCH="main"
 ZEN_DIR=""
 PROFILE_DIR=""
 ACTION="install"
+RESTART=0
+
+# How long the offered restart waits for Zen to exit before giving up. Kept equal
+# in install.ps1 ($RestartWaitSeconds); verify.ps1 fails if the two disagree.
+RESTART_WAIT=20
 
 # ---------------------------------------------------------------------------
 # The two file lists. Kept in the same order as install.ps1; verify.ps1 fails if
@@ -54,6 +59,9 @@ Usage: install.sh [options]
   --check           Report what is installed and exit. Use it after a Zen update.
   --uninstall       Remove Spacekeeper from the profile. Keeps the loader, because
                     other mods may depend on it, and keeps your preferences.
+  --restart         After installing, close Zen, clear the startup cache and open
+                    it again, without asking. Without this flag you are asked,
+                    when a terminal is available to answer.
   --zen-dir DIR     Zen application directory. Set only if detection is wrong.
   --profile-dir DIR Zen profile directory. Set only if detection is wrong.
   --repo OWNER/NAME Source repository when fetching over the network.
@@ -66,6 +74,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --check) ACTION="check" ;;
         --uninstall) ACTION="uninstall" ;;
+        --restart) RESTART=1 ;;
         --zen-dir) ZEN_DIR="${2:?--zen-dir needs a directory}"; shift ;;
         --profile-dir) PROFILE_DIR="${2:?--profile-dir needs a directory}"; shift ;;
         --repo) REPO="${2:?--repo needs OWNER/NAME}"; shift ;;
@@ -188,6 +197,114 @@ find_profile_dir() {
         /*) printf '%s' "$path" ;;
         *) printf '%s' "$root/$path" ;;
     esac
+}
+
+# ---------------------------------------------------------------------------
+# The offered restart
+#
+# Everything here is consent-gated and never kills a process: the browser is asked
+# to quit the way the platform does it, and a browser that stays open (an
+# unsaved-changes dialog, usually) wins - the installer reports it and falls back
+# to the manual instructions.
+
+zen_bundle() {
+    # macOS only: ZEN is <bundle>/Contents/Resources; walk back up to the bundle.
+    dirname "$(dirname "$ZEN")"
+}
+
+zen_binary() {
+    if [ "$OS" = macos ]; then
+        printf '%s' "$(zen_bundle)/Contents/MacOS/zen"
+    elif [ -x "$ZEN/zen" ]; then
+        printf '%s' "$ZEN/zen"
+    else
+        printf '%s' "$ZEN/zen-bin"
+    fi
+}
+
+zen_running() {
+    # Matched against the detected binary's full path, never the bare name: a
+    # process called "zen" from another install is not the one being targeted.
+    command -v pgrep >/dev/null 2>&1 || return 1
+    pgrep -f "$(zen_binary)" >/dev/null 2>&1
+}
+
+startup_cache_dir() {
+    # The cache mirrors the profile's path relative to the profile root, under a
+    # per-platform cache root. A profile outside the known root (an unusual
+    # --profile-dir, or IsRelative=0) means the location cannot be derived safely;
+    # returning nothing makes the caller skip the cache step rather than guess.
+    root=$(profile_root)
+    case "$PROF" in
+        "$root"/*) rel=${PROF#"$root"/} ;;
+        *) return 1 ;;
+    esac
+    if [ "$OS" = macos ]; then
+        printf '%s' "$HOME/Library/Caches/zen/$rel/startupCache"
+    else
+        case "$root" in
+            "$HOME/.var/app/"*) printf '%s' "${root%/.zen}/cache/zen/$rel/startupCache" ;;
+            *) printf '%s' "$HOME/.cache/zen/$rel/startupCache" ;;
+        esac
+    fi
+}
+
+ask_tty() {
+    # Piped into sh, stdin is the script itself, so the prompt talks to the
+    # controlling terminal. No terminal means no one to ask: the caller skips.
+    ( : </dev/tty ) 2>/dev/null || return 1
+    printf '%s [y/N] ' "$1" >/dev/tty
+    IFS= read -r answer </dev/tty || return 1
+    case "$answer" in
+        [Yy]*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+CACHE_CLEARED=0
+
+do_restart() {
+    # Sets RESTART_OUTCOME to "performed" or "notclosed". The cache is cleared
+    # only after the process is observed gone: clearing it while the browser runs
+    # is a race the browser wins by rewriting it on shutdown.
+    if zen_running; then
+        say "Asking Zen to quit..."
+        if [ "$OS" = macos ]; then
+            osascript -e "quit app \"$(basename "$(zen_bundle)" .app)\"" >/dev/null 2>&1 || true
+        else
+            # shellcheck disable=SC2046
+            kill -TERM $(pgrep -f "$(zen_binary)") 2>/dev/null || true
+        fi
+        waited=0
+        while [ "$waited" -lt "$RESTART_WAIT" ]; do
+            zen_running || break
+            sleep 1
+            waited=$((waited + 1))
+        done
+        if zen_running; then
+            warn "Zen did not close within $RESTART_WAIT seconds - a dialog may be waiting for you."
+            RESTART_OUTCOME="notclosed"
+            return 0
+        fi
+    fi
+
+    cache=$(startup_cache_dir || true)
+    if [ -n "$cache" ]; then
+        rm -rf "$cache"
+        ok "startup cache cleared"
+        CACHE_CLEARED=1
+    else
+        warn "The profile is outside the known profile root; skipping the cache clearing."
+    fi
+
+    if [ "$OS" = macos ]; then
+        open -a "$(zen_bundle)"
+    else
+        # Detached on purpose: closing the terminal must not take the browser down.
+        ( nohup "$(zen_binary)" >/dev/null 2>&1 & )
+    fi
+    ok "Zen started"
+    RESTART_OUTCOME="performed"
 }
 
 # ---------------------------------------------------------------------------
@@ -385,10 +502,48 @@ done <<EOF
 $FILES
 EOF
 
+# ---------------------------------------------------------------------------
+# Offer to finish the job: close Zen, clear the startup cache, open Zen again.
+
+RESTART_OUTCOME="manual"
+
+if [ "$RESTART" = 1 ]; then
+    say ""
+    do_restart
+else
+    if zen_running; then
+        prompt="Restart Zen now? It will close, the startup cache will be cleared, and it will reopen."
+    else
+        prompt="Zen is not running. Clear the startup cache and launch it now?"
+    fi
+    if ask_tty "$prompt"; then
+        say ""
+        do_restart
+    fi
+fi
+
 say ""
-say "Done. Restart Zen, then open about:spacekeeper."
-say ""
-say "If nothing happens after the restart, clear the startup cache:"
-say "  about:support -> Clear startup cache"
+case "$RESTART_OUTCOME" in
+    performed)
+        if [ "$CACHE_CLEARED" = 1 ]; then
+            say "Done. Zen was restarted and the startup cache cleared."
+        else
+            say "Done. Zen was restarted; clear the startup cache yourself if the"
+            say "mod does not load:  about:support -> Clear startup cache"
+        fi
+        say "Open about:spacekeeper."
+        ;;
+    notclosed)
+        say "Done, but Zen is still open and nothing was deleted. Close it yourself,"
+        say "then clear the startup cache and reopen it:"
+        say "  about:support -> Clear startup cache"
+        ;;
+    *)
+        say "Done. Restart Zen, then open about:spacekeeper."
+        say ""
+        say "If nothing happens after the restart, clear the startup cache:"
+        say "  about:support -> Clear startup cache"
+        ;;
+esac
 say ""
 say "Re-run this installer after every Zen update - updates delete the loader."

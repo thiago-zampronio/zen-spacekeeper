@@ -216,6 +216,29 @@ $missingUtils = $vendorUtils | Where-Object { $listedUtils -notcontains $_ }
 Check ($missingUtils.Count -eq 0) "install.sh lists every vendored loader utility ($($vendorUtils.Count))"
 foreach ($u in $missingUtils) { Write-Output "       not listed: $u" }
 
+# The offered restart exists in both installers, with the same wording and the
+# same bounded wait. A user reading instructions written for one platform must
+# find the other behaving identically.
+Check (($ps1 -match '\[switch\]\$Restart') -and ($sh -match '--restart\)')) "both installers declare the restart option"
+
+$restartWording = @(
+    'Restart Zen now? It will close, the startup cache will be cleared, and it will reopen.',
+    'Zen is not running. Clear the startup cache and launch it now?',
+    'did not close within',
+    'skipping the cache clearing',
+    'Zen was restarted and the startup cache cleared.',
+    'Done, but Zen is still open and nothing was deleted.'
+)
+$notShared = $restartWording | Where-Object {
+    -not (($ps1 -match [regex]::Escape($_)) -and ($sh -match [regex]::Escape($_)))
+}
+Check ($notShared.Count -eq 0) "restart wording matches between the installers"
+foreach ($s in $notShared) { Write-Output "       differs: $s" }
+
+$waitSh = [regex]::Match($sh, '(?m)^RESTART_WAIT=(\d+)').Groups[1].Value
+$waitPs = [regex]::Match($ps1, '\$RestartWaitSeconds = (\d+)').Groups[1].Value
+Check ($waitSh -and ($waitSh -eq $waitPs)) "the bounded wait is the same in both installers ($waitSh / $waitPs)"
+
 # ---------------------------------------------------------------------------
 Section "Interface texts"
 

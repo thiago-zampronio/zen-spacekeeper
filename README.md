@@ -56,7 +56,8 @@ less install.sh && sh install.sh
 
 Then: close Zen, open `about:support` and click **Clear startup cache**. Without
 that, Zen ignores the freshly installed loader. Reopen it and go to
-`about:spacekeeper`.
+`about:spacekeeper`. The installer offers to do all of that for you — see
+[Restarting for you](#restarting-for-you).
 
 To confirm it loaded, **Ctrl+Shift+J** shows
 `[ZSTG] 0.17.0 ready — active Space …`.
@@ -95,6 +96,31 @@ Run from a clone, both installers use the local files instead of downloading.
 
 Uninstalling leaves the loader in place, because other mods may depend on it, and
 keeps your preferences so a reinstall finds your configuration.
+
+### Restarting for you
+
+The two steps left after installing — restarting Zen and clearing the startup
+cache — can be done by the installer itself:
+
+```powershell
+.\install.ps1 -Restart
+```
+
+```sh
+./install.sh --restart
+```
+
+Without the flag the installer asks, when a terminal is available to answer.
+Piped runs without the flag skip the restart silently and print the manual steps,
+so the one-line install commands above behave exactly as before.
+
+The installer never closes Zen without a yes, and never kills it: it asks the
+browser to quit the way the platform does, waits up to 20 seconds, and if Zen
+stays open — an unsaved-changes dialog, usually — it says so and leaves
+everything as it was, cache included. The cache cleared is only the
+`startupCache` of the profile it detected; when the profile lives outside the
+known profile root, the installer skips that step and says so rather than guess
+at someone else's cache.
 
 **A flatpak Zen** keeps its application files in a read-only image, so the loader
 cannot be installed into it this way. The installer says so and stops instead of

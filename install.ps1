@@ -26,10 +26,18 @@ param(
     [switch]$Check,
     # Removes Spacekeeper from the profile. Leaves the loader alone: other mods
     # may depend on it.
-    [switch]$Uninstall
+    [switch]$Uninstall,
+    # After installing, close Zen, clear the startup cache and open it again,
+    # without asking. Without this flag you are asked, when a terminal is
+    # available to answer.
+    [switch]$Restart
 )
 
 $ErrorActionPreference = "Stop"
+
+# How long the offered restart waits for Zen to exit before giving up. Kept equal
+# in install.sh (RESTART_WAIT); verify.ps1 fails if the two disagree.
+$RestartWaitSeconds = 20
 
 $FILES = @(
     @{ From = "src/zen-space-tab-groups.uc.mjs"; To = "chrome\JS\zen-space-tab-groups.uc.mjs" }
@@ -118,6 +126,67 @@ function Find-ProfileDir {
 
     $path = $path -replace '/', '\'
     if ([System.IO.Path]::IsPathRooted($path)) { $path } else { Join-Path $root $path }
+}
+
+# ---------------------------------------------------------------------------
+# The offered restart
+#
+# Everything here is consent-gated and never kills a process: the browser is asked
+# to close its windows, and a browser that stays open (an unsaved-changes dialog,
+# usually) wins - the installer reports it and falls back to the manual
+# instructions.
+
+function Get-ZenProcesses {
+    # Matched against the detected install directory, never the bare name: a
+    # process called "zen" from another install is not the one being targeted.
+    Get-Process -Name zen -ErrorAction SilentlyContinue | Where-Object {
+        try { $_.Path -and ($_.Path -like (Join-Path $zen "*")) } catch { $false }
+    }
+}
+
+function Get-StartupCacheDir {
+    # The cache mirrors the profile's path relative to the roaming profile root,
+    # under the local one. A profile outside the known root (an unusual
+    # -ProfileDir) means the location cannot be derived safely; returning nothing
+    # makes the caller skip the cache step rather than guess.
+    $root = Join-Path $env:APPDATA "zen"
+    if (-not $prof.StartsWith($root + "\", [System.StringComparison]::OrdinalIgnoreCase)) { return $null }
+    $rel = $prof.Substring($root.Length + 1)
+    Join-Path (Join-Path $env:LOCALAPPDATA "zen") (Join-Path $rel "startupCache")
+}
+
+$script:cacheCleared = $false
+
+function Invoke-ZenRestart {
+    # Returns "performed" or "notclosed". The cache is cleared only after the
+    # process is observed gone: clearing it while the browser runs is a race the
+    # browser wins by rewriting it on shutdown.
+    if (@(Get-ZenProcesses).Count -gt 0) {
+        Say "Asking Zen to quit..."
+        foreach ($p in Get-ZenProcesses) { $null = $p.CloseMainWindow() }
+        $deadline = (Get-Date).AddSeconds($RestartWaitSeconds)
+        while ((Get-Date) -lt $deadline -and @(Get-ZenProcesses).Count -gt 0) {
+            Start-Sleep -Milliseconds 500
+        }
+        if (@(Get-ZenProcesses).Count -gt 0) {
+            Warn "Zen did not close within $RestartWaitSeconds seconds - a dialog may be waiting for you."
+            return "notclosed"
+        }
+    }
+
+    $cache = Get-StartupCacheDir
+    if ($cache) {
+        if (Test-Path $cache) { Remove-Item $cache -Recurse -Force }
+        Ok "startup cache cleared"
+        $script:cacheCleared = $true
+    }
+    else {
+        Warn "The profile is outside the known profile root; skipping the cache clearing."
+    }
+
+    Start-Process (Join-Path $zen "zen.exe")
+    Ok "Zen started"
+    return "performed"
 }
 
 # ---------------------------------------------------------------------------
@@ -237,6 +306,7 @@ if (-not $loaderPresent -and -not $isAdmin) {
     }
     $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $self,
               "-Repo", $Repo, "-Branch", $Branch, "-ZenDir", $zen, "-ProfileDir", $prof)
+    if ($Restart) { $args += "-Restart" }
     Start-Process -FilePath "pwsh.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue
     if ($LASTEXITCODE -ne 0 -and -not (Test-Path (Join-Path $zen "config.js"))) {
         Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -Wait
@@ -290,10 +360,53 @@ foreach ($f in $FILES) {
 
 if ($staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }
 
+# ---------------------------------------------------------------------------
+# Offer to finish the job: close Zen, clear the startup cache, open Zen again.
+
+$restartOutcome = "manual"
+$doRestart = $Restart.IsPresent
+
+if (-not $doRestart -and [Environment]::UserInteractive) {
+    $promptText = if (@(Get-ZenProcesses).Count -gt 0) {
+        "Restart Zen now? It will close, the startup cache will be cleared, and it will reopen. [y/N]"
+    }
+    else {
+        "Zen is not running. Clear the startup cache and launch it now? [y/N]"
+    }
+    # A host with no one behind it (redirected input, a service) throws here;
+    # no one to ask means the restart is skipped, exactly like the flag-less
+    # piped run on the other platforms.
+    try { $answer = Read-Host $promptText; $doRestart = ($answer -match '^[Yy]') } catch { $doRestart = $false }
+}
+
+if ($doRestart) {
+    Say ""
+    $restartOutcome = Invoke-ZenRestart
+}
+
 Say ""
-Say "Done. Restart Zen, then open about:spacekeeper."
-Say ""
-Say "If nothing happens after the restart, clear the startup cache:"
-Say "  about:support -> Clear startup cache"
+switch ($restartOutcome) {
+    "performed" {
+        if ($script:cacheCleared) {
+            Say "Done. Zen was restarted and the startup cache cleared."
+        }
+        else {
+            Say "Done. Zen was restarted; clear the startup cache yourself if the"
+            Say "mod does not load:  about:support -> Clear startup cache"
+        }
+        Say "Open about:spacekeeper."
+    }
+    "notclosed" {
+        Say "Done, but Zen is still open and nothing was deleted. Close it yourself,"
+        Say "then clear the startup cache and reopen it:"
+        Say "  about:support -> Clear startup cache"
+    }
+    default {
+        Say "Done. Restart Zen, then open about:spacekeeper."
+        Say ""
+        Say "If nothing happens after the restart, clear the startup cache:"
+        Say "  about:support -> Clear startup cache"
+    }
+}
 Say ""
 Say "Re-run this installer after every Zen update - updates delete the loader."
