@@ -190,6 +190,8 @@ $anchors = [ordered]@{
     "tab-grouping/system group for internal pages" = 'SYSTEM_SCHEMES'
     "tab-grouping/loose tabs settle below groups"  = 'function settleLooseTabs'
     "group-presentation/never left nested"         = 'function fixNestedGroups'
+    "tab-grouping/unloaded tabs group from session" = 'getLazyTabValue'
+    "tab-grouping/space organized on first visit"  = 'function organizeSpaceOnce'
     "installation/profile from profiles.ini"       = 'profiles\.ini'
     "installation/loader separate from mod"        = 'Loader \(deleted by every Zen update\)'
     "installation/guard offered, never imposed"    = '--guard\) GUARD=1'

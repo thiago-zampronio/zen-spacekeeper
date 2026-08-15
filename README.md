@@ -70,7 +70,7 @@ that, Zen ignores the freshly installed loader. Reopen it and go to
 [Restarting for you](#restarting-for-you).
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.28.0 ready — active Space …`.
+`[ZSTG] 0.29.0 ready — active Space …`.
 
 ### When detection needs help
 

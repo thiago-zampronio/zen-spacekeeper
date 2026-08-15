@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.28.0
+// @version        0.29.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.28.0";
+const VERSION = "0.29.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -358,7 +358,23 @@ function keyFromTab(tab) {
   } catch {
     return null;
   }
-  return keyFromURI(uri);
+  const info = keyFromURI(uri);
+  if (info) {
+    return info;
+  }
+  // Lazy-restored tabs sit on about:blank until activated, but the session
+  // remembers where they point — a restored tab is still a tab showing a site,
+  // and grouping it must never require loading it. Anything missing here (no
+  // SessionStore, no lazy value) degrades to exactly the old behavior.
+  try {
+    const lazyUrl = window.SessionStore?.getLazyTabValue?.(tab, "url");
+    if (lazyUrl) {
+      return keyFromText(lazyUrl);
+    }
+  } catch {
+    // fall through
+  }
+  return null;
 }
 
 /** String version, for diagnostics and tests. */
@@ -1568,7 +1584,33 @@ function onTabMove() {
   }, 150);
 }
 
+// One organization pass per Space per session, on its first activation: restored
+// Spaces are full of unloaded tabs that fire no events, so nothing else would
+// ever regroup them. Visiting is the trigger — background Spaces cost nothing
+// until they matter.
+const organizedSpaces = new Set();
+
+function organizeSpaceOnce(spaceId) {
+  if (!spaceId || organizedSpaces.has(spaceId)) {
+    return;
+  }
+  organizedSpaces.add(spaceId);
+  let organized = 0;
+  for (const tab of [...window.gBrowser.tabs]) {
+    if (spaceOfTab(tab) !== spaceId || tab.group || !isEligible(tab)) {
+      continue;
+    }
+    organize(tab);
+    organized++;
+  }
+  fixNestedGroups(spaceId);
+  settleLooseTabs(spaceId);
+  updateHiddenCounts();
+  dbg("spaceOrganized", { space: spaceId, evaluated: organized });
+}
+
 function onTabSelect() {
+  guarded(() => organizeSpaceOnce(currentSpace()));
   guarded(applyFocusMode);
   // The active tab is not counted as hidden, so switching tabs changes the number
   // being displayed.
@@ -2108,8 +2150,11 @@ async function start() {
       () =>
         guarded(() => {
           reclaimGroups();
-          fixNestedGroups(currentSpace());
-          settleLooseTabs(currentSpace());
+          // Re-seeded each pass: session restore keeps attaching tabs after the
+          // early passes, and the first-activation set must not consider the
+          // current Space "done" before its tabs exist.
+          organizedSpaces.delete(currentSpace());
+          organizeSpaceOnce(currentSpace());
         }),
       delay
     );
