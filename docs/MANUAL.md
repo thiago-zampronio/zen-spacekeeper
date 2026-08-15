@@ -437,4 +437,5 @@ retranslated after the fact.
 
 ## Next steps
 
-- Configurable delay in focus mode.
+- Collapse/expand motion and a focus-mode close delay — proposed in
+  `openspec/changes/add-collapse-motion/`.
