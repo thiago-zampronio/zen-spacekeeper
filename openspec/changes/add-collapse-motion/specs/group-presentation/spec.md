@@ -5,21 +5,34 @@ silent vanishing.
 
 ## ADDED Requirements
 
-### Requirement: Collapse and expand are animated
+### Requirement: Collapse and expand are animated, by a chosen preset
 
 The system SHALL animate the hiding and showing of a system group's tabs on
-collapse and expand, SHALL fall back to instant hiding when the operating system
-asks for reduced motion or when the animation preference is off, and SHALL keep
-the animation scoped to the groups the system created.
+collapse and expand according to a user-selectable motion preset, offered as one
+choice among at least three motions plus an instant option; SHALL make every
+preset's collapse faster than its expand, since the collapse is system-fired and
+frequent; SHALL NOT let any preset gate reaching a tab mid-animation; SHALL fall
+back to instant when the operating system asks for reduced motion or when the
+instant option is chosen; and SHALL keep the animation scoped to the groups the
+system created.
 
 An instant collapse initiated by the system (focus mode) looks like a glitch; the
-motion is what marks it as intended.
+motion is what marks it as intended. But motion on a frequent action is a tax the
+user pays constantly — the presets exist so real use decides how much story the
+motion tells, and the frequency rule bounds every option.
 
-#### Scenario: Collapsing animates
+#### Scenario: Collapsing animates per the chosen preset
 
-- **GIVEN** the animation preference is on and the OS does not ask for reduced motion
+- **GIVEN** a motion preset is selected and the OS does not ask for reduced motion
 - **WHEN** a system group collapses
-- **THEN** its tabs animate closed instead of disappearing instantly
+- **THEN** its tabs animate closed with that preset's motion
+- **AND** the collapse is faster than the same preset's expand
+
+#### Scenario: No preset gates a click
+
+- **GIVEN** any motion preset
+- **WHEN** the user expands a group to reach a tab
+- **THEN** the tab becomes clickable without waiting for the animation to finish
 
 #### Scenario: Reduced motion wins
 

@@ -17,8 +17,12 @@ instead of a silent vanishing.
   milliseconds): groups leave the recent set only after the delay, and a group the
   user returns to before it fires never collapses at all — killing the flicker of
   fast switching.
-- A preference for the animation (`zen.stg.collapseAnimation`, default on) for
-  whoever wants today's instant behavior regardless of OS settings.
+- The motion is a CHOICE: one string preference (`zen.stg.collapseMotion`) with
+  four values rendered as a single radio group in the panel — `off` (instant,
+  today's behavior), `swift` (default), `fold`, `cascade` — designed by a motion/
+  product panel under Apple's HIG frequency rule: collapse repeats constantly in
+  focus mode, so every preset's collapse is faster than its expand, and no preset
+  may gate reaching a tab mid-animation.
 
 Out of scope:
 

@@ -26,11 +26,30 @@ must stay tight so the expand does not lag visually on the first tab. Everything
 stays inside the existing selectors — `tab-group[zstg-key][collapsed] > ...` — so
 native structures and manual groups never inherit it.
 
-**Reduced motion and the preference gate the ANIMATION, not the hiding.** A
-`@media (prefers-reduced-motion: reduce)` block zeroes the transition durations;
-the `zen.stg.collapseAnimation` pref does the same via an attribute the script
-stamps on the group container (CSS cannot read prefs). Off means instant — the
-exact current behavior — never "no collapse".
+**The motion is a preset, settled by a designer-vs-product panel.** One string
+pref `zen.stg.collapseMotion`, stamped on each group as a `zstg-motion` attribute
+(CSS cannot read prefs); the stylesheet carries one transition block per preset,
+all sharing the same hiding mechanism. The axis is spatial narrative — how much
+story the motion tells about where the tabs went — with the product numbers tuned
+for focus-mode frequency (collapse fires ~6-10x/min; expand sits on the reach-a-
+tab critical path):
+
+- `swift` (DEFAULT, 110ms collapse / 140ms expand): opacity leads the collapse at
+  80ms — the cheapest motion that still reads as caused; invisible by hour two.
+  Default by the frequency rule: both directions are frequent in focus mode, so
+  the binding HIG constraint is frequent-equals-faster, not the 200-300ms budget.
+- `fold` (150ms / 200ms, tuned down from 180/240): the group closes as one sheet
+  and discloses open — native-sidebar vocabulary, a touch calmer.
+- `cascade` (140ms collapse, single beat / 180ms expand with a 15ms-per-row
+  stagger capped at row 6): rows tuck into the chip and deal back out. The
+  product review caught the original stagger (25ms, cap 8) keeping the last row
+  unclickable for 150ms+ on every expand — the tuned numbers keep the last row
+  reachable from ~75ms and settled by ~255ms.
+- `off`: instant, exactly today's behavior — a peer choice in the same radio
+  group, anchoring the baseline the other three are judged against.
+
+`@media (prefers-reduced-motion: reduce)` zeroes every preset's durations: the OS
+setting always wins. Off means instant — never "no collapse".
 
 **Focus delay is a cancellable timer per group.** `applyFocusMode` stops
 collapsing directly: groups that left the keep-set get a timer
