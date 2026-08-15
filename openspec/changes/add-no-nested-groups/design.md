@@ -30,11 +30,14 @@ that keeps everything in its Space), `markAsOurs` with the ORIGINAL key, restore
 label and color, remove the husk. The binding map follows via `markAsOurs`; a
 manual color survives because it lives in the colors map, keyed by key.
 
-**The trigger is TabMove, debounced.** A group drag fires `TabMove` for its tabs —
-the one signal a pure drag produces. The listener debounces (one pass per gesture)
-and runs the nest fix and the loose settle together under `guarded()`. Our own
-corrective moves re-fire TabMove; the debounced pass then finds nothing misplaced
-and stops — convergence, not recursion.
+**The trigger is TabMove, debounced — running the nest fix ONLY.** A group drag
+fires `TabMove` for its tabs — the one signal a pure drag produces. The listener
+debounces (one pass per gesture); our own corrective moves re-fire TabMove, and
+the next pass finds nothing nested and stops — convergence, not recursion.
+Amended in real use: the first version also ran the loose-tab settle here, and
+reshuffling tabs in the middle of the user's own drag made dragged groups bounce
+to wherever the settle's moves pushed the strip. The settle stays where its spec
+put it — the organization moments — and the move pass only ever un-nests.
 
 ## Risks / Trade-offs
 

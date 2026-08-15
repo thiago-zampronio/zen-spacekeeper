@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.27.0
+// @version        0.28.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.27.0";
+const VERSION = "0.28.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -820,6 +820,42 @@ function removeEmptyGroups() {
 }
 
 /**
+ * The current Space's strip in visual order — groups as one entry each, loose
+ * tabs as their own. It exists for the moments something "moved on its own": a
+ * dump before and after a corrective pass answers exactly who moved what. Also
+ * exposed as ZSTG.dumpStrip() for live diagnosis.
+ */
+function dumpStrip(reason) {
+  const spaceId = currentSpace();
+  const container = spaceContainer(spaceId);
+  if (!container) {
+    return [];
+  }
+  const strip = [];
+  for (const node of container.children) {
+    if (node.localName === "tab-group") {
+      const key =
+        node.getAttribute(KEY_ATTR) ?? `manual(${node.label ?? ""})`;
+      strip.push(
+        `[${key} x${node.tabs?.length ?? 0}${node.collapsed ? " collapsed" : ""}]`
+      );
+    } else if (node.localName === "tab") {
+      strip.push(
+        node.hasAttribute("zen-empty-tab")
+          ? "(empty)"
+          : `loose:${keyFromTab(node)?.key ?? "?"}`
+      );
+    } else {
+      strip.push(`<${node.localName}>`);
+    }
+  }
+  if (reason) {
+    dbg("strip", { reason, space: spaceId, strip });
+  }
+  return strip;
+}
+
+/**
  * A group inside a group renders broken: the browser accepts the drop but shows
  * the nested tabs at the parent's level. Reordering is what a group drag should
  * mean, so a system group found nested is restored as a sibling — the native
@@ -835,12 +871,21 @@ function fixNestedGroups(spaceId) {
     if (spaceId && g.getAttribute(SPACE_ATTR) !== spaceId) {
       continue;
     }
-    if (!g.parentElement?.closest("tab-group")) {
+    const outer = g.parentElement?.closest("tab-group");
+    if (!outer || outer === g) {
       continue;
     }
     const key = g.getAttribute(KEY_ATTR);
     const space = g.getAttribute(SPACE_ATTR);
     const tabs = [...(g.tabs ?? [])];
+    // Detection is logged before any action: when a correction misbehaves, the
+    // first question is what the detector believed it saw.
+    dbg("nestedDetected", {
+      key,
+      space,
+      outer: outer.getAttribute(KEY_ATTR) ?? `manual(${outer.label ?? ""})`,
+      tabs: tabs.length,
+    });
     if (!key || !space || !tabs.length) {
       continue;
     }
@@ -930,7 +975,15 @@ function settleLooseTabs(spaceId) {
       misplaced.push(tab);
     }
   }
+  if (misplaced.length) {
+    dbg("looseMisplaced", {
+      space: spaceId,
+      keys: misplaced.map(t => keyFromTab(t)?.key ?? "?"),
+      lastGroup: lastGroup.getAttribute(KEY_ATTR) ?? `manual(${lastGroup.label ?? ""})`,
+    });
+  }
 
+  let moved = false;
   // Moved one at a time to the Space's current end, in their original order —
   // each move makes the moved tab the new end, so the relative order survives.
   // Always through the browser's move API, never raw DOM: raw reparenting would
@@ -945,6 +998,7 @@ function settleLooseTabs(spaceId) {
     if (!last || last === tab) {
       continue;
     }
+    const from = tab._tPos;
     try {
       try {
         window.gBrowser.moveTabTo(tab, { tabIndex: last._tPos, forceUngrouped: true });
@@ -954,11 +1008,20 @@ function settleLooseTabs(spaceId) {
       if (tab.group) {
         window.gBrowser.ungroupTab(tab);
       }
-      dbg("looseSettled", { space: spaceId, key: keyFromTab(tab)?.key ?? null });
+      dbg("looseSettled", {
+        space: spaceId,
+        key: keyFromTab(tab)?.key ?? null,
+        from,
+        to: tab._tPos,
+      });
+      moved = true;
     } catch (ex) {
       dbg("looseSettleFailed", { space: spaceId, error: String(ex) });
       break;
     }
+  }
+  if (moved) {
+    dumpStrip("afterSettle");
   }
 }
 
@@ -1487,15 +1550,20 @@ function onTabClose() {
 // Debounced to one pass per gesture; the pass's own corrective moves re-fire the
 // event, but the next pass finds nothing misplaced and stops — convergence, not
 // recursion.
+//
+// ONLY the nest fix runs here, deliberately. Running the loose-tab settle on
+// every move meant reshuffling tabs in the middle of the user's own drag — a
+// dragged group bounced to wherever the settle's moves pushed the strip. The
+// settle belongs to the organization moments the spec names (a tab opens or
+// navigates, regroup, the restore passes), where no user gesture is in flight.
 let moveSettleTimer = 0;
 
 function onTabMove() {
   window.clearTimeout(moveSettleTimer);
   moveSettleTimer = window.setTimeout(() => {
     guarded(() => {
-      const space = currentSpace();
-      fixNestedGroups(space);
-      settleLooseTabs(space);
+      dumpStrip("beforeNestFix");
+      fixNestedGroups(currentSpace());
     });
   }, 150);
 }
@@ -2121,6 +2189,7 @@ if (core) {
     collapseAll: () => setCollapsed(true),
     expandAll: () => setCollapsed(false),
     keyFromTab,
+    dumpStrip: () => dumpStrip("manual"),
     checkForUpdate,
     applyUpdate,
     uninstallSelf,
