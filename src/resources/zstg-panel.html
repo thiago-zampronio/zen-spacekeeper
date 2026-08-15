@@ -919,6 +919,9 @@
 
       const nDelay = number("focusDelay", 0, 5000);
 
+      // Global appearance first (color, motion), the focus cluster after: the
+      // motion presets animate EVERY collapse and expand - manual clicks and the
+      // commands included - not just focus mode, and the layout must say so.
       sAppearance.append(
         row(
           t("color.title"),
@@ -926,7 +929,37 @@
           toggle("faviconColors", v => pColor.update(v)),
           pColor.box,
           t("color.help")
-        ),
+        )
+      );
+
+      // ---- Collapse motion ----
+      // One radio group of four, Off first: "no motion" is a peer choice and the
+      // instant baseline the other three are judged against. The captions state
+      // the felt trade, not the mechanism — settled by a designer-vs-product
+      // review under the HIG frequency rule (frequent action = faster motion).
+      const motionOptions = [
+        ["off", t("motion.off"), t("motion.off.desc")],
+        ["swift", t("motion.swift"), t("motion.swift.desc")],
+        ["fold", t("motion.fold"), t("motion.fold.desc")],
+        ["cascade", t("motion.cascade"), t("motion.cascade.desc")],
+      ];
+      const motionChoice = el("div", { class: "choice" });
+      const currentMotion = readStr("collapseMotion", "swift");
+      for (const [value, name, desc] of motionOptions) {
+        const op = el("label", { class: "option" });
+        const radio = el("input", { type: "radio", name: "collapseMotion" });
+        radio.checked = currentMotion === value;
+        radio.addEventListener("change", () => writeStr("collapseMotion", value));
+        const txt = el("div", { class: "txt" });
+        txt.append(el("b", { text: name }), el("span", { text: desc }));
+        op.append(radio, txt);
+        motionChoice.append(op);
+      }
+      const motionHeader = el("h2", { text: t("motion.title") });
+      sAppearance.append(motionHeader, motionChoice);
+      headerHelp(motionHeader, t("motion.help"));
+
+      sAppearance.append(
         row(
           t("focus.title"),
           t("focus.short"),
@@ -956,32 +989,6 @@
       );
       syncFocus(readBool("focusMode", false));
 
-      // ---- Collapse motion ----
-      // One radio group of four, Off first: "no motion" is a peer choice and the
-      // instant baseline the other three are judged against. The captions state
-      // the felt trade, not the mechanism — settled by a designer-vs-product
-      // review under the HIG frequency rule (frequent action = faster motion).
-      const motionOptions = [
-        ["off", t("motion.off"), t("motion.off.desc")],
-        ["swift", t("motion.swift"), t("motion.swift.desc")],
-        ["fold", t("motion.fold"), t("motion.fold.desc")],
-        ["cascade", t("motion.cascade"), t("motion.cascade.desc")],
-      ];
-      const motionChoice = el("div", { class: "choice" });
-      const currentMotion = readStr("collapseMotion", "swift");
-      for (const [value, name, desc] of motionOptions) {
-        const op = el("label", { class: "option" });
-        const radio = el("input", { type: "radio", name: "collapseMotion" });
-        radio.checked = currentMotion === value;
-        radio.addEventListener("change", () => writeStr("collapseMotion", value));
-        const txt = el("div", { class: "txt" });
-        txt.append(el("b", { text: name }), el("span", { text: desc }));
-        op.append(radio, txt);
-        motionChoice.append(op);
-      }
-      const motionHeader = el("h2", { text: t("motion.title") });
-      sAppearance.append(motionHeader, motionChoice);
-      headerHelp(motionHeader, t("motion.help"));
 
       // ---- Actions ----
       const sActions = document.getElementById("actions");
