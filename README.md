@@ -94,6 +94,10 @@ Run from a clone, both installers use the local files instead of downloading.
 ./install.sh --uninstall
 ```
 
+Both installers also take a source override — `-Repo` and `-Branch` on Windows,
+`--repo` and `--branch` elsewhere — pointing a standalone run at another
+repository or branch. Useful mainly for development.
+
 Uninstalling leaves the loader in place, because other mods may depend on it, and
 keeps your preferences so a reinstall finds your configuration.
 

@@ -184,6 +184,43 @@ $broken = $cited | Where-Object { $exposed -notcontains $_ }
 Check ($broken.Count -eq 0) "the README cites only functions that exist ($($exposed.Count) exposed)"
 foreach ($m in $broken) { Write-Output "       cited but absent from the API: ZSTG.$m" }
 
+# The Structure block in the README and the file map in CLAUDE.md are where a
+# reader is told what exists. Both drift the same way: a file is added or renamed
+# and the maps keep describing the old repository - install.sh was missing from
+# both for a while. Cited paths must exist, and every top-level path must be in
+# each map; README.md, CLAUDE.md, LICENSE and NOTICE describe themselves.
+function Get-MapEntries($text, $header) {
+    $block = [regex]::Match($text, [regex]::Escape($header) + '[\s\S]*?```\n([\s\S]+?)```').Groups[1].Value
+    $block -split "`n" | Where-Object { $_ -match '^\S' } |
+        ForEach-Object { ($_ -split '\s+')[0] } | Where-Object { $_ }
+}
+
+$claudeMd = Get-Content (Join-Path $root "CLAUDE.md") -Raw
+$maps = [ordered]@{
+    "the README Structure map"    = Get-MapEntries $readme '## Structure'
+    "the CLAUDE.md file map"      = Get-MapEntries $claudeMd '## Where things live'
+}
+$selfDescribing = @("README.md", "CLAUDE.md", "LICENSE", "NOTICE")
+$topLevel = Get-ChildItem $root | Where-Object {
+    $_.Name -notlike ".*" -and $selfDescribing -notcontains $_.Name
+} | ForEach-Object { $_.Name }
+
+foreach ($mapName in $maps.Keys) {
+    $entries = @($maps[$mapName])
+    Check ($entries.Count -gt 0) "$mapName was found ($($entries.Count) entries)"
+
+    $gone = $entries | Where-Object { -not (Test-Path (Join-Path $root $_)) }
+    Check ($gone.Count -eq 0) "$mapName cites only paths that exist"
+    foreach ($g in $gone) { Write-Output "       cited but absent: $g" }
+
+    $uncovered = $topLevel | Where-Object {
+        $name = $_
+        -not ($entries | Where-Object { $_ -eq $name -or $_ -eq "$name/" -or $_ -like "$name/*" })
+    }
+    Check ($uncovered.Count -eq 0) "$mapName covers every top-level path"
+    foreach ($u in $uncovered) { Write-Output "       not in the map: $u" }
+}
+
 # ---------------------------------------------------------------------------
 Section "Installers"
 
@@ -238,6 +275,38 @@ foreach ($s in $notShared) { Write-Output "       differs: $s" }
 $waitSh = [regex]::Match($sh, '(?m)^RESTART_WAIT=(\d+)').Groups[1].Value
 $waitPs = [regex]::Match($ps1, '\$RestartWaitSeconds = (\d+)').Groups[1].Value
 Check ($waitSh -and ($waitSh -eq $waitPs)) "the bounded wait is the same in both installers ($waitSh / $waitPs)"
+
+# Every option an installer accepts is in the README, and the README teaches no
+# option that does not exist. --help is left out of the extraction on purpose,
+# and the --zstg-* CSS variables in the appearance table are excluded by their
+# prefix. Case-sensitive on the PowerShell side: --check must not satisfy -Check.
+$shOptions = @(
+    [regex]::Matches($sh, '(?m)^\s+(--[a-z-]+)\)') | ForEach-Object { $_.Groups[1].Value }
+) | Sort-Object -Unique
+$psOptions = @(
+    [regex]::Matches($ps1, '\[(?:switch|string)\]\$(\w+)') | ForEach-Object { $_.Groups[1].Value }
+) | Sort-Object -Unique
+Check ($shOptions.Count -gt 0) "install.sh declares options ($($shOptions.Count))"
+Check ($psOptions.Count -gt 0) "install.ps1 declares options ($($psOptions.Count))"
+
+$undocumentedOpts = @()
+$undocumentedOpts += $shOptions | Where-Object { -not ($readme -match [regex]::Escape($_)) }
+$undocumentedOpts += $psOptions | Where-Object { -not ($readme -cmatch ('(?<![\w-])-' + $_ + '\b')) } |
+    ForEach-Object { "-$_" }
+Check ($undocumentedOpts.Count -eq 0) "every installer option is documented in the README"
+foreach ($o in $undocumentedOpts) { Write-Output "       not documented: $o" }
+
+$readmeShOpts = @(
+    [regex]::Matches($readme, '(?<![\w-])(--[a-z][a-z-]*)') | ForEach-Object { $_.Groups[1].Value }
+) | Sort-Object -Unique | Where-Object { $_ -notlike '--zstg-*' }
+$readmePsOpts = @(
+    [regex]::Matches($readme, '(?<![\w-])-([A-Z]\w+)') | ForEach-Object { $_.Groups[1].Value }
+) | Sort-Object -Unique
+$phantomOpts = @()
+$phantomOpts += $readmeShOpts | Where-Object { $shOptions -notcontains $_ }
+$phantomOpts += $readmePsOpts | Where-Object { $psOptions -notcontains $_ } | ForEach-Object { "-$_" }
+Check ($phantomOpts.Count -eq 0) "the README cites no installer option that does not exist"
+foreach ($o in $phantomOpts) { Write-Output "       cited but absent: $o" }
 
 # ---------------------------------------------------------------------------
 Section "Interface texts"
