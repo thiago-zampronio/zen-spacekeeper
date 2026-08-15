@@ -66,13 +66,13 @@ tab-group[zstg-key][zstg-motion="swift"] > .tab-group-container > .tabbrowser-ta
   transition:
     max-height 140ms cubic-bezier(0, 0, 0.2, 1),
     margin 140ms cubic-bezier(0, 0, 0.2, 1),
-    opacity 100ms cubic-bezier(0, 0, 0.2, 1) 40ms;
+    opacity 100ms cubic-bezier(0, 0, 0.2, 1) 40ms !important;
 }
 tab-group[zstg-key][zstg-motion="swift"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
     max-height 110ms cubic-bezier(0.4, 0, 1, 1),
     margin 110ms cubic-bezier(0.4, 0, 1, 1),
-    opacity 80ms cubic-bezier(0.4, 0, 1, 1);
+    opacity 80ms cubic-bezier(0.4, 0, 1, 1) !important;
 }
 
 /* Fold — the group closes as one sheet and discloses open, native-sidebar
@@ -81,13 +81,13 @@ tab-group[zstg-key][zstg-motion="fold"] > .tab-group-container > .tabbrowser-tab
   transition:
     max-height 200ms cubic-bezier(0.05, 0.7, 0.1, 1),
     margin 200ms cubic-bezier(0.05, 0.7, 0.1, 1),
-    opacity 140ms cubic-bezier(0, 0, 0.2, 1) 40ms;
+    opacity 140ms cubic-bezier(0, 0, 0.2, 1) 40ms !important;
 }
 tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
     max-height 150ms cubic-bezier(0.3, 0, 0.8, 0.15),
     margin 150ms cubic-bezier(0.3, 0, 0.8, 0.15),
-    opacity 110ms cubic-bezier(0.3, 0, 0.8, 0.15);
+    opacity 110ms cubic-bezier(0.3, 0, 0.8, 0.15) !important;
 }
 
 /* Cascade — rows tuck up into the colored chip and deal back out from it: the
@@ -100,28 +100,29 @@ tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-
     max-height 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
     margin 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
     transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 140ms cubic-bezier(0, 0, 0.2, 1);
+    opacity 140ms cubic-bezier(0, 0, 0.2, 1) !important;
   transform: translateY(0);
 }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(2) { transition-delay: 15ms; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(3) { transition-delay: 30ms; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(4) { transition-delay: 45ms; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(5) { transition-delay: 60ms; }
-tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(n+6) { transition-delay: 75ms; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(2) { transition-delay: 15ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(3) { transition-delay: 30ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(4) { transition-delay: 45ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(5) { transition-delay: 60ms !important; }
+tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab:nth-child(n+6) { transition-delay: 75ms !important; }
 tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
     max-height 140ms cubic-bezier(0.4, 0, 1, 1),
     margin 140ms cubic-bezier(0.4, 0, 1, 1),
     transform 140ms cubic-bezier(0.4, 0, 1, 1),
-    opacity 110ms cubic-bezier(0.4, 0, 1, 1);
-  transition-delay: 0ms;
+    opacity 110ms cubic-bezier(0.4, 0, 1, 1) !important;
+  transition-delay: 0ms !important;
   transform: translateY(-6px);
 }
 
 /* The OS accessibility setting beats every preset: reduced motion means instant,
    exactly the pre-motion behavior. This is a spec requirement, not politeness. */
 @media (prefers-reduced-motion: reduce) {
-  tab-group[zstg-key] > .tab-group-container > .tabbrowser-tab {
+  tab-group[zstg-key][zstg-motion] > .tab-group-container > .tabbrowser-tab,
+  tab-group[zstg-key][zstg-motion][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
     transition: none !important;
     transform: none !important;
   }
