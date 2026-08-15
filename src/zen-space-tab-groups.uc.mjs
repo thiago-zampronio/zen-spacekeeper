@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.26.0
+// @version        0.27.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.26.0";
+const VERSION = "0.27.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -820,6 +820,81 @@ function removeEmptyGroups() {
 }
 
 /**
+ * A group inside a group renders broken: the browser accepts the drop but shows
+ * the nested tabs at the parent's level. Reordering is what a group drag should
+ * mean, so a system group found nested is restored as a sibling — the native
+ * group move when the browser offers it, a rebuild with the ORIGINAL key when it
+ * does not (identity, label, color and the manual-color memory all survive: the
+ * key carries them). The user's own nested structures are never touched.
+ */
+function fixNestedGroups(spaceId) {
+  for (const g of [...window.gBrowser.tabGroups]) {
+    if (!isOurGroup(g) || !g.isConnected) {
+      continue;
+    }
+    if (spaceId && g.getAttribute(SPACE_ATTR) !== spaceId) {
+      continue;
+    }
+    if (!g.parentElement?.closest("tab-group")) {
+      continue;
+    }
+    const key = g.getAttribute(KEY_ATTR);
+    const space = g.getAttribute(SPACE_ATTR);
+    const tabs = [...(g.tabs ?? [])];
+    if (!key || !space || !tabs.length) {
+      continue;
+    }
+    const label = g.label;
+    const color = g.color;
+
+    // The native move first: it preserves the group element itself.
+    try {
+      const spaceTabs = [...window.gBrowser.tabs].filter(
+        t => spaceOfTab(t) === space
+      );
+      const last = spaceTabs[spaceTabs.length - 1];
+      if (last) {
+        window.gBrowser.moveTabTo(g, { tabIndex: last._tPos });
+      }
+    } catch {
+      // fall through to the rebuild
+    }
+    if (!g.parentElement?.closest("tab-group")) {
+      dbg("unnested", { key, space, how: "moved" });
+      continue;
+    }
+
+    // Rebuild: ungrouping momentarily parents the tabs into the outer group;
+    // addTabGroup anchored at the container level (the same insertBefore
+    // guarantee that keeps everything in its Space) pulls them into a fresh
+    // sibling carrying the original identity.
+    try {
+      for (const t of tabs) {
+        window.gBrowser.ungroupTab(t);
+      }
+      if (g.isConnected) {
+        g.remove();
+      }
+      const anchor = anchorFor(tabs[0], space);
+      if (!anchor) {
+        continue;
+      }
+      const rebuilt = window.gBrowser.addTabGroup(tabs, {
+        label,
+        color,
+        insertBefore: anchor,
+      });
+      if (rebuilt) {
+        markAsOurs(rebuilt, key, space);
+        dbg("unnested", { key, space, how: "rebuilt" });
+      }
+    } catch (ex) {
+      dbg("unnestFailed", { key, space, error: String(ex) });
+    }
+  }
+}
+
+/**
  * Loose tabs live below the groups: grouping forms islands around whatever was
  * open, and the tabs left out end up wedged between islands — the hardest place
  * to find them. This settles every misplaced loose tab of ONE Space after that
@@ -994,6 +1069,7 @@ function regroup() {
       organize(t, true);
     }
     removeEmptyGroups();
+    fixNestedGroups(spaceId);
     settleLooseTabs(spaceId);
     updateHiddenCounts();
     console.log(`${LOG} regroup: ${targets.length} tabs evaluated in Space ${spaceId}`);
@@ -1405,6 +1481,23 @@ function onTabClose() {
     guarded(removeEmptyGroups);
     guarded(updateHiddenCounts);
   }, 0);
+}
+
+// A group drag announces itself only through the TabMove of the tabs it carries.
+// Debounced to one pass per gesture; the pass's own corrective moves re-fire the
+// event, but the next pass finds nothing misplaced and stops — convergence, not
+// recursion.
+let moveSettleTimer = 0;
+
+function onTabMove() {
+  window.clearTimeout(moveSettleTimer);
+  moveSettleTimer = window.setTimeout(() => {
+    guarded(() => {
+      const space = currentSpace();
+      fixNestedGroups(space);
+      settleLooseTabs(space);
+    });
+  }, 150);
 }
 
 function onTabSelect() {
@@ -1947,6 +2040,7 @@ async function start() {
       () =>
         guarded(() => {
           reclaimGroups();
+          fixNestedGroups(currentSpace());
           settleLooseTabs(currentSpace());
         }),
       delay
@@ -1962,6 +2056,7 @@ async function start() {
   const container = window.gBrowser.tabContainer;
   container.addEventListener("TabOpen", onTabOpen);
   container.addEventListener("TabClose", onTabClose);
+  container.addEventListener("TabMove", onTabMove);
   container.addEventListener("TabSelect", onTabSelect);
   container.addEventListener("TabAttrModified", onTabAttrModified);
   container.addEventListener("TabGroupCollapse", onGroupCollapseChanged);
@@ -1980,6 +2075,8 @@ async function start() {
     () => {
       container.removeEventListener("TabOpen", onTabOpen);
       container.removeEventListener("TabClose", onTabClose);
+      container.removeEventListener("TabMove", onTabMove);
+      window.clearTimeout(moveSettleTimer);
       container.removeEventListener("TabSelect", onTabSelect);
       container.removeEventListener("TabAttrModified", onTabAttrModified);
       container.removeEventListener("TabGroupCollapse", onGroupCollapseChanged);

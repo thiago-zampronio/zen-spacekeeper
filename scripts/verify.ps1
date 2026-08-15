@@ -189,6 +189,7 @@ $anchors = [ordered]@{
     "tab-grouping/binding map pruned in-session"   = 'prune: true \}\)\), 60000'
     "tab-grouping/system group for internal pages" = 'SYSTEM_SCHEMES'
     "tab-grouping/loose tabs settle below groups"  = 'function settleLooseTabs'
+    "group-presentation/never left nested"         = 'function fixNestedGroups'
     "installation/profile from profiles.ini"       = 'profiles\.ini'
     "installation/loader separate from mod"        = 'Loader \(deleted by every Zen update\)'
     "installation/guard offered, never imposed"    = '--guard\) GUARD=1'
