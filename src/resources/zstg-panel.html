@@ -280,15 +280,25 @@
         cursor: pointer;
       }
       button:hover { background: var(--line); }
-      /* Criticality is visible before reading: the primary action (an update
-         that will change installed code) carries the accent, the destructive
-         one carries red. Both keep their weight on hover, not a gray wash. */
+      /* Criticality is visible before reading, in three levels: the quiet
+         starter (blue text), the primary action that APPEARS after a check
+         (solid blue — a fixed blue, not AccentColor, because a "new option
+         opened" signal must not depend on the user's system accent), and the
+         destructive one (red). If every button shouted, none would. */
+      button.accented { color: #007aff; border-color: color-mix(in srgb, #007aff 45%, transparent); }
+      button.accented:hover { background: color-mix(in srgb, #007aff 12%, transparent); }
       button.primary {
-        background: var(--accent);
-        border-color: var(--accent);
+        background: #007aff;
+        border-color: #007aff;
         color: #ffffff;
       }
-      button.primary:hover { filter: brightness(1.1); background: var(--accent); }
+      button.primary:hover { filter: brightness(1.1); background: #007aff; }
+      @media (prefers-color-scheme: dark) {
+        button.accented { color: #0a84ff; border-color: color-mix(in srgb, #0a84ff 45%, transparent); }
+        button.accented:hover { background: color-mix(in srgb, #0a84ff 14%, transparent); }
+        button.primary { background: #0a84ff; border-color: #0a84ff; }
+        button.primary:hover { background: #0a84ff; }
+      }
       button.destructive {
         color: #d70015;
         border-color: color-mix(in srgb, #d70015 45%, transparent);
@@ -1000,7 +1010,7 @@
       const maintOutput = el("pre", { text: "—" });
       let updateTag = null;
 
-      const btnCheck = el("button", { text: t("update.check") });
+      const btnCheck = el("button", { class: "accented", text: t("update.check") });
       const btnUpdate = el("button", { class: "primary", text: t("update.apply") });
       btnUpdate.hidden = true;
 
