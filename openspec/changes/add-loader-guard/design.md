@@ -62,6 +62,24 @@ install run, so it always matches the last installed loader.
 once at startup; writing them while Zen runs affects nothing until the next start,
 which is exactly when they are needed.
 
+**Self-disarm kills the orphan problem.** On every run the guard first checks the
+mod's own files in the profile; gone means the guard deletes itself — watcher,
+script, cache. Persistence that verifies its own reason to exist on every wake is
+the answer to "it gets downloaded and never leaves": it leaves on its own.
+
+**Staleness is handled by visibility, not expiry.** The cache is refreshed on
+every install run and stamped with its date; a restore notification names that
+date. There is no hard expiry: a loader that worked yesterday restored into
+today's Zen is exactly what re-running the installer from a clone would do — and
+if a future Zen does break it, the startup canary reports the breakage loudly on
+the next start, which is the moment the user re-runs the installer. The two
+features were built to compose.
+
+**The whole footprint is one directory and one watcher entry.** Everything lives
+in `<profile>/spacekeeper/` (script, cache, date stamp) plus the single
+LaunchAgent / path unit / Scheduled Task, all documented in the README — deleting
+those two things by hand IS a complete uninstall, no scavenger hunt.
+
 ## Risks / Trade-offs
 
 - [A background component erodes the "nothing resident" simplicity] → mitigated by
@@ -81,3 +99,11 @@ which is exactly when they are needed.
 - Whether the macOS notification should also offer a "restart Zen now" action
   (AppleScript can): deferred — the restored loader working on the next natural
   start may be enough.
+- Spike before implementing: whether Firefox enterprise policies / managed
+  preferences (which live outside the application directory and survive updates)
+  can bootstrap autoconfig at all. If they can, the guard becomes unnecessary; the
+  expectation is they cannot, since policies deliberately do not allow arbitrary
+  privileged JS.
+- Worth pursuing in parallel, upstream: an issue on zen-browser proposing a
+  supported persistence hook for userchrome scripts across updates — the clean fix
+  is Zen's to make, and Sine users are hit by the same failure (their issue #425).

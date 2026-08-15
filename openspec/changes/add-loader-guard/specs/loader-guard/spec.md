@@ -74,6 +74,73 @@ the no-network claim true for every component.
 - **THEN** it notifies the user to re-run the installer
 - **AND** writes nothing
 
+### Requirement: Self-contained after install
+
+The guard SHALL depend only on what the installer deployed (the profile directory
+and the watcher entry) and on operating-system facilities. Deleting the installer,
+the repository clone, or having no network SHALL NOT affect any of the guard's
+behavior.
+
+Think like an installer: once installed, the installer can be deleted and
+everything keeps working. The only moment that ever needs the installer again is
+the notify-only path, whose recovery instruction is the same piped one-liner that
+needs no prior artifact.
+
+#### Scenario: Installer and clone deleted
+
+- **GIVEN** the guard is installed
+- **AND** the installer file and any repository clone were deleted
+- **WHEN** a browser update removes the loader
+- **THEN** the guard detects, restores or notifies exactly as specified
+
+#### Scenario: No network
+
+- **GIVEN** the machine is offline
+- **WHEN** the guard runs
+- **THEN** every behavior works, since nothing is fetched
+
+### Requirement: The guard never outlives its reason to exist
+
+The guard SHALL verify, on every run, that the mod's own files are still installed
+in the profile, and SHALL remove itself entirely — watcher, schedule, script and
+cache — when they are not.
+
+The formal uninstall only reaches people who remember it. Someone who deleted the
+mod by hand, or abandoned the profile, must not keep a watcher running forever
+over something that no longer exists: orphaned persistence is exactly the
+discomfort that makes people distrust background components.
+
+#### Scenario: The mod was removed by hand
+
+- **GIVEN** the guard is installed
+- **AND** the mod's files are no longer in the profile
+- **WHEN** the guard runs
+- **THEN** it removes its watcher, its schedule, its script and its cache
+- **AND** restores nothing
+
+#### Scenario: The mod is present
+
+- **GIVEN** the mod's files are in the profile
+- **WHEN** the guard runs
+- **THEN** it stays installed and proceeds normally
+
+### Requirement: Nothing about the guard is hidden
+
+Everything the guard leaves on the machine SHALL live in one profile directory
+plus one OS watcher entry, both documented; and every notification SHALL name what
+was done and from a cache of which date.
+
+#### Scenario: The user audits the machine
+
+- **WHEN** the user looks at the documented locations
+- **THEN** the guard's entire footprint is there: one directory, one watcher entry
+
+#### Scenario: A restore is reported
+
+- **WHEN** the guard restores the loader
+- **THEN** the notification states that a restore happened
+- **AND** it states the date the cached copy was made
+
 ### Requirement: Opt-in, visible, removable
 
 The guard SHALL be installed only on explicit request, SHALL be visible through

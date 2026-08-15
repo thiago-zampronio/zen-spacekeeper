@@ -12,6 +12,11 @@
       target still looks like a Zen installation, restore from cache when writable,
       notify via osascript / notify-send with a log-line fallback
 - [ ] 2.2 PowerShell guard script (Windows): same behavior, toast notification
+- [ ] 2.3 Self-disarm: when the mod's files are gone from the profile, the guard
+      removes its watcher, schedule, script and cache, and touches nothing else
+- [ ] 2.4 Self-containment: the scripts reference only the profile directory, the
+      recorded Zen path and OS facilities — no installer, clone or network
+- [ ] 2.5 Cache date stamp written at install; restore notifications name it
 
 ## 3. install.sh
 
