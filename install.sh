@@ -39,7 +39,8 @@ RESTART_WAIT=20
 FILES="src/zen-space-tab-groups.uc.mjs:chrome/JS/zen-space-tab-groups.uc.mjs
 src/zen-space-tab-groups.uc.css:chrome/CSS/zen-space-tab-groups.uc.css
 src/resources/zstg-panel.html:chrome/resources/zstg-panel.html
-src/resources/zstg-i18n.mjs:chrome/resources/zstg-i18n.mjs"
+src/resources/zstg-i18n.mjs:chrome/resources/zstg-i18n.mjs
+src/resources/zstg-core.mjs:chrome/resources/zstg-core.mjs"
 
 LOADER="vendor/fx-autoconfig/program/config.js:config.js
 vendor/fx-autoconfig/program/defaults/pref/config-prefs.js:defaults/pref/config-prefs.js"

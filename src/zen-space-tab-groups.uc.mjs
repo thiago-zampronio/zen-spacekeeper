@@ -1,21 +1,40 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.18.0
+// @version        0.19.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.18.0";
+const VERSION = "0.19.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
 
-const COLORS = [
-  "blue", "purple", "cyan", "orange", "yellow", "pink", "green", "gray", "red",
-];
+// The pure logic — key derivation, rules, colors, the deterministic test cases —
+// lives in zstg-core.mjs, so verify.ps1 can run it under plain node on every
+// commit. Without it there is nothing to run: fail once, loudly, and stay off
+// (start() never runs when this is null).
+const core = (() => {
+  try {
+    return ChromeUtils.importESModule("chrome://userchrome/content/zstg-core.mjs");
+  } catch (ex) {
+    console.error(`${LOG} could not load zstg-core.mjs - the mod cannot run:`, ex);
+    return null;
+  }
+})();
+const {
+  COLORS,
+  GROUPABLE_SCHEMES,
+  parseRules,
+  hashColor,
+  rgbToHsl,
+  colorName,
+  keyFromParts,
+  runDerivationTests,
+} = core ?? {};
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -199,34 +218,6 @@ function prefJSON(name, expectsArray) {
   return JSON.parse(DEFAULTS[name]);
 }
 
-/**
- * Turns the raw pref text into usable rules. Invalid text never takes grouping
- * down: it becomes an empty list.
- * @param {string} raw
- */
-function parseRules(raw) {
-  let list;
-  try {
-    list = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(list)) {
-    return [];
-  }
-  const rules = [];
-  for (const r of list) {
-    if (!r || typeof r.name !== "string" || !Array.isArray(r.domains)) {
-      continue;
-    }
-    rules.push({
-      name: r.name,
-      domains: r.domains.filter(d => typeof d === "string").map(d => d.toLowerCase()),
-    });
-  }
-  return rules;
-}
-
 // ---------------------------------------------------------------------------
 // Interface language
 // ---------------------------------------------------------------------------
@@ -317,9 +308,10 @@ function saveColors(map) {
 // Group key derivation
 // ---------------------------------------------------------------------------
 
-const GROUPABLE_SCHEMES = new Set(["http", "https"]);
-
 /**
+ * Thin wrapper over the core derivation: extracts what only the browser can give
+ * (the nsIURI parts, the live configuration, the real Public Suffix List) and
+ * delegates. The logic itself lives in zstg-core.mjs, where node can test it.
  * @param {nsIURI} uri
  * @param {object} [over] partial config overriding the current one (used by tests)
  * @returns {{key: string, label: string}|null} null when the tab is not groupable.
@@ -328,76 +320,17 @@ function keyFromURI(uri, over) {
   if (!uri || !GROUPABLE_SCHEMES.has(uri.scheme)) {
     return null;
   }
-
   let host;
   try {
-    host = uri.host?.toLowerCase();
+    host = uri.host;
   } catch {
     return null;
   }
   if (!host) {
     return null;
   }
-
-  const withoutWww = host.startsWith("www.") ? host.slice(4) : host;
-
   const c = over ? { ...cfg(), ...over } : cfg();
-
-  // Exclusion: matches the host or any parent domain
-  for (const excluded of c.excluded) {
-    if (withoutWww === excluded || withoutWww.endsWith("." + excluded)) {
-      return null;
-    }
-  }
-
-  // Custom rules take precedence over the domain
-  for (const rule of c.rules) {
-    for (const d of rule.domains) {
-      if (withoutWww === d || withoutWww.endsWith("." + d)) {
-        return { key: `rule:${rule.name}`, label: rule.name };
-      }
-    }
-  }
-
-  // Services.eTLD is the real Public Suffix List from Firefox — it covers .com.br,
-  // .co.uk and the like without a list of our own.
-  let base = withoutWww;
-  let suffix = "";
-  try {
-    base = Services.eTLD.getBaseDomainFromHost(withoutWww);
-    suffix = Services.eTLD.getPublicSuffixFromHost(withoutWww);
-  } catch {
-    // Host with no known suffix (IP, intranet): use the whole host
-    return { key: `host:${withoutWww}`, label: withoutWww };
-  }
-
-  const withoutSuffix = t =>
-    suffix && t.endsWith("." + suffix) ? t.slice(0, -(suffix.length + 1)) : t;
-
-  const domain = withoutSuffix(base) || base;
-
-  // Host granularity: from the global switch, or because the site is in the list
-  const inList = c.subdomainDomains.some(
-    d => withoutWww === d || withoutWww.endsWith("." + d)
-  );
-
-  if (c.groupBySubdomain || inList) {
-    // The label is presentation only; the key is always the host, so switching
-    // styles never regroups anything.
-    let label;
-    if (c.subdomainLabel === "sub") {
-      const sub = withoutWww.endsWith("." + base)
-        ? withoutWww.slice(0, -(base.length + 1))
-        : "";
-      // A host with no subdomain would yield an empty label; fall back to the domain.
-      label = sub || domain;
-    } else {
-      label = withoutSuffix(withoutWww) || withoutWww;
-    }
-    return { key: `host:${withoutWww}`, label };
-  }
-
-  return { key: `domain:${domain}`, label: domain };
+  return keyFromParts(uri.scheme, host, c, Services.eTLD);
 }
 
 function keyFromTab(tab) {
@@ -512,57 +445,12 @@ function colorFor(key) {
   if (c.colors[key]) {
     return c.colors[key];
   }
-  // Stable hash: same key => same color across Spaces and across sessions
-  let h = 2166136261;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return COLORS[Math.abs(h) % COLORS.length];
+  return hashColor(key);
 }
 
 // ---------------------------------------------------------------------------
 // Favicon-derived color
 // ---------------------------------------------------------------------------
-
-function rgbToHsl(r, g, b) {
-  r /= 255;
-  g /= 255;
-  b /= 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const d = max - min;
-  if (!d) {
-    return { h: 0, s: 0, l };
-  }
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h;
-  if (max === r) {
-    h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
-  } else if (max === g) {
-    h = ((b - r) / d + 2) * 60;
-  } else {
-    h = ((r - g) / d + 4) * 60;
-  }
-  return { h, s, l };
-}
-
-/**
- * Classifies by hue, not by distance to fixed RGB values: the native colors resolve
- * to tokens that change between light and dark themes, so a fixed table would be
- * right in one theme and wrong in the other.
- */
-function colorName(h) {
-  if (h < 15 || h >= 345) return "red";
-  if (h < 45) return "orange";
-  if (h < 70) return "yellow";
-  if (h < 160) return "green";
-  if (h < 200) return "cyan";
-  if (h < 255) return "blue";
-  if (h < 290) return "purple";
-  return "pink";
-}
 
 /**
  * Reads the favicon the browser already has for the tab and returns the closest
@@ -1272,15 +1160,13 @@ const prefObserver = {
  * checklist in the README — they cannot be simulated without altering the real session.
  */
 function selfTest() {
-  const cases = [];
-  const check = (name, actual, expected) => {
-    const ok = JSON.stringify(actual) === JSON.stringify(expected);
-    cases.push({ name, ok, actual, expected });
-  };
-
-  // Every field the derivation reads has to be here. Without `subdomainDomains`,
-  // the user's real configuration leaked into the cases and a deterministic test
-  // started depending on the environment.
+  // The deterministic derivation cases live in zstg-core.mjs and also run under
+  // node in verify.ps1. Here they run against the REAL Services.eTLD — the same
+  // list, two judges, and a case passing in only one of them is itself a finding.
+  //
+  // Every field the derivation reads is overridden by `noRules`. Without
+  // `subdomainDomains`, the user's real configuration leaked into the cases and a
+  // deterministic test started depending on the environment.
   const noRules = {
     rules: [],
     excluded: [],
@@ -1288,103 +1174,13 @@ function selfTest() {
     subdomainDomains: [],
     subdomainLabel: "host",
   };
-  const k = (url, over) => keyFromText(url, { ...noRules, ...over })?.key ?? null;
-  const lbl = (url, over) => keyFromText(url, { ...noRules, ...over })?.label ?? null;
-
-  // Domain derivation
-  check("strips www", k("https://www.github.com/x"), "domain:github");
-  check("ignores path", k("https://github.com/org/repo?tab=issues"), "domain:github");
-  check("label without suffix", lbl("https://www.youtube.com/watch?v=1"), "youtube");
-
-  // Compound suffix via Services.eTLD
-  check("compound suffix", k("https://shop.example.com.br/p"), "domain:example");
-  check(
-    "same name under different TLDs matches",
-    k("https://youtube.com") === k("https://youtube.com.br"),
-    true
+  const cases = runDerivationTests((url, over) =>
+    keyFromText(url, { ...noRules, ...over })
   );
-
-  // Non-groupable schemes
-  check("ignores about:", k("about:config"), null);
-  check("ignores file:", k("file:///C:/temp/nota.html"), null);
-
-  // Subdomain
-  check(
-    "subdomain splits",
-    k("https://mail.google.com", { groupBySubdomain: true }) !==
-      k("https://drive.google.com", { groupBySubdomain: true }),
-    true
-  );
-  check(
-    "no subdomain joins",
-    k("https://mail.google.com") === k("https://drive.google.com"),
-    true
-  );
-
-  // Subdomain for a specific site
-  const googleOnly = { subdomainDomains: ["google.com"] };
-  check(
-    "listed site splits subdomains",
-    k("https://mail.google.com", googleOnly) !== k("https://drive.google.com", googleOnly),
-    true
-  );
-  check(
-    "unlisted site stays grouped by site",
-    k("https://a.example.com", googleOnly) === k("https://b.example.com", googleOnly),
-    true
-  );
-  check("host label style", lbl("https://mail.google.com", googleOnly), "mail.google");
-  check(
-    "subdomain label style",
-    lbl("https://mail.google.com", { ...googleOnly, subdomainLabel: "sub" }),
-    "mail"
-  );
-  check(
-    "host without subdomain uses short label",
-    lbl("https://google.com", { ...googleOnly, subdomainLabel: "sub" }),
-    "google"
-  );
-  check(
-    "label style does not change the key",
-    k("https://mail.google.com", googleOnly) ===
-      k("https://mail.google.com", { ...googleOnly, subdomainLabel: "sub" }),
-    true
-  );
-
-  // Custom rules
-  const devRule = [{ name: "Dev", domains: ["github.com", "stackoverflow.com"] }];
-  check(
-    "rule groups different sites",
-    k("https://github.com/x", { rules: devRule }) ===
-      k("https://stackoverflow.com/q", { rules: devRule }),
-    true
-  );
-  check(
-    "rule takes precedence",
-    k("https://github.com/x", { rules: devRule }),
-    "rule:Dev"
-  );
-
-  // Exclusions
-  check(
-    "excluded site",
-    k("https://bank.com.br/account", { excluded: ["bank.com.br"] }),
-    null
-  );
-  check(
-    "subdomain of excluded site",
-    k("https://app.bank.com.br/x", { excluded: ["bank.com.br"] }),
-    null
-  );
-
-  // Invalid configuration
-  check("broken customRules becomes empty list", parseRules("{this is not json"), []);
-  check("non-array customRules becomes empty list", parseRules('{"a":1}'), []);
-  check(
-    "malformed rule is discarded",
-    parseRules('[{"name":"ok","domains":["a.com"]},{"name":123}]'),
-    [{ name: "ok", domains: ["a.com"] }]
-  );
+  const check = (name, actual, expected) => {
+    const ok = JSON.stringify(actual) === JSON.stringify(expected);
+    cases.push({ name, ok, actual, expected });
+  };
 
   // ---- Invariants against the real state of the window ----
   // These are not made-up examples: they check what is on screen right now, and
@@ -1903,23 +1699,27 @@ async function start() {
   });
 }
 
-window.ZSTG = {
-  version: VERSION,
-  inspect,
-  selfTest,
-  keyFromText,
-  regroup,
-  ungroup,
-  recoverOldGroups,
-  renameGroup,
-  collapseAll: () => setCollapsed(true),
-  expandAll: () => setCollapsed(false),
-  keyFromTab,
-  reloadConfig: () => {
-    _cfg = null;
-    _t = null;
-    return cfg();
-  },
-};
+// Nothing starts without the core: half a mod that silently drops commands would
+// be worse than a dead one that said why (the import failure above already did).
+if (core) {
+  window.ZSTG = {
+    version: VERSION,
+    inspect,
+    selfTest,
+    keyFromText,
+    regroup,
+    ungroup,
+    recoverOldGroups,
+    renameGroup,
+    collapseAll: () => setCollapsed(true),
+    expandAll: () => setCollapsed(false),
+    keyFromTab,
+    reloadConfig: () => {
+      _cfg = null;
+      _t = null;
+      return cfg();
+    },
+  };
 
-start();
+  start();
+}

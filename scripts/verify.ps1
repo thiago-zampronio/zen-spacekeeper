@@ -201,10 +201,11 @@ $anchors = [ordered]@{
 
 $js = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.mjs") -Raw
 $css = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.css") -Raw
+$coreSrc = Get-Content (Join-Path $root "src/resources/zstg-core.mjs") -Raw
 $panel = (Get-Content (Join-Path $root "src/resources/zstg-panel.html") -Raw) + (Get-Content (Join-Path $root "src/resources/zstg-i18n.mjs") -Raw)
 $missing = @()
 foreach ($name in $anchors.Keys) {
-    if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]))) {
+    if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]) -or ($coreSrc -match $anchors[$name]))) {
         $missing += $name
     }
 }
@@ -262,9 +263,9 @@ foreach ($p in $nonexistent) { Write-Output "       cited but absent from the co
 
 # The public API is what the README teaches people to type in the console. A rename
 # that the README does not follow turns the documentation into a list of errors.
-$api = [regex]::Match($js, 'window\.ZSTG = \{(.+?)\n\};', 'Singleline').Groups[1].Value
+$api = [regex]::Match($js, 'window\.ZSTG = \{(.+?)\n\s*\};', 'Singleline').Groups[1].Value
 Check ($api.Length -gt 0) "the public API object was found in the script"
-$exposed = [regex]::Matches($api, '(?m)^\s{2}(\w+)') | ForEach-Object { $_.Groups[1].Value }
+$exposed = [regex]::Matches($api, '(?m)^\s+(\w+)') | ForEach-Object { $_.Groups[1].Value }
 $cited = [regex]::Matches($readme, 'ZSTG\.(\w+)') |
     ForEach-Object { $_.Groups[1].Value } |
     Sort-Object -Unique
@@ -482,6 +483,43 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 }
 else {
     Check $false "node is required; the syntax check could not run"
+}
+
+# ---------------------------------------------------------------------------
+Section "Core logic"
+
+# The derivation cases from zstg-core.mjs, under plain node with the Public Suffix
+# fixture. ZSTG.selfTest() runs the SAME list against the real Services.eTLD in the
+# browser; here they run on every verify, with no browser anywhere near.
+$corePath = Join-Path $root "src/resources/zstg-core.mjs"
+if ((Test-Path $corePath) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    $coreUri = [System.Uri]::new((Resolve-Path $corePath).Path).AbsoluteUri
+    $coreCode = @"
+import { keyFromParts, runDerivationTests, makeTestETLD } from '$coreUri';
+const etld = makeTestETLD();
+const noRules = { rules: [], excluded: [], groupBySubdomain: false, subdomainDomains: [], subdomainLabel: 'host' };
+const keyFromText = (url, over) => {
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  const c = { ...noRules, ...over };
+  return keyFromParts(u.protocol.replace(':', ''), u.hostname, c, etld);
+};
+const cases = runDerivationTests(keyFromText);
+const failures = cases.filter(c => !c.ok);
+console.log(cases.length + '|' + failures.length + '|' + failures.map(f => f.name).join(' ; '));
+"@
+    $coreOut = node --input-type=module -e $coreCode 2>&1 | Out-String
+    $coreParts = $coreOut.Trim().Split("|")
+    if ($coreParts.Count -eq 3) {
+        Check ($coreParts[1] -eq "0") "$($coreParts[0]) derivation cases pass under node"
+        if ($coreParts[1] -ne "0") { Write-Output "       failing: $($coreParts[2])" }
+    }
+    else {
+        Check $false "could not run the core tests: $($coreOut.Trim())"
+    }
+}
+else {
+    Check $false "node is required; the core logic tests could not run"
 }
 
 # ---------------------------------------------------------------------------

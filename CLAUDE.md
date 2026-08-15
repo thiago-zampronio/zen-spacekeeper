@@ -59,6 +59,7 @@ src/*.uc.css             collapse and appearance, scoped to tab-group[zstg-key]
 src/resources/           served over chrome://userchrome/content/
   zstg-panel.html        the about:spacekeeper panel, chrome-privileged
   zstg-i18n.mjs          every user-visible string, 3 languages
+  zstg-core.mjs          the pure logic; verify.ps1 runs its tests under node
 scripts/verify.ps1       spec ↔ code ↔ docs ↔ installation sync check
 vendor/fx-autoconfig/    vendored loader (MPL 2.0) — do not edit
 openspec/specs/          the living specification

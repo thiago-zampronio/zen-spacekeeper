@@ -60,7 +60,7 @@ that, Zen ignores the freshly installed loader. Reopen it and go to
 [Restarting for you](#restarting-for-you).
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.18.0 ready — active Space …`.
+`[ZSTG] 0.19.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -421,7 +421,7 @@ real tabs and must be checked by hand.
 install.ps1              Windows installer: loader + mod, detects Zen and the profile
 install.sh               the same installer for macOS and Linux
 src/                     script, stylesheet and panel (source of truth)
-src/resources/           panel page and text catalog, served over chrome://
+src/resources/           panel page, text catalog and core logic, over chrome://
 scripts/verify.ps1       checks spec, code, docs and installation are in sync
 vendor/fx-autoconfig/    vendored loader (MPL 2.0)
 openspec/                specification and changes in progress
