@@ -172,18 +172,26 @@ at creation time, never dissolving a group that already exists.
 
 ### Requirement: Non-groupable URLs
 
-The system SHALL ignore tabs whose URL has no groupable host, including browser
-internal pages and local files.
-
-#### Scenario: Internal page
-
-- **WHEN** the user opens `about:config`
-- **THEN** the tab is not grouped
+The system SHALL ignore tabs whose URL has no groupable destination: local files,
+blank placeholders, and — when the system-group preference is disabled —
+browser-internal pages.
 
 #### Scenario: Local file
 
 - **WHEN** the user opens `file:///C:/temp/nota.html`
 - **THEN** the tab is not grouped
+
+#### Scenario: Blank placeholder
+
+- **WHEN** a tab shows `about:blank`
+- **THEN** the tab is not grouped
+
+#### Scenario: Internal page with the system group disabled
+
+- **GIVEN** the system-group preference is disabled
+- **WHEN** the user opens `about:config`
+- **THEN** the tab is not grouped
+
 
 ### Requirement: Exclusion list
 
@@ -349,3 +357,105 @@ requirement remains the guard: pruning during startup is exactly what it forbids
 - **WHEN** the automatic prune runs
 - **THEN** that binding is preserved
 - **AND** the group keeps being recognized as the system's own
+
+### Requirement: Internal pages join the System group
+
+The system SHALL, when the system-group preference is enabled (the default), place
+tabs showing browser-internal pages (`about:` and `chrome:` schemes) into one
+System group per Space, labeled from the text catalog and identified by a fixed
+key — and SHALL NOT place `about:blank` or empty-tab placeholders in it.
+
+The System group is a regular group of the system's: Space-isolated, reused after
+restart, reached by the commands, styled like the others.
+
+#### Scenario: An internal page is grouped
+
+- **GIVEN** the system-group preference is enabled
+- **WHEN** the user opens `about:config`
+- **THEN** the tab joins the Space's System group
+- **AND** a second internal page joins the same group
+
+#### Scenario: Space isolation holds
+
+- **GIVEN** internal pages open in two Spaces
+- **WHEN** they are organized
+- **THEN** each Space has its own System group
+- **AND** no tab changes Space
+
+#### Scenario: about:blank stays out
+
+- **WHEN** a tab shows `about:blank`
+- **THEN** it is not grouped
+
+#### Scenario: Turned off
+
+- **GIVEN** the system-group preference is disabled
+- **WHEN** the user opens an internal page
+- **THEN** the tab is not grouped, as before
+
+### Requirement: Loose tabs live below the groups
+
+The system SHALL, when the loose-tabs-at-bottom preference is enabled (the
+default), keep each Space's ungrouped eligible tabs positioned after that Space's
+last group whenever it organizes, preserving the loose tabs' relative order — and
+SHALL NOT move pinned tabs, essential tabs, Zen folders, tabs in manual groups, or
+any tab across Spaces.
+
+Grouping forms islands around whatever was open; the tabs left out end up wedged
+between islands, which is the hardest place to find them. One region — the bottom
+— makes "where is that loose tab" a non-question.
+
+#### Scenario: A loose tab wedged between groups
+
+- **GIVEN** an ungrouped eligible tab sits between two groups in its Space
+- **WHEN** the system organizes that Space
+- **THEN** the tab moves below the Space's last group
+- **AND** it stays in its Space and keeps its group-less state
+
+#### Scenario: Relative order preserved
+
+- **GIVEN** three loose tabs in a Space, in a given order
+- **WHEN** they are moved below the groups
+- **THEN** they keep that order among themselves
+
+#### Scenario: Native structures untouched
+
+- **GIVEN** pinned tabs, essential tabs, a Zen folder and a manual group in the Space
+- **WHEN** the settle pass runs
+- **THEN** none of them moves
+
+#### Scenario: Turned off
+
+- **GIVEN** the loose-tabs-at-bottom preference is disabled
+- **WHEN** the system organizes
+- **THEN** no loose tab is repositioned, as before
+
+### Requirement: Unloaded tabs group from their session URL
+
+The system SHALL derive an unloaded restored tab's key from the URL the session
+remembers for it, SHALL NOT load the tab to do so, and SHALL organize each Space's
+eligible tabs on that Space's first activation of the session, so a restored
+session regroups as it is visited.
+
+The clean-handover reset dissolves every group and promises the new version
+regroups from scratch; without this, that promise held only for tabs that happened
+to load.
+
+#### Scenario: A restored Space regroups on first visit
+
+- **GIVEN** a session restored with unloaded tabs in a background Space
+- **WHEN** the user activates that Space for the first time
+- **THEN** its eligible tabs are grouped by the sites their session URLs name
+- **AND** no tab is loaded by the organization
+
+#### Scenario: Manual regroup reaches unloaded tabs
+
+- **GIVEN** unloaded restored tabs in the current Space
+- **WHEN** the user triggers the regroup command
+- **THEN** those tabs are grouped by their session URLs
+
+#### Scenario: A tab with no remembered URL
+
+- **GIVEN** an unloaded tab whose session remembers no URL
+- **WHEN** the system organizes
+- **THEN** the tab is left loose, as a blank tab would be

@@ -15,6 +15,6 @@
 ## 3. Verification
 
 - [x] 3.1 verify.ps1 anchors; EVERYTHING IN SYNC
-- [ ] 3.2 In a running Zen: a loose tab wedged between groups settles to the
+- [x] 3.2 In a running Zen: a loose tab wedged between groups settles to the
       bottom on the next organization; order among loose tabs preserved; pinned/
       essential/folders/manual untouched; toggle off stops it — user confirms

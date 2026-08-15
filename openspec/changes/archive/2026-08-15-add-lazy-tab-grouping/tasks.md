@@ -9,6 +9,6 @@
 ## 2. Verification
 
 - [x] 2.1 verify.ps1 anchor; eslint/node; EVERYTHING IN SYNC
-- [ ] 2.2 In a running Zen: after an update reset, switching to a restored Space
+- [x] 2.2 In a running Zen: after an update reset, switching to a restored Space
       regroups it without loading tabs; manual regroup reaches unloaded tabs —
       user confirms

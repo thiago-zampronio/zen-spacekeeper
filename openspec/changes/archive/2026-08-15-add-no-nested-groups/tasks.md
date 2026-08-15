@@ -10,6 +10,6 @@
 ## 2. Verification
 
 - [x] 2.1 verify.ps1 anchor; eslint and node checks; EVERYTHING IN SYNC
-- [ ] 2.2 In a running Zen: drag a Spacekeeper group into another group — it pops
+- [x] 2.2 In a running Zen: drag a Spacekeeper group into another group — it pops
       back out as a sibling within moments, same label/color/tabs; a manual group
       nested in a manual group stays put — user confirms

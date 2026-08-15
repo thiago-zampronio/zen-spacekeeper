@@ -16,6 +16,6 @@
 ## 3. Verification
 
 - [x] 3.1 verify.ps1 anchors; node tests pass; EVERYTHING IN SYNC
-- [ ] 3.2 In a running Zen: about:config and about:spacekeeper join one System
+- [x] 3.2 In a running Zen: about:config and about:spacekeeper join one System
       group per Space; about:blank stays out; toggle off restores loose — user
       confirms
