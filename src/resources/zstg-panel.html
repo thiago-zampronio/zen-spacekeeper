@@ -415,7 +415,7 @@
         const button = el("button", {
           class: "info",
           type: "button",
-          "aria-label": t("moreDetails"),
+          "aria-label": t("a11y.moreDetails"),
           "aria-expanded": "false",
           text: "i",
         });
@@ -960,6 +960,13 @@
         el("div", { class: "actions" }, testButton),
         testOutput
       );
+
+      // Fields commit on `change`, which needs a blur. Closing the tab or quitting
+      // the browser never blurs, so a pending edit silently vanished. Blurring the
+      // focused field here fires the exact same save path a completed edit takes.
+      window.addEventListener("pagehide", () => {
+        document.activeElement?.blur?.();
+      });
     </script>
   </body>
 </html>

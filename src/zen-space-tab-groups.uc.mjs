@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.17.0
+// @version        0.18.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.17.0";
+const VERSION = "0.18.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -122,6 +122,19 @@ function dbg(event, data) {
       logUnavailable = true;
       console.error(`${LOG} log file disabled — ${ex}`);
     }
+  }
+}
+
+/**
+ * At most the host of an address ever reaches the log: a full URL carries paths
+ * and query-string tokens, a materially different exposure than a hostname. On a
+ * parse failure the raw input must not leak in its place, so this returns "".
+ */
+function hostOnly(spec) {
+  try {
+    return Services.io.newURI(String(spec)).host || "";
+  } catch {
+    return "";
   }
 }
 
@@ -684,6 +697,9 @@ let busy = false;
 
 function guarded(fn) {
   if (busy) {
+    // Dropped work self-corrects on the next event, but silently dropping it made
+    // "why didn't it react" undiagnosable. Visible in the log, harmless otherwise.
+    dbg("droppedWhileBusy", {});
     return undefined;
   }
   busy = true;
@@ -872,7 +888,7 @@ function reclaimGroups({ prune = false } = {}) {
   }
 
   if (reclaimed) {
-    console.log(`${LOG} ${reclaimed} group(s) restaurado(s) reconhecido(s)`);
+    console.log(`${LOG} ${reclaimed} restored group(s) recognized`);
   }
 
   dbg("reclaimGroups", {
@@ -1223,6 +1239,12 @@ function onGroupCollapseChanged(e) {
 const prefObserver = {
   observe(_subject, _topic, data) {
     _cfg = null;
+    // A failed write disables logging only until the pref is next touched:
+    // toggling it is the natural "try again" gesture, and the log exists
+    // precisely for the moments things are going wrong.
+    if (data === PREF_PREFIX + "debugLog") {
+      logUnavailable = false;
+    }
     // The language is resolved once and memoized; changing it has to invalidate
     // that too, or the panel would save the choice and nothing would change.
     if (data === PREF_PREFIX + "locale") {
@@ -1540,6 +1562,10 @@ function installSpaceScopedSwitch() {
       return original.apply(this, args);
     }
 
+    // The shadowing below only holds while `original` reads `allUsedBrowsers`
+    // SYNCHRONOUSLY during this call. If Zen ever makes the switch async, the
+    // property is restored before the read and the wrapper silently reverts to
+    // native (all-Spaces) behavior.
     const previous = Object.getOwnPropertyDescriptor(spaces, "allUsedBrowsers");
     Object.defineProperty(spaces, "allUsedBrowsers", {
       value: candidates,
@@ -1557,13 +1583,13 @@ function installSpaceScopedSwitch() {
         delete spaces.allUsedBrowsers;
       }
       dbg("switchToTabHavingURI", {
-        url: String(args[0]?.spec ?? args[0] ?? ""),
+        host: hostOnly(args[0]?.spec ?? args[0] ?? ""),
         spaceBefore,
-        spaceDepois: currentSpace(),
-        mudouDeSpace: spaceBefore !== currentSpace(),
+        spaceAfter: currentSpace(),
+        changedSpace: spaceBefore !== currentSpace(),
         candidates: candidates.length,
         totalTabs: window.gBrowser.tabs.length,
-        trocou: result,
+        switched: result,
       });
     }
   };
@@ -1643,7 +1669,7 @@ function registerPanel() {
   try {
     registrar.registerFactory(
       PANEL_CID,
-      "Zen Space Tab Groups — painel",
+      "Zen Space Tab Groups — panel",
       PANEL_CONTRACT,
       panelFactory
     );
@@ -1657,6 +1683,15 @@ function registerPanel() {
 function unregisterPanel() {
   if (!panelRegistered || !panelFactory) {
     return;
+  }
+  // Only the last browser window tears the registration down: unregistering while
+  // other windows live would break about:spacekeeper in all of them. If the
+  // registering window closes first, the registration deliberately outlives it —
+  // only this window holds the factory, and the chrome URL it points at stays valid.
+  for (const w of Services.wm.getEnumerator("navigator:browser")) {
+    if (w !== window && !w.closed) {
+      return;
+    }
   }
   try {
     Components.manager
@@ -1759,6 +1794,36 @@ function registerHotkeys() {
 // Startup
 // ---------------------------------------------------------------------------
 
+/**
+ * The mod is deliberately defensive — optional chaining and try/catch everywhere —
+ * so when Zen renames an internal, features degrade without a single line in the
+ * console. This is the one loud moment: after startup, every point of the Zen
+ * contract is probed, and whatever is missing gets named in ONE error (a Zen
+ * refactor must not flood the console). Silence means the contract holds.
+ */
+function checkZenContract() {
+  const spaces = window.gZenWorkspaces;
+  const probes = {
+    "gZenWorkspaces": !!spaces,
+    "gZenWorkspaces.workspaceElement()": typeof spaces?.workspaceElement === "function",
+    "gZenWorkspaces.activeWorkspace": !!currentSpace(),
+    "gZenWorkspaces.allUsedBrowsers": !!spaces && "allUsedBrowsers" in spaces,
+    "gBrowser.addTabGroup()": typeof window.gBrowser?.addTabGroup === "function",
+    "gBrowser.tabGroups": !!window.gBrowser?.tabGroups?.[Symbol.iterator],
+    "switchToTabHavingURI()": typeof (originalSwitch ?? window.switchToTabHavingURI) === "function",
+    "UC_API.Hotkeys": !!window.UC_API?.Hotkeys,
+  };
+  const missing = Object.keys(probes).filter(name => !probes[name]);
+  if (missing.length) {
+    console.error(
+      `${LOG} ${VERSION}: the Zen contract is broken — missing: ${missing.join(", ")}. ` +
+        `A Zen update likely changed internals this mod depends on.`
+    );
+    dbg("contractBroken", { missing });
+  }
+  return missing;
+}
+
 async function whenReady() {
   if (!window.gBrowserInit?.delayedStartupFinished) {
     await new Promise(resolve => {
@@ -1802,6 +1867,7 @@ async function start() {
   registerHotkeys();
   installSpaceScopedSwitch();
   registerPanel();
+  checkZenContract();
 
   window.addEventListener(
     "unload",
@@ -1816,6 +1882,7 @@ async function start() {
       Services.prefs.removeObserver(PREF_PREFIX, prefObserver);
       removeMenu();
       uninstallSpaceScopedSwitch();
+      unregisterPanel();
     },
     { once: true }
   );
