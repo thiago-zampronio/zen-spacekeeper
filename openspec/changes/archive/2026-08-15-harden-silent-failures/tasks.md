@@ -18,5 +18,5 @@
 ## 3. Verification
 
 - [x] 3.1 `node --check` on the script and the catalog; `scripts/verify.ps1` passes
-- [ ] 3.2 In a running Zen: canary silent on the current version; `ZSTG.selfTest()`
+- [x] 3.2 In a running Zen: canary silent on the current version; `ZSTG.selfTest()`
       passes; a field typed into and closed keeps its value (user confirms)
