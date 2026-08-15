@@ -1,33 +1,35 @@
-# Spacekeeper
+# Spacekeeper — automatic tab groups for Zen Browser
 
-Automatic domain-based tab grouping in the **Zen Browser**, with the Space
-(workspace) as a first-class boundary: a `youtube` group in the "Personal" Space
-and a `youtube` group in the "Work" Space are independent groups, and no tab
-changes Space because of the organization.
+Spacekeeper organizes your tabs into groups **automatically, by site, as you
+browse** — built for the **Zen Browser** and aware of its **Spaces** (workspaces)
+in a way no extension can be. A `youtube` group in your "Personal" Space and a
+`youtube` group in your "Work" Space are independent groups, and **no tab is ever
+dragged out of the Space you put it in**.
 
-## Why this is neither an extension nor a Zen Mod
+<!-- Screenshots go here: the sidebar with grouped tabs, and the
+     about:spacekeeper panel. -->
 
-It is a **userscript** — a privileged chrome script (`.uc.mjs`) loaded by
-fx-autoconfig. That is the same category as the scripts people install through
-[Sine](https://github.com/CosmoCreeper/Sine), and it is deliberately not one of
-the other two:
+## What you get
 
-| | Extension (`.xpi`) | Zen Mod | Userscript (this) |
-| --- | --- | --- | --- |
-| Runs JavaScript | yes, sandboxed | **no** | yes, privileged |
-| Sees Spaces | **no** | n/a | yes |
-| Installation | `about:addons` | mod store | one command, on Windows / macOS / Linux |
-
-- The WebExtensions API (`browser.tabs.group()`) does not expose the concept of a
-  Space. An extension cannot read or choose a tab's Space — that is why tools like
-  Auto Tab Groups drag tabs across Spaces.
-- Zen Mods load exactly two files per mod, `chrome.css` and `preferences.json`
-  (see `ZenMods.mjs`). There is no JS execution, and CSS does not listen for
-  `TabOpen` nor call `gBrowser.addTabGroup`.
-
-What is left is a privileged chrome script (`.uc.mjs`) loaded by
-[fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig), vendored in
-`vendor/fx-autoconfig/` (MPL 2.0).
+- **Automatic tab grouping** — tabs group themselves by site the moment they
+  open; navigate from GitHub to YouTube and the tab changes group on its own.
+- **Spaces as a hard boundary** — organizing never moves a tab across workspaces.
+  This is the gap Spacekeeper exists to fill: the WebExtensions API cannot see
+  Spaces, so extensions like Auto Tab Groups drag tabs between them.
+- **Group colors from favicons** — YouTube turns red and GitHub turns gray on
+  their own; a color you pick by hand is remembered.
+- **Focus mode** — keeps only the groups you are actually using expanded, so a
+  long sidebar stays readable.
+- **Stay in your Space** — typing an address that is already open in another
+  Space no longer teleports you there.
+- **A real control panel** — `about:spacekeeper`, every setting explained in
+  plain language, no JSON editing. English, Portuguese and Spanish.
+- **Respects your organization** — pinned tabs, essential tabs, Zen folders,
+  split view and groups you made by hand are never touched.
+- **Private by design** — no telemetry, no network requests, everything stays on
+  your machine. MIT licensed, spec-driven, self-testable.
+- **One-command install** on Windows, macOS and Linux — and `--restart` finishes
+  the job for you, startup-cache clearing included.
 
 ## Installation
 
@@ -129,6 +131,30 @@ at someone else's cache.
 **A flatpak Zen** keeps its application files in a read-only image, so the loader
 cannot be installed into it this way. The installer says so and stops instead of
 reporting a success that would never load.
+
+## Why a userscript, and not an extension or a Zen Mod
+
+Spacekeeper is a **userscript** — a privileged chrome script (`.uc.mjs`) loaded by
+fx-autoconfig. That is the same category as the scripts people install through
+[Sine](https://github.com/CosmoCreeper/Sine), and it is deliberately not one of
+the other two:
+
+| | Extension (`.xpi`) | Zen Mod | Userscript (this) |
+| --- | --- | --- | --- |
+| Runs JavaScript | yes, sandboxed | **no** | yes, privileged |
+| Sees Spaces | **no** | n/a | yes |
+| Installation | `about:addons` | mod store | one command, on Windows / macOS / Linux |
+
+- The WebExtensions API (`browser.tabs.group()`) does not expose the concept of a
+  Space. An extension cannot read or choose a tab's Space — that is why tools like
+  Auto Tab Groups drag tabs across Spaces.
+- Zen Mods load exactly two files per mod, `chrome.css` and `preferences.json`
+  (see `ZenMods.mjs`). There is no JS execution, and CSS does not listen for
+  `TabOpen` nor call `gBrowser.addTabGroup`.
+
+What is left is a privileged chrome script (`.uc.mjs`) loaded by
+[fx-autoconfig](https://github.com/MrOtherGuy/fx-autoconfig), vendored in
+`vendor/fx-autoconfig/` (MPL 2.0).
 
 ## After every Zen update
 
