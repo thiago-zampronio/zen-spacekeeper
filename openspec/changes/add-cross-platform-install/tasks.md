@@ -81,11 +81,11 @@ These require the actual operating system. They CANNOT be verified by reading co
 and the change is not archived until the user has run them. The author has no macOS
 or Linux machine in the development environment.
 
-- [ ] 7.1 macOS: fresh install works, and the mod loads after restarting Zen
-- [ ] 7.2 macOS: the panel opens at `about:spacekeeper`
-- [ ] 7.3 macOS: the check option reports the truth before and after installing
-- [ ] 7.4 macOS: uninstall removes the mod and keeps the loader
-- [ ] 7.5 macOS: the detected profile is the one Zen actually opens
+- [x] 7.1 macOS: fresh install works, and the mod loads after restarting Zen
+- [x] 7.2 macOS: the panel opens at `about:spacekeeper`
+- [x] 7.3 macOS: the check option reports the truth before and after installing
+- [x] 7.4 macOS: uninstall removes the mod and keeps the loader
+- [x] 7.5 macOS: the detected profile is the one Zen actually opens
 - [ ] 7.6 Linux: fresh install works, and the mod loads after restarting Zen
 - [ ] 7.7 Linux: the panel opens at `about:spacekeeper`
 - [ ] 7.8 Linux: check and uninstall behave as on the other platforms
@@ -93,3 +93,14 @@ or Linux machine in the development environment.
 - [x] 7.10 Windows: the aligned installer still installs, checks and uninstalls
 - [ ] 7.11 Any platform: failed detection prints a message that actually resolves the
       problem when followed
+
+The macOS run (Sequoia 15.x, Zen 1.21.14b, admin user) surfaced two facts worth
+recording. A staged Zen update applied itself on the first restart after install,
+replaced the whole bundle and deleted the loader — `--check` diagnosed it and a
+re-run fixed it, which is the documented recovery working on a real machine. And
+`/Applications/Zen.app` was group-writable for an admin user, so the loader went in
+without sudo; the elevation path remains exercised only on Windows. The detected
+profile was confirmed against the running process arguments, where `Default=1` in
+`profiles.ini` named a different profile than the `[Install…]` section — the case
+the parser was written for. The uninstall cycle was verified end to end: mod files
+removed, loader kept, reinstall skipped elevation.
