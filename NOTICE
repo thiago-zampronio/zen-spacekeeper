@@ -12,3 +12,8 @@ It is vendored rather than fetched at install time so that installing Spacekeepe
 never depends on a third-party repository staying available, and so that the
 exact loader being written into the browser's program directory is the one you
 can read here.
+
+Updating the vendored copy is a manual, reviewed step: copy the files from a
+checked-out upstream commit, record that commit hash in the update commit's
+message, and diff against the previous copy before committing. The copy is never
+edited in place - a local change would be silently lost on the next update.

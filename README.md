@@ -60,7 +60,7 @@ that, Zen ignores the freshly installed loader. Reopen it and go to
 [Restarting for you](#restarting-for-you).
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.17.0 ready — active Space …`.
+`[ZSTG] 0.18.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -136,18 +136,24 @@ reporting a success that would never load.
 This has already been observed in practice: a staged update was applied on a
 restart and removed `config.js` and `defaults/pref/config-prefs.js`.
 
-Symptom: the mod simply stops loading, with no error. Diagnosis and fix are the
-same command:
+Symptom: the mod simply stops loading, with no error — `about:spacekeeper` shows
+"invalid address", the context menu entry is gone, and the console has no `[ZSTG]`
+line. Diagnosis and fix are the same command, and they work without a clone,
+exactly like the install did:
 
 ```powershell
-.\install.ps1 -Check   # tells you what is missing
-.\install.ps1          # puts it back
+$i = irm https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.ps1
+& ([scriptblock]::Create($i)) -Check   # tells you what is missing
+irm https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.ps1 | iex   # puts it back
 ```
 
 ```sh
-./install.sh --check
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh -s -- --check
+curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh -s -- --restart
 ```
+
+From a clone, `.\install.ps1 -Check` / `./install.sh --check` and running the
+installer again do the same.
 
 The profile side (`chrome/utils`, `chrome/JS`, `chrome/resources`) is not
 affected by updates.
@@ -220,7 +226,8 @@ To add a language:
 ## Commands
 
 - **Right-click a tab → "Spacekeeper" → "Regroup this Space"**
-- **Ctrl+Alt+A** regroups the current Space · **Ctrl+Alt+D** ungroups the current Space
+- **Ctrl+Alt+A** regroups the current Space · **Ctrl+Alt+D** ungroups the current
+  Space (**Cmd+Alt** on macOS)
 - From the console (Ctrl+Shift+J; Cmd+Shift+J on macOS): `ZSTG.regroup()`, `ZSTG.ungroup()`,
   `ZSTG.collapseAll()`, `ZSTG.expandAll()`, `ZSTG.recoverOldGroups()`
 
@@ -263,6 +270,11 @@ investigating:
 .\scripts\verify.ps1
 ```
 
+It runs anywhere PowerShell does — on macOS and Linux, install
+[pwsh](https://github.com/PowerShell/PowerShell) and run
+`pwsh scripts/verify.ps1`. Node and the OpenSpec CLI are required; a missing tool
+fails the run instead of silently passing with checks skipped.
+
 It checks, without changing anything, whether the four layers are in sync: valid
 specs in strict mode, every requirement anchored in the code, prefs documented in
 the README, script syntax, and the installed files identical to the repository's —
@@ -296,6 +308,15 @@ up in the console instead of being swallowed.
 It ships **off**, and that is deliberate: every line records the site of the tab
 involved, so the file amounts to a history of the sites you visit, in plain text
 inside your profile. Turn it on to investigate something, not by default.
+
+## Problems?
+
+Open an issue at
+[github.com/thiago-zampronio/zen-spacekeeper/issues](https://github.com/thiago-zampronio/zen-spacekeeper/issues)
+with the version (`ZSTG.version` in the console, or the panel header), the result
+of `ZSTG.selfTest()`, and — if the problem involves grouping decisions — the
+relevant lines of `zstg-debug.log` after turning `zen.stg.debugLog` on and
+reproducing it.
 
 ## Appearance
 
@@ -382,7 +403,8 @@ real tabs and must be checked by hand.
   is registered as trusted UI rather than as content. A script on that page has
   the same power over the browser that the mod does. The price is paid on the
   other side: the page is strictly local, loads no font, image or script from the
-  network, and its CSP (`default-src chrome:`) blocks any request that tried.
+  network, and its CSP (`default-src chrome:`, with inline script and style allowed
+  for its own code) blocks any network request that tried.
 - **One window at a time:** the script is window-scoped; each window keeps its own
   listeners.
 - **Own styling for the collapse.** Zen only styles `zen-folder[collapsed]`; a

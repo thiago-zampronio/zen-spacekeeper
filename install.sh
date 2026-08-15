@@ -12,8 +12,9 @@
 #      EVERY ZEN UPDATE DELETES IT. Re-run this installer after an update.
 #   2. Spacekeeper itself, in your profile. Needs no privilege, and survives updates.
 #
-# Nothing here touches the network at runtime: the files are copied once, and the
-# mod reads only your own preferences afterwards.
+# Nothing of Spacekeeper's touches the network at runtime: the files are copied
+# once, and the mod reads only your own preferences afterwards. The vendored
+# fx-autoconfig loader ships its own update check, which is off by default.
 #
 # POSIX sh on purpose: some minimal images ship dash as /bin/sh, and nothing here
 # needs arrays or [[ ]].
@@ -239,6 +240,11 @@ startup_cache_dir() {
         "$root"/*) rel=${PROF#"$root"/} ;;
         *) return 1 ;;
     esac
+    # A relative path that climbs out of the root would aim the recursive delete
+    # somewhere else entirely; refusing beats trusting profiles.ini that far.
+    case "$rel" in
+        *..*) return 1 ;;
+    esac
     if [ "$OS" = macos ]; then
         printf '%s' "$HOME/Library/Caches/zen/$rel/startupCache"
     else
@@ -355,6 +361,21 @@ fetch() {
 
 # ---------------------------------------------------------------------------
 
+# A flatpak Zen keeps its application files in a read-only image: the loader can
+# never be written into it, so the honest move is to say so instead of failing
+# later with a raw permission error from cp.
+flatpak_zen() {
+    for d in \
+        /var/lib/flatpak/app/app.zen_browser.zen \
+        /var/lib/flatpak/app/io.github.zen_browser.zen \
+        "$HOME/.local/share/flatpak/app/app.zen_browser.zen" \
+        "$HOME/.local/share/flatpak/app/io.github.zen_browser.zen"
+    do
+        [ -d "$d" ] && return 0
+    done
+    return 1
+}
+
 ZEN=$(find_zen_dir || true)
 PROF=$(find_profile_dir || true)
 
@@ -363,6 +384,10 @@ say "Spacekeeper"
 say ""
 
 if [ -z "$ZEN" ]; then
+    if [ "$OS" = linux ] && flatpak_zen; then
+        die "Zen is installed via flatpak. Its application files live in a read-only
+image, so the fx-autoconfig loader cannot be installed this way."
+    fi
     die "Zen Browser not found.
 Pass --zen-dir with the directory holding the Zen files:
   macOS: /Applications/Zen.app/Contents/Resources
@@ -464,6 +489,17 @@ EOF
         die "The directory is not writable and sudo is not available.
 If this is a flatpak install, the application files are read-only and the loader
 cannot be installed this way."
+    fi
+
+    # The Windows installer confirms before elevating; with a cached sudo
+    # credential this one would elevate with zero interaction. Same wording, same
+    # default. No terminal to answer keeps today's behavior for piped runs.
+    if [ -n "$SUDO" ] && ( : </dev/tty ) 2>/dev/null; then
+        printf 'Continue? [Y/n] ' >/dev/tty
+        IFS= read -r answer </dev/tty || answer=""
+        case "$answer" in
+            [Nn]*) die "Stopped. Nothing was changed." ;;
+        esac
     fi
 
     say "Loader:"

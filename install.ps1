@@ -11,8 +11,9 @@
 #      EVERY ZEN UPDATE DELETES IT. Re-run this installer after an update.
 #   2. Spacekeeper itself, in your profile. Needs no privilege, and survives updates.
 #
-# Nothing here touches the network at runtime: the files are copied once, and the
-# mod reads only your own preferences afterwards.
+# Nothing of Spacekeeper's touches the network at runtime: the files are copied
+# once, and the mod reads only your own preferences afterwards. The vendored
+# fx-autoconfig loader ships its own update check, which is off by default.
 
 [CmdletBinding()]
 param(
@@ -30,7 +31,12 @@ param(
     # After installing, close Zen, clear the startup cache and open it again,
     # without asking. Without this flag you are asked, when a terminal is
     # available to answer.
-    [switch]$Restart
+    [switch]$Restart,
+    # Internal: set by the self-elevation relaunch. The elevated window closes as
+    # soon as the script ends, so everything the user must read or answer — the
+    # restart offer, the final instructions — is skipped there and printed by the
+    # parent instead.
+    [switch]$ElevatedChild
 )
 
 $ErrorActionPreference = "Stop"
@@ -152,6 +158,9 @@ function Get-StartupCacheDir {
     $root = Join-Path $env:APPDATA "zen"
     if (-not $prof.StartsWith($root + "\", [System.StringComparison]::OrdinalIgnoreCase)) { return $null }
     $rel = $prof.Substring($root.Length + 1)
+    # A relative path that climbs out of the root would aim the recursive delete
+    # somewhere else entirely; refusing beats trusting profiles.ini that far.
+    if ($rel -match '\.\.') { return $null }
     Join-Path (Join-Path $env:LOCALAPPDATA "zen") (Join-Path $rel "startupCache")
 }
 
@@ -187,6 +196,59 @@ function Invoke-ZenRestart {
     Start-Process (Join-Path $zen "zen.exe")
     Ok "Zen started"
     return "performed"
+}
+
+# Offer to finish the job: close Zen, clear the startup cache, open Zen again.
+# A function because two paths end here: the normal flow, and the parent of an
+# elevated child - whose own window closed before the user could read anything.
+function Invoke-PostInstall {
+    $restartOutcome = "manual"
+    $doRestart = $Restart.IsPresent
+
+    if (-not $doRestart -and [Environment]::UserInteractive) {
+        $promptText = if (@(Get-ZenProcesses).Count -gt 0) {
+            "Restart Zen now? It will close, the startup cache will be cleared, and it will reopen. [y/N]"
+        }
+        else {
+            "Zen is not running. Clear the startup cache and launch it now? [y/N]"
+        }
+        # A host with no one behind it (redirected input, a service) throws here;
+        # no one to ask means the restart is skipped, exactly like the flag-less
+        # piped run on the other platforms.
+        try { $answer = Read-Host $promptText; $doRestart = ($answer -match '^[Yy]') } catch { $doRestart = $false }
+    }
+
+    if ($doRestart) {
+        Say ""
+        $restartOutcome = Invoke-ZenRestart
+    }
+
+    Say ""
+    switch ($restartOutcome) {
+        "performed" {
+            if ($script:cacheCleared) {
+                Say "Done. Zen was restarted and the startup cache cleared."
+            }
+            else {
+                Say "Done. Zen was restarted; clear the startup cache yourself if the"
+                Say "mod does not load:  about:support -> Clear startup cache"
+            }
+            Say "Open about:spacekeeper."
+        }
+        "notclosed" {
+            Say "Done, but Zen is still open and nothing was deleted. Close it yourself,"
+            Say "then clear the startup cache and reopen it:"
+            Say "  about:support -> Clear startup cache"
+        }
+        default {
+            Say "Done. Restart Zen, then open about:spacekeeper."
+            Say ""
+            Say "If nothing happens after the restart, clear the startup cache:"
+            Say "  about:support -> Clear startup cache"
+        }
+    }
+    Say ""
+    Say "Re-run this installer after every Zen update - updates delete the loader."
 }
 
 # ---------------------------------------------------------------------------
@@ -299,30 +361,34 @@ if (-not $loaderPresent -and -not $isAdmin) {
     }
 
     # Piped from the web there is no file to re-launch, so it is written out first.
+    # Into a directory with a random name: a fixed, predictable path in %TEMP% could
+    # be swapped by another process between this write and the elevated execution,
+    # and whatever sits there would run as Administrator.
     $self = if ($PSCommandPath) { $PSCommandPath } else {
-        $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "spacekeeper-install.ps1"
+        $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "spacekeeper-$(Get-Random)"
+        New-Item -ItemType Directory -Force $tmpDir | Out-Null
+        $tmp = Join-Path $tmpDir "install.ps1"
         Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$Branch/install.ps1" -OutFile $tmp -UseBasicParsing
         $tmp
     }
     $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $self,
-              "-Repo", $Repo, "-Branch", $Branch, "-ZenDir", $zen, "-ProfileDir", $prof)
-    if ($Restart) { $args += "-Restart" }
+              "-Repo", $Repo, "-Branch", $Branch, "-ZenDir", $zen, "-ProfileDir", $prof,
+              "-ElevatedChild")
     Start-Process -FilePath "pwsh.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue
     if ($LASTEXITCODE -ne 0 -and -not (Test-Path (Join-Path $zen "config.js"))) {
         Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -Wait
     }
-    exit 0
+    # The elevated window is gone; whatever the user must read or answer happens
+    # here. The restart offer needs no privilege.
+    if (Test-Path (Join-Path $zen "config.js")) {
+        Invoke-PostInstall
+        exit 0
+    }
+    Warn "The elevated install did not complete - the loader is still missing."
+    exit 1
 }
 
-# ---- Loader ----
-if ($isAdmin) {
-    Say "Loader:"
-    New-Item -ItemType Directory -Force (Join-Path $zen "defaults\pref") | Out-Null
-    foreach ($f in $LOADER) {
-        Copy-Item (Get-Source $f.From) (Join-Path $zen $f.To) -Force
-        Ok $f.To
-    }
-
+function Install-LoaderUtils {
     $utilsSource = Join-Path $prof "chrome\utils"
     New-Item -ItemType Directory -Force (Join-Path $prof "chrome") | Out-Null
     if ($fromClone) {
@@ -342,10 +408,27 @@ if ($isAdmin) {
         }
     }
     Ok "chrome\utils"
+}
+
+# ---- Loader ----
+if ($isAdmin) {
+    Say "Loader:"
+    New-Item -ItemType Directory -Force (Join-Path $zen "defaults\pref") | Out-Null
+    foreach ($f in $LOADER) {
+        Copy-Item (Get-Source $f.From) (Join-Path $zen $f.To) -Force
+        Ok $f.To
+    }
+    Install-LoaderUtils
     Say ""
 }
 else {
     Say "Loader: already present, skipping (administrator not needed)."
+    # A second profile has the program-side loader but not the profile-side
+    # utilities — and those need no privilege. Without this, a fresh profile got a
+    # dead install reported as success.
+    if (-not (Test-Path (Join-Path $prof "chrome\utils\boot.sys.mjs"))) {
+        Install-LoaderUtils
+    }
     Say ""
 }
 
@@ -360,53 +443,12 @@ foreach ($f in $FILES) {
 
 if ($staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }
 
-# ---------------------------------------------------------------------------
-# Offer to finish the job: close Zen, clear the startup cache, open Zen again.
-
-$restartOutcome = "manual"
-$doRestart = $Restart.IsPresent
-
-if (-not $doRestart -and [Environment]::UserInteractive) {
-    $promptText = if (@(Get-ZenProcesses).Count -gt 0) {
-        "Restart Zen now? It will close, the startup cache will be cleared, and it will reopen. [y/N]"
-    }
-    else {
-        "Zen is not running. Clear the startup cache and launch it now? [y/N]"
-    }
-    # A host with no one behind it (redirected input, a service) throws here;
-    # no one to ask means the restart is skipped, exactly like the flag-less
-    # piped run on the other platforms.
-    try { $answer = Read-Host $promptText; $doRestart = ($answer -match '^[Yy]') } catch { $doRestart = $false }
-}
-
-if ($doRestart) {
+if ($ElevatedChild) {
+    # The parent is waiting and will print everything the user must read; this
+    # window is about to close.
     Say ""
-    $restartOutcome = Invoke-ZenRestart
+    Say "Elevated install finished."
+    exit 0
 }
 
-Say ""
-switch ($restartOutcome) {
-    "performed" {
-        if ($script:cacheCleared) {
-            Say "Done. Zen was restarted and the startup cache cleared."
-        }
-        else {
-            Say "Done. Zen was restarted; clear the startup cache yourself if the"
-            Say "mod does not load:  about:support -> Clear startup cache"
-        }
-        Say "Open about:spacekeeper."
-    }
-    "notclosed" {
-        Say "Done, but Zen is still open and nothing was deleted. Close it yourself,"
-        Say "then clear the startup cache and reopen it:"
-        Say "  about:support -> Clear startup cache"
-    }
-    default {
-        Say "Done. Restart Zen, then open about:spacekeeper."
-        Say ""
-        Say "If nothing happens after the restart, clear the startup cache:"
-        Say "  about:support -> Clear startup cache"
-    }
-}
-Say ""
-Say "Re-run this installer after every Zen update - updates delete the loader."
+Invoke-PostInstall

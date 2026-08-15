@@ -7,8 +7,8 @@ script (`.uc.mjs`) loaded by fx-autoconfig — not an extension, not a Zen Mod.
 
 **1. OpenSpec first.** Every behavior change goes through a proposal before any code
 is written. Use the `openspec-propose` skill; do not skip straight to editing
-`src/`. The living specification is `openspec/specs/` — 8 capabilities, each
-requirement anchored in the code by `scripts/verify.ps1`. A change that alters
+`src/`. The living specification is `openspec/specs/` — one directory per
+capability, each requirement anchored in the code by `scripts/verify.ps1`. A change that alters
 behavior without touching the spec leaves the spec lying.
 
 Wording fixes, translations, tooling and installer plumbing do not need a proposal.
@@ -29,6 +29,9 @@ already have on screen, with no error and no migration path:
 - the `zstg-key` attribute (`KEY_ATTR`) and `zen-workspace-id` (`SPACE_ATTR`)
 - the `zen.stg.` preference prefix, and every preference name under it
 - the `"host"` and `"sub"` values of `zen.stg.subdomainLabel`
+- the order and contents of `COLORS`, and the FNV constants in `colorFor`: the
+  hash color of every key a user never overrode is derived from them, so touching
+  either silently recolors groups and freezes false "manual" colors into the pref
 
 The `zstg-` prefix on filenames is internal and may look inconsistent with the
 Spacekeeper name. Leave it: the cost of changing it is paid by users, not by us.
@@ -78,6 +81,21 @@ Then restart Zen. If the script does not load, clear the startup cache in
 The installer's `-Restart` / `--restart` option does the restart and the cache
 clearing in one step.
 
+Enable the repo's pre-commit gate once per clone — it runs the syntax and language
+checks on every commit, and the full `verify.ps1` when `pwsh` is installed:
+
+```sh
+git config core.hooksPath scripts/hooks
+```
+
+## Releasing
+
+A release is a version bump plus a push to `main` — the piped installers serve
+whatever `main` holds. The version lives in three places that `verify.ps1` keeps
+honest: the `@version` header and the `VERSION` constant in the script, and the
+`[ZSTG] x.y.z ready` literal in the README. Bump all three, run the installer to
+refresh your profile, run `verify.ps1`, and only then push.
+
 `verify.ps1` catches a requirement with no implementation, a pref with no
 documentation, a README citing a function that no longer exists, and a stale file in
 the profile. It does **not** catch an implementation that is present and wrong. For
@@ -103,7 +121,8 @@ Reading `prefs.js` from disk beats asking what the configuration is.
   nothing until the installer runs again.
 - **The panel page runs with UI privilege.** It reads and writes prefs directly. Keep
   it strictly local: no font, image, script or fetch from the network. Its CSP
-  (`default-src chrome:`) enforces this, and a requirement in the spec depends on it.
+  (`default-src chrome:`, inline script/style allowed for its own code) enforces
+  the no-network rule, and a requirement in the spec depends on it.
 - **`attr()` in CSS only reads the pseudo-element's own element.** The hidden-tab
   count is written on the label, not on the group, for that reason.
 - **Zen only styles `zen-folder[collapsed]`.** A regular group toggles the attribute

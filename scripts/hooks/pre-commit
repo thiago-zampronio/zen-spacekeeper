@@ -1,0 +1,57 @@
+#!/bin/sh
+# Spacekeeper pre-commit gate. Enable once per clone:
+#
+#   git config core.hooksPath scripts/hooks
+#
+# Fast checks always run; the full verify.ps1 runs when pwsh is installed. A
+# missing required tool FAILS the commit rather than waving it through — the same
+# no-green-stamp rule verify.ps1 follows. Bypass for an emergency with
+# `git commit --no-verify`, and own the consequences.
+
+set -u
+
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+fail=0
+say() { printf 'pre-commit: %s\n' "$*"; }
+
+# --- Shell syntax -----------------------------------------------------------
+sh -n install.sh || { say "install.sh fails sh -n"; fail=1; }
+if command -v dash >/dev/null 2>&1; then
+    dash -n install.sh || { say "install.sh fails dash -n"; fail=1; }
+fi
+sh -n scripts/hooks/pre-commit || { say "this hook fails sh -n"; fail=1; }
+
+# --- JS syntax ---------------------------------------------------------------
+if command -v node >/dev/null 2>&1; then
+    node --check src/zen-space-tab-groups.uc.mjs || { say "script fails node --check"; fail=1; }
+    node --check src/resources/zstg-i18n.mjs || { say "catalog fails node --check"; fail=1; }
+else
+    say "node not found - it is required"; fail=1
+fi
+
+# --- Language gate -----------------------------------------------------------
+# Accented characters, plus the unaccented-Portuguese tokens that slipped through
+# the accent check once. verify.ps1 runs the same list; keep the two in step.
+sources="src/zen-space-tab-groups.uc.mjs src/zen-space-tab-groups.uc.css \
+src/resources/zstg-panel.html install.ps1 install.sh README.md"
+accents=$(printf '\xc3\xa3\xc3\xa7\xc3\xb5\xc3\xaa\xc3\xb4\xc3\xa2\xc3\xad\xc3\xba')
+for s in $sources; do
+    [ -f "$s" ] || continue
+    if grep -n "[$accents]" "$s" >/dev/null 2>&1; then
+        say "Portuguese accent in $s"; fail=1
+    fi
+    if grep -niE '\b(painel|restaurado|reconhecidos?|depois|trocou|mudou|usuario|configuracao)\b' "$s" >/dev/null 2>&1; then
+        say "Portuguese word in $s"; fail=1
+    fi
+done
+
+# --- Full verify when possible -----------------------------------------------
+if command -v pwsh >/dev/null 2>&1; then
+    pwsh -NoProfile -File scripts/verify.ps1 || { say "verify.ps1 failed"; fail=1; }
+else
+    say "pwsh not installed - full verify.ps1 skipped (run it before archiving a change)"
+fi
+
+exit $fail

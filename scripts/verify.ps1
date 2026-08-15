@@ -9,20 +9,78 @@
 # `ZSTG.selfTest()` in the browser console.
 
 param(
-    [string]$Profile = "$env:APPDATA\zen\Profiles\eeijpino.Default (release)",
-    [string]$ZenDir = "C:\Program Files\Zen Browser"
+    # Set only if detection picks the wrong one. Both are detected the way the
+    # installers do it; an undetected one skips the Installation section with a
+    # warning instead of failing checks that say nothing about the repository.
+    [string]$Profile,
+    [string]$ZenDir
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 $failures = @()
 $warnings = @()
+# Windows PowerShell 5.1 does not define $IsWindows; null therefore means Windows.
+$onWindows = $IsWindows -or ($null -eq $IsWindows)
 
-# Re-reads PATH from the registry: a shell opened before Node was installed still
-# carries the old PATH, and the openspec wrapper calls `node` without a full path.
-$env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-            [Environment]::GetEnvironmentVariable("Path", "User") + ";" +
-            "$env:APPDATA\npm"
+if ($onWindows) {
+    # Re-reads PATH from the registry: a shell opened before Node was installed still
+    # carries the old PATH, and the openspec wrapper calls `node` without a full path.
+    $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                [Environment]::GetEnvironmentVariable("Path", "User") + ";" +
+                "$env:APPDATA\npm"
+}
+
+# Detection mirrors the installers: profiles.ini's install section first, then the
+# Default flag; the application directory from the platform's usual places.
+function Detect-ProfileDir {
+    $profileRoot = if ($onWindows) { Join-Path $env:APPDATA "zen" }
+        elseif ($IsMacOS) { Join-Path $HOME "Library/Application Support/zen" }
+        else { Join-Path $HOME ".zen" }
+    $ini = Join-Path $profileRoot "profiles.ini"
+    if (-not (Test-Path $ini)) { return $null }
+    $sections = @{}
+    $current = $null
+    foreach ($line in (Get-Content $ini)) {
+        if ($line -match '^\[(.+)\]$') { $current = $matches[1]; $sections[$current] = @{} }
+        elseif ($current -and $line -match '^([^=]+)=(.*)$') { $sections[$current][$matches[1]] = $matches[2] }
+    }
+    $path = $null
+    foreach ($name in $sections.Keys) {
+        if ($name -like "Install*" -and $sections[$name]["Default"]) { $path = $sections[$name]["Default"]; break }
+    }
+    if (-not $path) {
+        foreach ($name in $sections.Keys) {
+            if ($name -like "Profile*" -and $sections[$name]["Default"] -eq "1") { $path = $sections[$name]["Path"]; break }
+        }
+    }
+    if (-not $path) { return $null }
+    if ([System.IO.Path]::IsPathRooted($path)) { $path } else { Join-Path $profileRoot $path }
+}
+
+function Detect-ZenDir {
+    if ($onWindows) {
+        foreach ($c in @("$env:ProgramFiles\Zen Browser", "${env:ProgramFiles(x86)}\Zen Browser",
+                         "$env:LOCALAPPDATA\Programs\Zen Browser", "$env:LOCALAPPDATA\Zen Browser")) {
+            if ($c -and (Test-Path (Join-Path $c "zen.exe"))) { return $c }
+        }
+        return $null
+    }
+    if ($IsMacOS) {
+        foreach ($b in @("/Applications/Zen.app", "/Applications/Zen Browser.app",
+                         "$HOME/Applications/Zen.app", "$HOME/Applications/Zen Browser.app")) {
+            if (Test-Path (Join-Path $b "Contents/Resources")) { return (Join-Path $b "Contents/Resources") }
+        }
+        return $null
+    }
+    foreach ($d in @("/opt/zen", "/opt/zen-browser", "/usr/lib/zen", "/usr/lib/zen-browser")) {
+        if ((Test-Path (Join-Path $d "zen")) -or (Test-Path (Join-Path $d "zen-bin"))) { return $d }
+    }
+    return $null
+}
+
+if (-not $Profile) { $Profile = Detect-ProfileDir }
+if (-not $ZenDir) { $ZenDir = Detect-ZenDir }
 
 function Section($title) {
     Write-Output ""
@@ -43,8 +101,11 @@ if ((Get-Command openspec -ErrorAction SilentlyContinue) -and
     $specs = openspec validate --specs --strict 2>&1 | Out-String
     Check ($specs -match "0 failed") "specs validated in strict mode"
 
-    $archived = openspec validate --archived 2>&1 | Out-String
-    Check ($archived -match "0 failed") "archived changes have all tasks complete"
+    # `--archived` exists only in some CLI versions; `--all` is the widest this
+    # one offers, and an unknown-option error must read as a failure, never as a
+    # pass.
+    $everything = openspec validate --all 2>&1 | Out-String
+    Check ($everything -match "0 failed") "active changes and specs validate"
 
     $active = openspec list 2>&1 | Out-String
     if ($active -notmatch "No active changes") {
@@ -53,7 +114,9 @@ if ((Get-Command openspec -ErrorAction SilentlyContinue) -and
     Pop-Location
 }
 else {
-    $warnings += "openspec CLI not found; skipping spec validation"
+    # A missing tool must not degrade into a green stamp: with these skipped, an
+    # "EVERYTHING IN SYNC" would be claiming things nothing checked.
+    Check $false "openspec CLI and node are required; spec validation could not run"
 }
 
 # ---------------------------------------------------------------------------
@@ -123,11 +186,22 @@ $anchors = [ordered]@{
     "languages/single catalog"                     = 'export const CATALOG'
     "languages/base language fallback"             = 'BASE_LANGUAGE'
     "languages/missing key is recorded"            = 'missingText'
+    "diagnostics/contract canary"                  = 'function checkZenContract'
+    "configuration/log records hosts only"         = 'function hostOnly'
+    "configuration/log recovers on toggle"         = 'logUnavailable = false'
+    "control-panel/pending edit flushed"           = 'pagehide'
+    # Call-site anchors: a defined function whose call was deleted from start()
+    # passes every definition anchor and ships a mod that silently does less.
+    "startup/menu wired"                           = 'createMenu\(\);'
+    "startup/hotkeys wired"                        = 'registerHotkeys\(\);'
+    "startup/space-scoped switch wired"            = 'installSpaceScopedSwitch\(\);'
+    "startup/panel wired"                          = 'registerPanel\(\);'
+    "startup/contract canary wired"                = 'checkZenContract\(\);'
 }
 
-$js = Get-Content (Join-Path $root "src\zen-space-tab-groups.uc.mjs") -Raw
-$css = Get-Content (Join-Path $root "src\zen-space-tab-groups.uc.css") -Raw
-$panel = (Get-Content (Join-Path $root "src\resources\zstg-panel.html") -Raw) + (Get-Content (Join-Path $root "src\resources\zstg-i18n.mjs") -Raw)
+$js = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.mjs") -Raw
+$css = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.css") -Raw
+$panel = (Get-Content (Join-Path $root "src/resources/zstg-panel.html") -Raw) + (Get-Content (Join-Path $root "src/resources/zstg-i18n.mjs") -Raw)
 $missing = @()
 foreach ($name in $anchors.Keys) {
     if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]))) {
@@ -136,6 +210,15 @@ foreach ($name in $anchors.Keys) {
 }
 Check ($missing.Count -eq 0) "$($anchors.Count) requirements anchored in the code"
 foreach ($n in $missing) { Write-Output "       no anchor: $n" }
+
+# A capability with no anchor at all means a whole spec area nothing is proving.
+$capabilities = Get-ChildItem (Join-Path $root "openspec/specs") -Directory | ForEach-Object { $_.Name }
+$unanchored = $capabilities | Where-Object {
+    $cap = $_
+    -not ($anchors.Keys | Where-Object { $_ -like "$cap/*" })
+}
+Check ($unanchored.Count -eq 0) "every capability has at least one anchor ($($capabilities.Count) capabilities)"
+foreach ($c in $unanchored) { Write-Output "       no anchors: $c" }
 
 # ---------------------------------------------------------------------------
 Section "Documentation"
@@ -160,6 +243,11 @@ $vLiterals = [regex]::Matches($js, 'version: "[^"]+"').Count
 Check ($vLiterals -eq 0) "the version is not duplicated as a literal ($vLiterals found)"
 
 $readme = Get-Content (Join-Path $root "README.md") -Raw
+
+# The README teaches people to look for "[ZSTG] x.y.z ready"; that literal escaped
+# the version check once and drifted a full release behind.
+$vReadme = [regex]::Match($readme, '\[ZSTG\] (\d+\.\d+\.\d+)').Groups[1].Value
+Check ($vReadme -eq $vConst) "the README ready-line version matches the script ($vReadme / $vConst)"
 
 $undocumented = $prefs | Where-Object { -not ($readme -match [regex]::Escape("zen.stg.$_")) }
 Check ($undocumented.Count -eq 0) "$($prefs.Count) prefs documented in the README"
@@ -245,7 +333,7 @@ foreach ($f in $onlySh) { Write-Output "       only in install.sh:  $f" }
 # The loader's profile-side utilities are listed by name in install.sh because
 # raw.githubusercontent serves files, not directories. A file added to the vendored
 # loader and not to that list yields a loader that half-loads.
-$vendorUtils = Get-ChildItem (Join-Path $root "vendor\fx-autoconfig\profile\chrome\utils") -File |
+$vendorUtils = Get-ChildItem (Join-Path $root "vendor/fx-autoconfig/profile/chrome/utils") -File |
     ForEach-Object { $_.Name }
 $listedUtils = [regex]::Match($sh, 'UTILS="([^"]+)"').Groups[1].Value -split '\s+' |
     Where-Object { $_ }
@@ -285,7 +373,10 @@ $shOptions = @(
 ) | Sort-Object -Unique
 $psOptions = @(
     [regex]::Matches($ps1, '\[(?:switch|string)\]\$(\w+)') | ForEach-Object { $_.Groups[1].Value }
-) | Sort-Object -Unique
+) | Sort-Object -Unique |
+    # Internal plumbing set by the self-elevation relaunch, deliberately absent
+    # from the README: documenting it would invite people to pass it.
+    Where-Object { $_ -ne "ElevatedChild" }
 Check ($shOptions.Count -gt 0) "install.sh declares options ($($shOptions.Count))"
 Check ($psOptions.Count -gt 0) "install.ps1 declares options ($($psOptions.Count))"
 
@@ -313,9 +404,11 @@ Section "Interface texts"
 
 # Three catalogs edited by hand drift apart silently: a key added to one language
 # only shows up as a raw key on screen, and only in that language.
-$i18nPath = Join-Path $root "src\resources\zstg-i18n.mjs"
+$i18nPath = Join-Path $root "src/resources/zstg-i18n.mjs"
 if ((Test-Path $i18nPath) -and (Get-Command node -ErrorAction SilentlyContinue)) {
-    $uri = "file:///" + ($i18nPath -replace '\\', '/')
+    # The constructor, not the cast: casting a Unix absolute path yields a
+    # relative Uri whose AbsoluteUri is empty, and node then imports ''.
+    $uri = [System.Uri]::new((Resolve-Path $i18nPath).Path).AbsoluteUri
     $code = @"
 import { LANGUAGES, BASE_LANGUAGE, CATALOG } from '$uri';
 const base = Object.keys(CATALOG[BASE_LANGUAGE]);
@@ -338,7 +431,7 @@ console.log(base.length + '|' + LANGUAGES.length + '|' + bad.join(' ; '));
     }
 }
 else {
-    $warnings += "text catalog or Node not found; skipping the language check"
+    Check $false "node is required; the language parity check could not run"
 }
 
 # ---------------------------------------------------------------------------
@@ -347,81 +440,104 @@ Section "Language of the source"
 # The project publishes its code and specification in English. A file that goes back
 # to Portuguese is caught here and not in review.
 $sources = @(
-    "src\zen-space-tab-groups.uc.mjs",
-    "src\zen-space-tab-groups.uc.css",
-    "src\resources\zstg-panel.html",
+    "src/zen-space-tab-groups.uc.mjs",
+    "src/zen-space-tab-groups.uc.css",
+    "src/resources/zstg-panel.html",
     "install.ps1",
     "install.sh",
-    "scripts\verify.ps1",
+    "scripts/verify.ps1",
     "README.md"
-) + (Get-ChildItem (Join-Path $root "openspec\specs") -Recurse -Filter "*.md" |
+) + (Get-ChildItem (Join-Path $root "openspec/specs") -Recurse -Filter "*.md" |
      ForEach-Object { $_.FullName.Substring($root.Length + 1) })
 
-$withAccents = @()
+# Accents alone are not enough: unaccented Portuguese sailed through this check
+# for a whole release ("restaurado(s) reconhecido(s)" in the console, "painel" in
+# a factory name). The token list is deliberately short and unambiguous \u2014 every
+# word on it is Portuguese-only, so a hit is never a false alarm on English prose.
+$ptTokens = '(?i)\b(painel|restaurado|reconhecido|reconhecidos|depois|trocou|mudou|usuario|configuracao)\b'
+
+$withPortuguese = @()
 foreach ($s in $sources) {
     $p = Join-Path $root $s
     if (-not (Test-Path $p)) { continue }
-    # The catalog is deliberately left out: it holds the translations.
+    # The catalog is deliberately left out: it holds the translations. This file
+    # skips the token pass alone \u2014 the token list itself would match it.
     $hits = Select-String -Path $p -Pattern '[\u00e3\u00e7\u00f5\u00ea\u00f4\u00e2\u00ed\u00fa]' -AllMatches
-    if ($hits) { $withAccents += "$s (line $($hits[0].LineNumber))" }
+    if (-not $hits -and $s -ne "scripts/verify.ps1") {
+        $hits = Select-String -Path $p -Pattern $ptTokens -AllMatches
+    }
+    if ($hits) { $withPortuguese += "$s (line $($hits[0].LineNumber))" }
 }
-Check ($withAccents.Count -eq 0) "$($sources.Count) source files in English"
-foreach ($s in $withAccents) { Write-Output "       Portuguese found: $s" }
+Check ($withPortuguese.Count -eq 0) "$($sources.Count) source files in English"
+foreach ($s in $withPortuguese) { Write-Output "       Portuguese found: $s" }
 
 # ---------------------------------------------------------------------------
 Section "Syntax"
 
 if (Get-Command node -ErrorAction SilentlyContinue) {
-    node --check (Join-Path $root "src\zen-space-tab-groups.uc.mjs") 2>&1 | Out-Null
+    node --check (Join-Path $root "src/zen-space-tab-groups.uc.mjs") 2>&1 | Out-Null
     Check ($LASTEXITCODE -eq 0) "script has no syntax error"
     node --check $i18nPath 2>&1 | Out-Null
     Check ($LASTEXITCODE -eq 0) "text catalog has no syntax error"
 }
 else {
-    $warnings += "Node not found; skipping the syntax check"
+    Check $false "node is required; the syntax check could not run"
 }
 
 # ---------------------------------------------------------------------------
 Section "Installation"
 
-$destJs = Join-Path $Profile "chrome\JS\zen-space-tab-groups.uc.mjs"
-$destCss = Join-Path $Profile "chrome\CSS\zen-space-tab-groups.uc.css"
-
-if (Test-Path $destJs) {
-    $vRepo = [regex]::Match($js, '@version\s+(\S+)').Groups[1].Value
-    $vProfile = [regex]::Match((Get-Content $destJs -Raw), '@version\s+(\S+)').Groups[1].Value
-    Check ($vRepo -eq $vProfile) "script in the profile at the repository version ($vRepo / $vProfile)"
+# Not detecting an installation on THIS machine says nothing about the repository:
+# skip with a warning instead of failing checks a contributor cannot fix here.
+if (-not $Profile -or -not (Test-Path $Profile)) {
+    $warnings += "Zen profile not found on this machine; Installation section skipped"
 }
 else {
-    Check $false "script not installed in the profile"
-}
+    $destJs = Join-Path $Profile "chrome/JS/zen-space-tab-groups.uc.mjs"
+    $destCss = Join-Path $Profile "chrome/CSS/zen-space-tab-groups.uc.css"
 
-if (Test-Path $destCss) {
-    $hRepo = (Get-FileHash (Join-Path $root "src\zen-space-tab-groups.uc.css")).Hash
-    $hProfile = (Get-FileHash $destCss).Hash
-    Check ($hRepo -eq $hProfile) "stylesheet in the profile identical to the repository one"
-}
-else {
-    Check $false "stylesheet not installed in the profile"
-}
-
-# Resources are copied, not linked: an edit in the repository does not reach the
-# profile until install.ps1 runs again, and the panel keeps showing the old page.
-foreach ($res in (Get-ChildItem (Join-Path $root "src\resources") -File)) {
-    $destRes = Join-Path $Profile "chrome\resources\$($res.Name)"
-    if (Test-Path $destRes) {
-        Check ((Get-FileHash $res.FullName).Hash -eq (Get-FileHash $destRes).Hash) `
-              "resource in the profile up to date: $($res.Name)"
+    if (Test-Path $destJs) {
+        $vRepo = [regex]::Match($js, '@version\s+(\S+)').Groups[1].Value
+        $vProfile = [regex]::Match((Get-Content $destJs -Raw), '@version\s+(\S+)').Groups[1].Value
+        Check ($vRepo -eq $vProfile) "script in the profile at the repository version ($vRepo / $vProfile)"
     }
     else {
-        Check $false "resource not installed in the profile: $($res.Name)"
+        Check $false "script not installed in the profile"
+    }
+
+    if (Test-Path $destCss) {
+        $hRepo = (Get-FileHash (Join-Path $root "src/zen-space-tab-groups.uc.css")).Hash
+        $hProfile = (Get-FileHash $destCss).Hash
+        Check ($hRepo -eq $hProfile) "stylesheet in the profile identical to the repository one"
+    }
+    else {
+        Check $false "stylesheet not installed in the profile"
+    }
+
+    # Resources are copied, not linked: an edit in the repository does not reach the
+    # profile until the installer runs again, and the panel keeps showing the old page.
+    foreach ($res in (Get-ChildItem (Join-Path $root "src/resources") -File)) {
+        $destRes = Join-Path $Profile "chrome/resources/$($res.Name)"
+        if (Test-Path $destRes) {
+            Check ((Get-FileHash $res.FullName).Hash -eq (Get-FileHash $destRes).Hash) `
+                  "resource in the profile up to date: $($res.Name)"
+        }
+        else {
+            Check $false "resource not installed in the profile: $($res.Name)"
+        }
+    }
+
+    Check (Test-Path (Join-Path $Profile "chrome/utils/boot.sys.mjs")) "loader: utils in the profile"
+
+    # A Zen update deletes these two files; it is the most common failure in real use.
+    if (-not $ZenDir -or -not (Test-Path $ZenDir)) {
+        $warnings += "Zen application directory not found on this machine; loader checks skipped"
+    }
+    else {
+        Check (Test-Path (Join-Path $ZenDir "config.js")) "loader: config.js present"
+        Check (Test-Path (Join-Path $ZenDir "defaults/pref/config-prefs.js")) "loader: config-prefs.js present"
     }
 }
-
-# A Zen update deletes these two files; it is the most common failure in real use.
-Check (Test-Path (Join-Path $ZenDir "config.js")) "loader: config.js present"
-Check (Test-Path (Join-Path $ZenDir "defaults\pref\config-prefs.js")) "loader: config-prefs.js present"
-Check (Test-Path (Join-Path $Profile "chrome\utils\boot.sys.mjs")) "loader: utils in the profile"
 
 # ---------------------------------------------------------------------------
 Write-Output ""
