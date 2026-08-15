@@ -57,6 +57,7 @@ install.sh               the same installer for macOS and Linux (POSIX sh)
 eslint.config.mjs        no-undef + no-unused-vars over src/, nothing of style
 package.json             dev tooling only (eslint); the mod has no dependencies
 package-lock.json        pins that tooling
+docs/                    the technical manual (MANUAL.md) and the README's screenshots
 src/*.uc.mjs             the chrome script (window-scoped ES module)
 src/guard/               the loader guard scripts, deployed to <profile>/spacekeeper/
 src/*.uc.css             collapse and appearance, scoped to tab-group[zstg-key]
@@ -100,7 +101,7 @@ npm install
 A release is a version bump plus a push to `main` — the piped installers serve
 whatever `main` holds. The version lives in three places that `verify.ps1` keeps
 honest: the `@version` header and the `VERSION` constant in the script, and the
-`[ZSTG] x.y.z ready` literal in the README. Bump all three, run the installer to
+`[ZSTG] x.y.z ready` literal in the docs (docs/MANUAL.md). Bump all three, run the installer to
 refresh your profile, run `verify.ps1`, and only then push. For milestones, also
 tag it and publish notes (`gh release create vX.Y.Z`) — releases are where new
 users judge whether the project is alive.

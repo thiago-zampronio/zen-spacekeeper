@@ -44,7 +44,7 @@ fi
 # Accented characters, plus the unaccented-Portuguese tokens that slipped through
 # the accent check once. verify.ps1 runs the same list; keep the two in step.
 sources="src/zen-space-tab-groups.uc.mjs src/zen-space-tab-groups.uc.css \
-src/resources/zstg-panel.html install.ps1 install.sh README.md"
+src/resources/zstg-panel.html install.ps1 install.sh README.md docs/MANUAL.md"
 accents=$(printf '\xc3\xa3\xc3\xa7\xc3\xb5\xc3\xaa\xc3\xb4\xc3\xa2\xc3\xad\xc3\xba')
 for s in $sources; do
     [ -f "$s" ] || continue

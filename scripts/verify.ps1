@@ -264,21 +264,26 @@ $vLiterals = [regex]::Matches($js, 'version: "[^"]+"').Count
 Check ($vLiterals -eq 0) "the version is not duplicated as a literal ($vLiterals found)"
 
 $readme = Get-Content (Join-Path $root "README.md") -Raw
+# The user-facing docs are two layers: the README is the light pitch, the manual
+# carries the technical weight. Content promises may live in either, so the
+# content checks scan both; structure-specific checks name their file.
+$manual = Get-Content (Join-Path $root "docs/MANUAL.md") -Raw
+$docsAll = $readme + "`n" + $manual
 
-# The README teaches people to look for "[ZSTG] x.y.z ready"; that literal escaped
+# The docs teach people to look for "[ZSTG] x.y.z ready"; that literal escaped
 # the version check once and drifted a full release behind.
-$vReadme = [regex]::Match($readme, '\[ZSTG\] (\d+\.\d+\.\d+)').Groups[1].Value
-Check ($vReadme -eq $vConst) "the README ready-line version matches the script ($vReadme / $vConst)"
+$vReadme = [regex]::Match($docsAll, '\[ZSTG\] (\d+\.\d+\.\d+)').Groups[1].Value
+Check ($vReadme -eq $vConst) "the docs ready-line version matches the script ($vReadme / $vConst)"
 
-$undocumented = $prefs | Where-Object { -not ($readme -match [regex]::Escape("zen.stg.$_")) }
-Check ($undocumented.Count -eq 0) "$($prefs.Count) prefs documented in the README"
+$undocumented = $prefs | Where-Object { -not ($docsAll -match [regex]::Escape("zen.stg.$_")) }
+Check ($undocumented.Count -eq 0) "$($prefs.Count) prefs documented in the docs"
 foreach ($p in $undocumented) { Write-Output "       not documented: zen.stg.$p" }
 
-$nonexistent = [regex]::Matches($readme, 'zen\.stg\.(\w+)') |
+$nonexistent = [regex]::Matches($docsAll, 'zen\.stg\.(\w+)') |
     ForEach-Object { $_.Groups[1].Value } |
     Sort-Object -Unique |
     Where-Object { $prefs -notcontains $_ }
-Check ($nonexistent.Count -eq 0) "the README cites no pref that does not exist"
+Check ($nonexistent.Count -eq 0) "the docs cite no pref that does not exist"
 foreach ($p in $nonexistent) { Write-Output "       cited but absent from the code: zen.stg.$p" }
 
 # The public API is what the README teaches people to type in the console. A rename
@@ -286,11 +291,11 @@ foreach ($p in $nonexistent) { Write-Output "       cited but absent from the co
 $api = [regex]::Match($js, 'window\.ZSTG = \{(.+?)\n\s*\};', 'Singleline').Groups[1].Value
 Check ($api.Length -gt 0) "the public API object was found in the script"
 $exposed = [regex]::Matches($api, '(?m)^\s+(\w+)') | ForEach-Object { $_.Groups[1].Value }
-$cited = [regex]::Matches($readme, 'ZSTG\.(\w+)') |
+$cited = [regex]::Matches($docsAll, 'ZSTG\.(\w+)') |
     ForEach-Object { $_.Groups[1].Value } |
     Sort-Object -Unique
 $broken = $cited | Where-Object { $exposed -notcontains $_ }
-Check ($broken.Count -eq 0) "the README cites only functions that exist ($($exposed.Count) exposed)"
+Check ($broken.Count -eq 0) "the docs cite only functions that exist ($($exposed.Count) exposed)"
 foreach ($m in $broken) { Write-Output "       cited but absent from the API: ZSTG.$m" }
 
 # The Structure block in the README and the file map in CLAUDE.md are where a
@@ -306,7 +311,7 @@ function Get-MapEntries($text, $header) {
 
 $claudeMd = Get-Content (Join-Path $root "CLAUDE.md") -Raw
 $maps = [ordered]@{
-    "the README Structure map"    = Get-MapEntries $readme '## Structure'
+    "the MANUAL Structure map"    = Get-MapEntries $manual '## Structure'
     "the CLAUDE.md file map"      = Get-MapEntries $claudeMd '## Where things live'
 }
 $selfDescribing = @("README.md", "CLAUDE.md", "LICENSE", "NOTICE")
@@ -404,22 +409,22 @@ Check ($shOptions.Count -gt 0) "install.sh declares options ($($shOptions.Count)
 Check ($psOptions.Count -gt 0) "install.ps1 declares options ($($psOptions.Count))"
 
 $undocumentedOpts = @()
-$undocumentedOpts += $shOptions | Where-Object { -not ($readme -match [regex]::Escape($_)) }
-$undocumentedOpts += $psOptions | Where-Object { -not ($readme -cmatch ('(?<![\w-])-' + $_ + '\b')) } |
+$undocumentedOpts += $shOptions | Where-Object { -not ($docsAll -match [regex]::Escape($_)) }
+$undocumentedOpts += $psOptions | Where-Object { -not ($docsAll -cmatch ('(?<![\w-])-' + $_ + '\b')) } |
     ForEach-Object { "-$_" }
-Check ($undocumentedOpts.Count -eq 0) "every installer option is documented in the README"
+Check ($undocumentedOpts.Count -eq 0) "every installer option is documented in the docs"
 foreach ($o in $undocumentedOpts) { Write-Output "       not documented: $o" }
 
 $readmeShOpts = @(
-    [regex]::Matches($readme, '(?<![\w-])(--[a-z][a-z-]*)') | ForEach-Object { $_.Groups[1].Value }
+    [regex]::Matches($docsAll, '(?<![\w-])(--[a-z][a-z-]*)') | ForEach-Object { $_.Groups[1].Value }
 ) | Sort-Object -Unique | Where-Object { $_ -notlike '--zstg-*' }
 $readmePsOpts = @(
-    [regex]::Matches($readme, '(?<![\w-])-([A-Z]\w+)') | ForEach-Object { $_.Groups[1].Value }
+    [regex]::Matches($docsAll, '(?<![\w-])-([A-Z]\w+)') | ForEach-Object { $_.Groups[1].Value }
 ) | Sort-Object -Unique
 $phantomOpts = @()
 $phantomOpts += $readmeShOpts | Where-Object { $shOptions -notcontains $_ }
 $phantomOpts += $readmePsOpts | Where-Object { $psOptions -notcontains $_ } | ForEach-Object { "-$_" }
-Check ($phantomOpts.Count -eq 0) "the README cites no installer option that does not exist"
+Check ($phantomOpts.Count -eq 0) "the docs cite no installer option that does not exist"
 foreach ($o in $phantomOpts) { Write-Output "       cited but absent: $o" }
 
 # The two guard scripts must tell the user the same things, the same way the two
@@ -499,7 +504,8 @@ $sources = @(
     "install.ps1",
     "install.sh",
     "scripts/verify.ps1",
-    "README.md"
+    "README.md",
+    "docs/MANUAL.md"
 ) + (Get-ChildItem (Join-Path $root "openspec/specs") -Recurse -Filter "*.md" |
      ForEach-Object { $_.FullName.Substring($root.Length + 1) })
 
