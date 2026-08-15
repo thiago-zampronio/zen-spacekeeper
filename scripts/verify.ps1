@@ -290,8 +290,10 @@ $maps = [ordered]@{
     "the CLAUDE.md file map"      = Get-MapEntries $claudeMd '## Where things live'
 }
 $selfDescribing = @("README.md", "CLAUDE.md", "LICENSE", "NOTICE")
+# On disk but not part of the repository the maps describe (gitignored artifacts).
+$notRepo = @("node_modules")
 $topLevel = Get-ChildItem $root | Where-Object {
-    $_.Name -notlike ".*" -and $selfDescribing -notcontains $_.Name
+    $_.Name -notlike ".*" -and $selfDescribing -notcontains $_.Name -and $notRepo -notcontains $_.Name
 } | ForEach-Object { $_.Name }
 
 foreach ($mapName in $maps.Keys) {
@@ -483,6 +485,21 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 }
 else {
     Check $false "node is required; the syntax check could not run"
+}
+
+# A typo'd identifier in privileged chrome code only surfaces after
+# install + restart + cache clear; no-undef removes that loop. The binary comes
+# from `npm install` in the repo (or a global eslint).
+$eslint = Join-Path $root "node_modules/.bin/eslint"
+if (-not (Test-Path $eslint)) {
+    $eslint = (Get-Command eslint -ErrorAction SilentlyContinue).Source
+}
+if ($eslint) {
+    & $eslint --max-warnings 0 $root 2>&1 | Out-Null
+    Check ($LASTEXITCODE -eq 0) "eslint finds nothing (no-undef, no-unused-vars)"
+}
+else {
+    Check $false "eslint is required; run npm install in the repo"
 }
 
 # ---------------------------------------------------------------------------

@@ -420,6 +420,9 @@ real tabs and must be checked by hand.
 ```
 install.ps1              Windows installer: loader + mod, detects Zen and the profile
 install.sh               the same installer for macOS and Linux
+eslint.config.mjs        two rules: no-undef and no-unused-vars, nothing of style
+package.json             dev tooling only (eslint); the mod has no dependencies
+package-lock.json        pins that tooling
 src/                     script, stylesheet and panel (source of truth)
 src/resources/           panel page, text catalog and core logic, over chrome://
 scripts/verify.ps1       checks spec, code, docs and installation are in sync

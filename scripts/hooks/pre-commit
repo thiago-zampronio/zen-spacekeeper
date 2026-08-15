@@ -31,6 +31,15 @@ else
     say "node not found - it is required"; fail=1
 fi
 
+# --- Lint ----------------------------------------------------------------------
+if [ -x node_modules/.bin/eslint ]; then
+    node_modules/.bin/eslint --max-warnings 0 . || { say "eslint found problems"; fail=1; }
+elif command -v eslint >/dev/null 2>&1; then
+    eslint --max-warnings 0 . || { say "eslint found problems"; fail=1; }
+else
+    say "eslint not found - run npm install"; fail=1
+fi
+
 # --- Language gate -----------------------------------------------------------
 # Accented characters, plus the unaccented-Portuguese tokens that slipped through
 # the accent check once. verify.ps1 runs the same list; keep the two in step.

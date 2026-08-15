@@ -54,6 +54,9 @@ that node's parent — which is what guarantees the group is born in the right S
 ```
 install.ps1              Windows installer: loader + mod, detects Zen and profile
 install.sh               the same installer for macOS and Linux (POSIX sh)
+eslint.config.mjs        no-undef + no-unused-vars over src/, nothing of style
+package.json             dev tooling only (eslint); the mod has no dependencies
+package-lock.json        pins that tooling
 src/*.uc.mjs             the chrome script (window-scoped ES module)
 src/*.uc.css             collapse and appearance, scoped to tab-group[zstg-key]
 src/resources/           served over chrome://userchrome/content/
@@ -82,11 +85,13 @@ Then restart Zen. If the script does not load, clear the startup cache in
 The installer's `-Restart` / `--restart` option does the restart and the cache
 clearing in one step.
 
-Enable the repo's pre-commit gate once per clone — it runs the syntax and language
-checks on every commit, and the full `verify.ps1` when `pwsh` is installed:
+Enable the repo's pre-commit gate once per clone — it runs the syntax, lint and
+language checks on every commit, and the full `verify.ps1` when `pwsh` is
+installed — and install the dev tooling (eslint) it and verify.ps1 expect:
 
 ```sh
 git config core.hooksPath scripts/hooks
+npm install
 ```
 
 ## Releasing
