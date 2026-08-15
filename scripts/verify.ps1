@@ -186,6 +186,7 @@ $anchors = [ordered]@{
     "languages/single catalog"                     = 'export const CATALOG'
     "languages/base language fallback"             = 'BASE_LANGUAGE'
     "languages/missing key is recorded"            = 'missingText'
+    "tab-grouping/binding map pruned in-session"   = 'prune: true \}\)\), 60000'
     "diagnostics/contract canary"                  = 'function checkZenContract'
     "configuration/log records hosts only"         = 'function hostOnly'
     "configuration/log recovers on toggle"         = 'logUnavailable = false'

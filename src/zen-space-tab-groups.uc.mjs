@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.19.0
+// @version        0.20.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.19.0";
+const VERSION = "0.20.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1648,6 +1648,12 @@ async function start() {
   for (const delay of [1000, 3000, 8000]) {
     window.setTimeout(() => guarded(reclaimGroups), delay);
   }
+  // The binding map's only housekeeping used to be the manual regroup command;
+  // whoever never ran it accumulated dead ids forever. One restore-safe prune per
+  // session: 60s is a wide margin past the recognition passes above, and pruning
+  // any earlier is exactly what "Group binding survives restore" forbids — during
+  // startup a prune once erased the very map that recognizes restored groups.
+  window.setTimeout(() => guarded(() => reclaimGroups({ prune: true })), 60000);
 
   const container = window.gBrowser.tabContainer;
   container.addEventListener("TabOpen", onTabOpen);
