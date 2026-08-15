@@ -187,6 +187,9 @@ $anchors = [ordered]@{
     "languages/base language fallback"             = 'BASE_LANGUAGE'
     "languages/missing key is recorded"            = 'missingText'
     "tab-grouping/binding map pruned in-session"   = 'prune: true \}\)\), 60000'
+    "installation/profile from profiles.ini"       = 'profiles\.ini'
+    "installation/loader separate from mod"        = 'Loader \(deleted by every Zen update\)'
+    "installation/guard offered, never imposed"    = '--guard\) GUARD=1'
     "loader-guard/self-disarm"                     = 'remove_all'
     "loader-guard/never elevates"                  = 'indistinguishable from malware'
     "loader-guard/restore from cache"              = 'loader-cache/config.js'
@@ -213,10 +216,11 @@ $js = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.mjs") -Raw
 $css = Get-Content (Join-Path $root "src/zen-space-tab-groups.uc.css") -Raw
 $coreSrc = Get-Content (Join-Path $root "src/resources/zstg-core.mjs") -Raw
 $guardSrc = (Get-Content (Join-Path $root "src/guard/guard.sh") -Raw) + (Get-Content (Join-Path $root "src/guard/guard.ps1") -Raw)
+$installerSrc = (Get-Content (Join-Path $root "install.sh") -Raw) + (Get-Content (Join-Path $root "install.ps1") -Raw)
 $panel = (Get-Content (Join-Path $root "src/resources/zstg-panel.html") -Raw) + (Get-Content (Join-Path $root "src/resources/zstg-i18n.mjs") -Raw)
 $missing = @()
 foreach ($name in $anchors.Keys) {
-    if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]) -or ($coreSrc -match $anchors[$name]) -or ($guardSrc -match $anchors[$name]))) {
+    if (-not (($js -match $anchors[$name]) -or ($css -match $anchors[$name]) -or ($panel -match $anchors[$name]) -or ($coreSrc -match $anchors[$name]) -or ($guardSrc -match $anchors[$name]) -or ($installerSrc -match $anchors[$name]))) {
         $missing += $name
     }
 }

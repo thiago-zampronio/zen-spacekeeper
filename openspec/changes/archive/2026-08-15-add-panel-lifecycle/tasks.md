@@ -31,6 +31,6 @@
 ## 4. Verification
 
 - [x] 4.1 verify.ps1: anchors for the new requirements; language parity passes
-- [ ] 4.2 In a running Zen: check when up to date; update across a real release;
+- [x] 4.2 In a running Zen: check when up to date; update across a real release;
       failed fetch leaves the install untouched; uninstall from the panel removes
       mod + guard and survives restart — user confirms

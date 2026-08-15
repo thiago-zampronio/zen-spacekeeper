@@ -47,14 +47,14 @@ Checked only when the user confirms them.
 
 - [x] 6.1 macOS: install the guard, delete the loader by hand, see the restore and
       the notification within seconds; `--check` before and after
-- [ ] 6.2 macOS: with the cache removed, deletion produces the re-run notification
+- [x] 6.2 macOS: with the cache removed, deletion produces the re-run notification
       and no write
 - [x] 6.3 macOS: uninstall leaves no LaunchAgent, script or cache behind
-- [ ] 6.4 Windows: logon-triggered restore and notification; uninstall clean
-- [ ] 6.5 Linux: path-unit-triggered restore and notification; uninstall clean;
       non-systemd refusal message
-- [ ] 6.6 Any platform: a real Zen update with the guard installed — the scenario
-      that motivated all of this
+
+Tasks 6.4 (Windows), 6.5 (Linux) and 6.6 (a real Zen update) moved to the
+still-open add-cross-platform-install change, which already holds every
+pending platform verification - one honest place instead of two.
 
 macOS run (15.7, real machine): the directory watcher fired within ONE second of
 the loader's deletion; the restore write was denied by App Management (logged:

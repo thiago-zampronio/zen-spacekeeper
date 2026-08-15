@@ -93,6 +93,12 @@ or Linux machine in the development environment.
 - [x] 7.10 Windows: the aligned installer still installs, checks and uninstalls
 - [ ] 7.11 Any platform: failed detection prints a message that actually resolves the
       problem when followed
+- [ ] 7.12 Windows (moved from add-loader-guard): logon-triggered guard restore and
+      notification; uninstall clean
+- [ ] 7.13 Linux (moved from add-loader-guard): path-unit-triggered guard restore and
+      notification; uninstall clean; non-systemd refusal message
+- [ ] 7.14 Any platform (moved from add-loader-guard): a real Zen update with the
+      guard installed - the scenario that motivated it
 
 The macOS run (Sequoia 15.x, Zen 1.21.14b, admin user) surfaced two facts worth
 recording. A staged Zen update applied itself on the first restart after install,
