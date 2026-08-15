@@ -94,16 +94,20 @@ those two things by hand IS a complete uninstall, no scavenger hunt.
 - [macOS signature invalidation on restore] → identical to what the installer
   already does; documented, harmless without quarantine.
 
+## Settled Questions
+
+- **Policies spike, resolved: they cannot bootstrap autoconfig.** The `Preferences`
+  enterprise policy sets only an explicit allowlist of prefixes
+  (mozilla/policy-templates docs, "Preferences that start with the following
+  prefixes are supported"), and `general.config.*` is not on it — of `general.`
+  only `autoScroll` and `smoothScroll` are allowed. No other policy loads
+  privileged JS. There is no update-surviving bootstrap; the guard is necessary.
+- **Upstream Zen persistence hook: considered and set aside.** The right fix would
+  be the browser supporting this class of mod natively, but the depth of the
+  integration makes that unlikely to be accepted; not pursued.
+
 ## Open Questions
 
 - Whether the macOS notification should also offer a "restart Zen now" action
   (AppleScript can): deferred — the restored loader working on the next natural
   start may be enough.
-- Spike before implementing: whether Firefox enterprise policies / managed
-  preferences (which live outside the application directory and survive updates)
-  can bootstrap autoconfig at all. If they can, the guard becomes unnecessary; the
-  expectation is they cannot, since policies deliberately do not allow arbitrary
-  privileged JS.
-- Worth pursuing in parallel, upstream: an issue on zen-browser proposing a
-  supported persistence hook for userchrome scripts across updates — the clean fix
-  is Zen's to make, and Sine users are hit by the same failure (their issue #425).
