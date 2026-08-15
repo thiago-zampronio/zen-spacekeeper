@@ -289,7 +289,7 @@ wrong. For behavior, `ZSTG.selfTest()` in the console.
 
 ```js
 ZSTG.inspect()            // per tab: Space, key, eligibility, current group
-ZSTG.selfTest()            // 16 assertions about key derivation and configuration
+ZSTG.selfTest()            // derivation cases + invariants of the window's real state
 ZSTG.keyFromText(url)   // which key a URL would produce
 ZSTG.reloadConfig()  // re-reads the prefs
 ```
