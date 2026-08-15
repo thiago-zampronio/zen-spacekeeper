@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.32.0
+// @version        0.33.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.32.0";
+const VERSION = "0.33.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -774,9 +774,40 @@ function organize(tab, force = false) {
 /** The motion preset rides on an attribute: CSS cannot read prefs. */
 function stampMotion(group) {
   group.setAttribute("zstg-motion", cfg().collapseMotion);
+  calibrateRowCap();
+}
+
+/*
+ * The stylesheet animates each row's max-height, and the animation only reads as
+ * motion if that cap equals the row's real height: every extra pixel is a dead
+ * zone the transition spends shrinking invisible headroom, cramming the visible
+ * collapse into the tail of the duration. CSS cannot measure, so the script
+ * measures one expanded row and publishes it as --zstg-row-cap (+1px so a
+ * rounding error never clips the row at rest).
+ */
+function calibrateRowCap() {
+  const root = window.document.documentElement;
+  if (root.style.getPropertyValue("--zstg-row-cap")) {
+    return;
+  }
+  for (const g of window.gBrowser.tabGroups) {
+    if (!isOurGroup(g) || g.collapsed) {
+      continue;
+    }
+    for (const tab of g.tabs) {
+      const h = tab.getBoundingClientRect().height;
+      if (h > 8) {
+        root.style.setProperty("--zstg-row-cap", `${Math.ceil(h) + 1}px`);
+        return;
+      }
+    }
+  }
 }
 
 function restampMotionAll() {
+  // Re-measured too: a theme or density change is the kind of event that lands
+  // together with a motion pref change, and the measurement is one rect read.
+  window.document.documentElement.style.removeProperty("--zstg-row-cap");
   for (const g of window.gBrowser.tabGroups) {
     if (isOurGroup(g)) {
       stampMotion(g);

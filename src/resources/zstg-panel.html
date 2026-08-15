@@ -271,6 +271,62 @@
       }
       .mockup { display: block; border-radius: 6px; }
 
+      /* The motion preview: ONE animated thumbnail for the whole radio group,
+         so the user sees what each preset promises before feeling it on real
+         tabs. It plays once per selection change and rests expanded — a motion
+         demo that loops forever teaches nothing extra and never shuts up.
+         The transitions below mirror the real presets' durations and easings
+         from the stylesheet, with transform/opacity standing in for the height
+         collapse. */
+      .motion-wrap { display: flex; gap: 14px; align-items: flex-start; padding: 6px 18px 16px; }
+      .motion-wrap .choice { flex: 1; padding: 0; }
+      .motion-wrap .preview-box { padding-top: 2px; }
+      .mprev .mmove { transform: translateY(0); }
+      .mprev[data-state="collapsed"] .mmove { transform: translateY(var(--up)); }
+      .mprev[data-state="collapsed"] .mfade { opacity: 0; }
+      .mprev[data-motion="swift"] .mmove {
+        transition:
+          transform 140ms cubic-bezier(0, 0, 0.2, 1),
+          opacity 100ms cubic-bezier(0, 0, 0.2, 1) 40ms;
+      }
+      .mprev[data-motion="swift"][data-state="collapsed"] .mmove {
+        transition:
+          transform 110ms cubic-bezier(0.4, 0, 1, 1),
+          opacity 80ms cubic-bezier(0.4, 0, 1, 1);
+      }
+      .mprev[data-motion="fold"] .mmove {
+        transition:
+          transform 200ms cubic-bezier(0.05, 0.7, 0.1, 1),
+          opacity 140ms cubic-bezier(0, 0, 0.2, 1) 40ms;
+      }
+      .mprev[data-motion="fold"][data-state="collapsed"] .mmove {
+        transition:
+          transform 150ms cubic-bezier(0.3, 0, 0.8, 0.15),
+          opacity 110ms cubic-bezier(0.3, 0, 0.8, 0.15);
+      }
+      .mprev[data-motion="cascade"] .mmove {
+        transition:
+          transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          opacity 140ms cubic-bezier(0, 0, 0.2, 1);
+      }
+      .mprev[data-motion="cascade"] .mrows > :nth-child(2) { transition-delay: 15ms; }
+      .mprev[data-motion="cascade"] .mrows > :nth-child(3) { transition-delay: 30ms; }
+      .mprev[data-motion="cascade"] .mrows > :nth-child(4) { transition-delay: 45ms; }
+      /* Same specificity as the stagger rules above, later on purpose: the
+         cascade collapse is one un-staggered beat, exactly like the real one. */
+      .mprev[data-motion="cascade"][data-state="collapsed"] .mmove {
+        transition:
+          transform 140ms cubic-bezier(0.4, 0, 1, 1),
+          opacity 110ms cubic-bezier(0.4, 0, 1, 1);
+        transition-delay: 0ms;
+      }
+      /* When the OS asks for reduced motion the real collapse is instant, so a
+         preview that animates would be advertising something the user will
+         never get. */
+      @media (prefers-reduced-motion: reduce) {
+        .mprev .mmove { transition: none !important; }
+      }
+
       .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 18px; }
       /* The destructive action lives below its own line, never beside a button
          that appears or moves — adjacency is how misclicks happen. */
@@ -600,6 +656,57 @@
       }
 
       const MOCK_COLORS = ["#e0483d", "#3b82f6", "#22a06b", "#f0883e"];
+
+      /**
+       * The motion preview's scene: one group with four rows and two loose tabs
+       * below it. On collapse each row travels up to just under the chip while
+       * fading, and the loose tabs rise by the freed height — the same shape the
+       * real sidebar makes when a group closes. Each element carries its own
+       * travel distance as --up; the timing comes from the .mprev rules, keyed
+       * by data-motion, so the CSS is the single place the presets are written.
+       */
+      function motionMockup() {
+        const W = 104, H = 66;
+        const s = svgEl("svg", {
+          class: "mockup mprev",
+          viewBox: `0 0 ${W} ${H}`,
+          width: W,
+          height: H,
+        });
+        s.append(
+          svgEl("rect", {
+            x: 0.5, y: 0.5, width: W - 1, height: H - 1, rx: 6,
+            fill: MOCK_BG,
+            stroke: MOCK_BORDER,
+            "stroke-width": 1,
+          })
+        );
+        s.append(
+          svgEl("rect", {
+            x: 7, y: 7, width: 30, height: 7, rx: 3.5,
+            fill: MOCK_COLORS[1], opacity: 0.85,
+          })
+        );
+        const rows = svgEl("g", { class: "mrows" });
+        for (let i = 0; i < 4; i++) {
+          const r = svgEl("rect", {
+            x: 14, y: 17 + i * 8, width: 78, height: 5, rx: 2.5,
+            fill: MOCK_LINE, class: "mmove mfade",
+          });
+          r.style.setProperty("--up", `${-(2 + i * 8)}px`);
+          rows.append(r);
+        }
+        s.append(rows);
+        for (let i = 0; i < 2; i++) {
+          const r = svgEl("rect", {
+            x: 7, y: 51 + i * 8, width: 85, height: 5, rx: 2.5,
+            fill: MOCK_LINE, opacity: 0.75, class: "mmove",
+          });
+          r.style.setProperty("--up", "-32px");
+          s.append(r);
+        }
+        return s;
+      }
 
       /** Swaps a row's mockup according to the current state. */
       function livePreview(draw) {
@@ -945,19 +1052,46 @@
       ];
       const motionChoice = el("div", { class: "choice" });
       const currentMotion = readStr("collapseMotion", "swift");
+      const motionPreview = motionMockup();
+      let motionPreviewTimer = 0;
+      // One collapse-then-expand per call: the collapsed hold is long enough to
+      // register as a state, and a second call mid-play restarts cleanly.
+      const playMotionPreview = value => {
+        clearTimeout(motionPreviewTimer);
+        motionPreview.removeAttribute("data-state");
+        motionPreview.setAttribute("data-motion", value);
+        const collapseMs = { swift: 110, fold: 150, cascade: 140 }[value] ?? 0;
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            motionPreview.setAttribute("data-state", "collapsed");
+            motionPreviewTimer = setTimeout(
+              () => motionPreview.removeAttribute("data-state"),
+              collapseMs + 420
+            );
+          })
+        );
+      };
       for (const [value, name, desc] of motionOptions) {
         const op = el("label", { class: "option" });
         const radio = el("input", { type: "radio", name: "collapseMotion" });
         radio.checked = currentMotion === value;
-        radio.addEventListener("change", () => writeStr("collapseMotion", value));
+        radio.addEventListener("change", () => {
+          writeStr("collapseMotion", value);
+          playMotionPreview(value);
+        });
         const txt = el("div", { class: "txt" });
         txt.append(el("b", { text: name }), el("span", { text: desc }));
         op.append(radio, txt);
         motionChoice.append(op);
       }
       const motionHeader = el("h2", { text: t("motion.title") });
-      sAppearance.append(motionHeader, motionChoice);
+      const motionPreviewBox = el("div", { class: "preview-box" });
+      motionPreviewBox.append(motionPreview);
+      const motionWrap = el("div", { class: "motion-wrap" });
+      motionWrap.append(motionChoice, motionPreviewBox);
+      sAppearance.append(motionHeader, motionWrap);
       headerHelp(motionHeader, t("motion.help"));
+      playMotionPreview(currentMotion);
 
       sAppearance.append(
         row(

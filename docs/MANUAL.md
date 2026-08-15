@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.32.0 ready — active Space …`.
+`[ZSTG] 0.33.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -330,6 +330,12 @@ Zen folders and groups you created are not affected.
   not enter the count.
 - **Collapsed pulls back on emphasis:** the chip is dimmed instead of solid. What
   is hidden should not gain prominence.
+- **Collapse motion presets** (`off`, `swift`, `fold`, `cascade`), chosen in the
+  panel. The panel shows one animated thumbnail beside the choices that plays
+  the selected preset once, so you know what to expect before feeling it on
+  real tabs. The height each row animates through is measured from a real tab
+  (published as `--zstg-row-cap`), and the OS reduced-motion setting makes
+  everything instant regardless of the preset.
 
 The taste adjustments live in variables at the top of the file:
 

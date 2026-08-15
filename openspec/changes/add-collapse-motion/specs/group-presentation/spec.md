@@ -13,8 +13,11 @@ choice among at least three motions plus an instant option; SHALL make every
 preset's collapse faster than its expand, since the collapse is system-fired and
 frequent; SHALL NOT let any preset gate reaching a tab mid-animation; SHALL fall
 back to instant when the operating system asks for reduced motion or when the
-instant option is chosen; and SHALL keep the animation scoped to the groups the
-system created.
+instant option is chosen; SHALL start the animated height at the measured height
+of a real tab row, so no dead headroom eats the visible motion; SHALL show, in
+the panel, one animated preview of the selected preset that plays once per
+selection change and then rests; and SHALL keep the animation scoped to the
+groups the system created.
 
 An instant collapse initiated by the system (focus mode) looks like a glitch; the
 motion is what marks it as intended. But motion on a frequent action is a tax the
@@ -27,6 +30,21 @@ motion tells, and the frequency rule bounds every option.
 - **WHEN** a system group collapses
 - **THEN** its tabs animate closed with that preset's motion
 - **AND** the collapse is faster than the same preset's expand
+
+#### Scenario: The whole duration is visible motion
+
+- **GIVEN** any motion preset
+- **WHEN** a group collapses or expands
+- **THEN** the animated height starts at a measured tab row's height, not a loose
+  cap, so the motion spans the preset's full duration instead of a dead beat
+  followed by a crammed vanish
+
+#### Scenario: The panel previews the chosen motion
+
+- **WHEN** the user selects a motion preset in the panel
+- **THEN** a single thumbnail beside the choices plays that preset's collapse and
+  expand once, with the preset's own durations, and then rests expanded
+- **AND** under OS reduced motion the preview is instant, like the real thing
 
 #### Scenario: No preset gates a click
 

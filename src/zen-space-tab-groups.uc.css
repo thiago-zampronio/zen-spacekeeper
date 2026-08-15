@@ -35,9 +35,13 @@
  * exactly the old behavior.
  */
 tab-group[zstg-key] > .tab-group-container > .tabbrowser-tab {
-  /* The cap must sit comfortably above one row and stay tight: it is where the
-     height animation starts, and a loose cap makes every expand lag visually. */
-  max-height: 4em;
+  /* The cap is where the height animation starts, and every pixel above the
+     row's real height is a dead zone: the transition spends its first stretch
+     shrinking invisible headroom, so the visible collapse gets crammed into the
+     tail and every preset degenerates into "a beat, then they vanish at once".
+     The script measures a real row and publishes it here; 4em only covers the
+     instant before the first measurement, where being loose cannot clip. */
+  max-height: var(--zstg-row-cap, 4em);
   min-height: 0;
 }
 

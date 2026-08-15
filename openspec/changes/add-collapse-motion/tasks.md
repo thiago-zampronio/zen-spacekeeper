@@ -8,6 +8,11 @@
       one-sheet), cascade (140 single-beat collapse / 180 expand with 15ms-per-row
       stagger capped at row 6, translateY(-6px) toward the chip)
 - [x] 1.3 `prefers-reduced-motion: reduce` zeroes every preset's durations
+- [x] 1.4 The animated cap is measured, not guessed: the script publishes a real
+      row's height as `--zstg-row-cap` (re-measured on pref change), so the
+      transition has no dead zone and the presets stay distinguishable — found
+      in field testing, where a 4em cap crammed every preset into the same
+      "beat, then vanish"
 
 ## 2. Script
 
@@ -25,12 +30,17 @@
       felt-trade captions from the product review; the focus-delay field; strings
       in three languages
 - [x] 3.2 MANUAL pref table rows; version bump
+- [x] 3.3 One animated preview beside the radio group, in the mockup style:
+      plays the selected preset's collapse and expand once on selection change
+      (mirroring the real durations and easings), rests expanded, instant under
+      OS reduced motion
 
 ## 4. Verification
 
 - [x] 4.1 verify.ps1: the collapse anchor follows the new rule; anchors for the
       reduced-motion block and the preset attribute; EVERYTHING IN SYNC
 - [ ] 4.2 In a running Zen: toggle the four presets back-to-back and feel the
-      difference; collapse never gates clicks; quick return cancels the focus
-      collapse; reduced-motion restores instant; native folders unaffected —
+      difference; the panel preview plays the selected preset once; collapse
+      never gates clicks; quick return cancels the focus collapse;
+      reduced-motion restores instant; native folders unaffected —
       user confirms and picks the shipping default by eye
