@@ -437,7 +437,5 @@ retranslated after the fact.
 
 ## Next steps
 
-- Rounded corners on the group container (it is CSS — probably a `chrome.css` or a
-  real Zen Mod, not JS).
 - Catch-all group for tabs that do not form a group of their own.
 - Configurable delay in focus mode.
