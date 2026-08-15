@@ -267,6 +267,9 @@
       .mockup { display: block; border-radius: 6px; }
 
       .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 18px; }
+      /* The destructive action lives below its own line, never beside a button
+         that appears or moves — adjacency is how misclicks happen. */
+      .actions.danger { border-top: 1px solid var(--line); }
       button {
         font: inherit;
         color: inherit;
@@ -277,6 +280,26 @@
         cursor: pointer;
       }
       button:hover { background: var(--line); }
+      /* Criticality is visible before reading: the primary action (an update
+         that will change installed code) carries the accent, the destructive
+         one carries red. Both keep their weight on hover, not a gray wash. */
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #ffffff;
+      }
+      button.primary:hover { filter: brightness(1.1); background: var(--accent); }
+      button.destructive {
+        color: #d70015;
+        border-color: color-mix(in srgb, #d70015 45%, transparent);
+      }
+      button.destructive:hover {
+        background: color-mix(in srgb, #d70015 12%, transparent);
+      }
+      @media (prefers-color-scheme: dark) {
+        button.destructive { color: #ff453a; border-color: color-mix(in srgb, #ff453a 45%, transparent); }
+        button.destructive:hover { background: color-mix(in srgb, #ff453a 14%, transparent); }
+      }
       button.primary { background: var(--accent); color: #fff; border-color: transparent; }
 
       pre {
@@ -347,8 +370,14 @@
       let i18n = null;
       let t = key => key;
       try {
+        // The unique query defeats the process-wide ES module cache ON PURPOSE:
+        // after an in-panel update, the files on disk are newer than the catalog
+        // the running browser imported at startup. This page is re-read from disk
+        // on every open; its catalog must come from the same generation, or a
+        // freshly updated panel asks a stale catalog for keys that do not exist
+        // yet and the dialogs show raw key names.
         i18n = ChromeUtils.importESModule(
-          "chrome://userchrome/content/zstg-i18n.mjs"
+          "chrome://userchrome/content/zstg-i18n.mjs?" + Date.now()
         );
         const language = i18n.chooseLanguage(
           readStr("locale", "auto"),
@@ -972,7 +1001,7 @@
       let updateTag = null;
 
       const btnCheck = el("button", { text: t("update.check") });
-      const btnUpdate = el("button", { text: t("update.apply") });
+      const btnUpdate = el("button", { class: "primary", text: t("update.apply") });
       btnUpdate.hidden = true;
 
       // Real dialogs, not window.confirm: confirmEx gives the buttons their own
@@ -1071,7 +1100,7 @@
         }
       });
 
-      const btnUninstall = el("button", { text: t("uninstall.button") });
+      const btnUninstall = el("button", { class: "destructive", text: t("uninstall.button") });
       btnUninstall.addEventListener("click", async () => {
         if (!ZSTG?.uninstallSelf) {
           maintOutput.textContent = t("noWindow");
@@ -1120,10 +1149,14 @@
 
       const disclosure = el("p", { class: "help", text: t("update.disclosure") });
       disclosure.hidden = false;
+      // Uninstall gets a row of its own, under a divider: when the Update button
+      // appears after a check, it must never materialize NEXT TO the destructive
+      // button — adjacent targets that change is how misclicks happen.
       sMaintenance.append(
         disclosure,
-        el("div", { class: "actions" }, btnCheck, btnUpdate, btnUninstall),
-        maintOutput
+        el("div", { class: "actions" }, btnCheck, btnUpdate),
+        maintOutput,
+        el("div", { class: "actions danger" }, btnUninstall)
       );
 
       // Fields commit on `change`, which needs a blur. Closing the tab or quitting
