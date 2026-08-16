@@ -184,6 +184,52 @@ profile_root() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Was the browser already running when this was installed?
+#
+# Zen executes what it loaded at startup, so installing under a running browser
+# leaves it running the previous version while every file-to-file check reports
+# success. From outside the browser the running version cannot be read; the
+# observable proxy is ordering - the browser started before the files landed.
+#
+# The marker exists because the copy PRESERVES each source file's modification
+# time: the deployed files wear the checkout's timestamps, not the install's, so
+# reading them would answer a different question and, on a fresh clone, answer it
+# wrongly.
+#
+# The comparison is `find -newer` rather than stat: `stat -c %Y` is GNU and
+# `stat -f %m` is BSD, and this script runs on both.
+
+install_marker() { printf '%s' "$PROF/chrome/.zstg-installed"; }
+
+profile_lock() {
+    for name in parent.lock .parentlock lock; do
+        [ -e "$PROF/$name" ] && { printf '%s' "$PROF/$name"; return; }
+    done
+}
+
+write_install_marker() {
+    # A convenience for a later diagnosis; failing to write it must never fail an
+    # install that otherwise worked.
+    mkdir -p "$PROF/chrome" 2>/dev/null || return 0
+    date -u '+%Y-%m-%d %H:%M:%SZ' > "$(install_marker)" 2>/dev/null || :
+}
+
+# "stale", "fresh" or "unknown". Unknown stays silent everywhere: a warning that
+# fires when the answer is not known trains the user to ignore it.
+stale_state() {
+    zen_running || { printf 'unknown'; return; }
+    marker=$(install_marker)
+    [ -f "$marker" ] || { printf 'unknown'; return; }
+    lock=$(profile_lock)
+    [ -n "$lock" ] || { printf 'unknown'; return; }
+    if [ -n "$(find "$marker" -newer "$lock" 2>/dev/null)" ]; then
+        printf 'stale'
+    else
+        printf 'fresh'
+    fi
+}
+
 find_profile_dir() {
     if [ -n "$PROFILE_DIR" ]; then
         [ -d "$PROFILE_DIR" ] && printf '%s' "$PROFILE_DIR"
@@ -555,6 +601,14 @@ $FILES
 EOF
 
     say ""
+    if [ "$(stale_state)" = stale ]; then
+        say ""
+        warn "Zen has been running since before these files were installed,"
+        warn "so it is still executing the previous version."
+        warn "Close Zen, clear the startup cache in about:support, and open it again."
+    fi
+
+    say ""
     say "Guard (optional):"
     if guard_installed || guard_watcher_installed; then
         guard_broken=0
@@ -572,7 +626,14 @@ EOF
 
     say ""
     if [ "$loader_missing" = 0 ] && [ "$mod_missing" = 0 ]; then
-        say "Everything installed."
+        # The files are all there, so this is not a failure - but "Everything
+        # installed." on its own, right under the staleness warning, reads as a
+        # contradiction and is the sentence people stop at.
+        if [ "$(stale_state)" = stale ]; then
+            say "Everything installed - but Zen is still running the earlier version, as noted above."
+        else
+            say "Everything installed."
+        fi
         exit 0
     fi
     if [ "$loader_missing" = 1 ]; then
@@ -582,6 +643,7 @@ EOF
 fi
 
 if [ "$ACTION" = uninstall ]; then
+    rm -f "$(install_marker)" 2>/dev/null || :
     while IFS=: read -r _ dest; do
         [ -n "$dest" ] || continue
         if [ -f "$PROF/$dest" ]; then rm -f "$PROF/$dest"; ok "removed $dest"; fi
@@ -692,6 +754,7 @@ while IFS=: read -r src dest; do
 done <<EOF
 $FILES
 EOF
+write_install_marker
 
 if [ "$GUARD" = 1 ]; then
     say ""

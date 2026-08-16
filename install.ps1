@@ -283,6 +283,66 @@ function Invoke-PostInstall {
 
 $GuardTaskName = "Spacekeeper Guard"
 
+# ---------------------------------------------------------------------------
+# Was the browser already running when this was installed?
+#
+# Zen executes what it loaded at startup, so installing under a running browser
+# leaves it running the previous version while every file-to-file check reports
+# success. From outside the browser the running version cannot be read; the
+# observable proxy is ordering - the browser started before the files landed.
+#
+# The marker carries its own timestamp because the copy PRESERVES each source
+# file's modification time: the deployed files wear the checkout's timestamps,
+# not the install's, so reading them would answer a different question and, on a
+# fresh clone, answer it wrongly.
+#
+# The browser's start time comes from the profile lock, which it rewrites on every
+# start - available without inspecting processes, and it agrees with the process
+# start time to within a second.
+
+$ProfileLocks = @("parent.lock", ".parentlock", "lock")
+
+# A function, not a variable: $prof is resolved further down, and a top-level
+# assignment here would run against a null and take the whole install with it.
+function Get-InstallMarker { Join-Path $prof "chrome\.zstg-installed" }
+
+function Write-InstallMarker {
+    try {
+        $marker = Get-InstallMarker
+        New-Item -ItemType Directory -Force (Split-Path $marker -Parent) | Out-Null
+        Set-Content -Path $marker -Value ((Get-Date).ToUniversalTime().ToString("u")) -NoNewline
+    }
+    catch {
+        # The marker is a convenience for a later diagnosis; failing to write it
+        # must never fail an install that otherwise worked.
+    }
+}
+
+function Get-ProfileLockTime {
+    foreach ($name in $ProfileLocks) {
+        $p = Join-Path $prof $name
+        if (Test-Path $p) {
+            try { return (Get-Item $p -Force).LastWriteTime } catch { }
+        }
+    }
+    return $null
+}
+
+# "stale" | "fresh" | "unknown". Unknown stays silent everywhere: a warning that
+# fires when the answer is not known trains the user to ignore it.
+function Get-StaleState {
+    if (@(Get-ZenProcesses).Count -eq 0) { return "unknown" }
+    $marker = Get-InstallMarker
+    if (-not (Test-Path $marker)) { return "unknown" }
+    $lock = Get-ProfileLockTime
+    if (-not $lock) { return "unknown" }
+    try {
+        $installed = (Get-Item $marker -Force).LastWriteTime
+        if ($installed -gt $lock) { return "stale" } else { return "fresh" }
+    }
+    catch { return "unknown" }
+}
+
 function Test-GuardInstalled { Test-Path (Join-Path $prof "spacekeeper\guard.ps1") }
 function Test-GuardWatcherInstalled {
     $null -ne (Get-ScheduledTask -TaskName $GuardTaskName -ErrorAction SilentlyContinue)
@@ -405,6 +465,13 @@ if ($Check) {
         if (Test-Path $target) { Ok $f.To } else { Warn "$($f.To) MISSING"; $modOk = $false }
     }
 
+    if ((Get-StaleState) -eq "stale") {
+        Say ""
+        Warn "Zen has been running since before these files were installed,"
+        Warn "so it is still executing the previous version."
+        Warn "Close Zen, clear the startup cache in about:support, and open it again."
+    }
+
     Say ""
     Say "Guard (optional):"
     if ((Test-GuardInstalled) -or (Test-GuardWatcherInstalled)) {
@@ -427,7 +494,15 @@ if ($Check) {
 
     Say ""
     if ($loaderOk -and $modOk) {
-        Say "Everything installed."
+        # The files are all there, so this is not a failure - but "Everything
+        # installed." on its own, right under the staleness warning, reads as a
+        # contradiction and is the sentence people stop at.
+        if ((Get-StaleState) -eq "stale") {
+            Say "Everything installed - but Zen is still running the earlier version, as noted above."
+        }
+        else {
+            Say "Everything installed."
+        }
         exit 0
     }
     if (-not $loaderOk) {
@@ -441,6 +516,8 @@ if ($Uninstall) {
         $target = Join-Path $prof $f.To
         if (Test-Path $target) { Remove-Item $target -Force; Ok "removed $($f.To)" }
     }
+    $marker = Get-InstallMarker
+    if (Test-Path $marker) { Remove-Item $marker -Force -ErrorAction SilentlyContinue }
     if (Test-GuardInstalled) {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $prof "spacekeeper\guard.ps1") -Remove
         Ok "removed the guard (watcher, script and cache)"
@@ -573,6 +650,7 @@ foreach ($f in $FILES) {
     Copy-Item (Get-Source $f.From) $target -Force
     Ok $f.To
 }
+Write-InstallMarker
 
 if ($Guard) {
     Say ""

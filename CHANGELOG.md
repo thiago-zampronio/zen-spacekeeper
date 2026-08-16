@@ -5,6 +5,22 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.49.0 — it tells you when Zen is running an older copy
+
+- Installing while Zen is open replaces the files without touching what the
+  browser has in memory, so Zen keeps running the previous version. Every check
+  said everything was installed, and every check was right — they compare files
+  to files, and nobody was asking what the browser had actually loaded.
+- Now three things notice. The panel shows a banner with both versions and the
+  fix. The mod compares them at startup and writes the result to the debug log,
+  with nobody present. `--check` catches it before the browser is even opened.
+- The fix always names both halves: close Zen, clear the startup cache in
+  about:support, open it again. Restarting alone puts you right back.
+- The panel also stops using one message for two different problems. "Not
+  connected to the browser window" now means exactly that, and "Spacekeeper
+  isn't loaded in this window" says the other thing — which is what was actually
+  happening the day this was found.
+
 ## 0.48.3 — the grand finale of the rehearsal
 
 - The last of three rehearsal releases. If your panel is showing this note

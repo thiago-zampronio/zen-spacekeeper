@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.48.3
+// @version        0.49.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.48.3";
+const VERSION = "0.49.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1626,6 +1626,56 @@ function profilePath(relative) {
   return PathUtils.join(PathUtils.profileDir, ...relative.split("/"));
 }
 
+// ---------------------------------------------------------------------------
+// Am I what is installed?
+// ---------------------------------------------------------------------------
+
+/**
+ * What the last comparison found. `null` until it runs; `state` is one of
+ * "match", "mismatch" or "unknown". The panel reads it through ZSTG.
+ */
+let staleness = null;
+
+/**
+ * Compares the version compiled into this script against the version in the file
+ * it was loaded from.
+ *
+ * The browser executes what it loaded at startup, so updating the files under a
+ * running Zen leaves it running the previous version with every file-to-file check
+ * reporting success — which is what happened, and what took half an hour to see.
+ * Reading the artifact answers that exact question; a marker file would answer
+ * "did an installer run recently", which is a different question that agrees most
+ * of the time and disagrees precisely when it matters.
+ *
+ * Unreadable or unparsable is "unknown", NEVER "mismatch": a false alarm here
+ * teaches the user to dismiss the real one.
+ */
+async function checkStaleness() {
+  try {
+    const path = profilePath("chrome/JS/zen-space-tab-groups.uc.mjs");
+    const text = await IOUtils.readUTF8(path);
+    const found = /const VERSION = "([^"]+)"/.exec(text)?.[1] ?? null;
+    if (!found) {
+      staleness = { state: "unknown", running: VERSION, installed: null,
+                    reason: "no version found in the installed file" };
+    }
+    else {
+      staleness = {
+        state: found === VERSION ? "match" : "mismatch",
+        running: VERSION,
+        installed: found,
+      };
+    }
+  } catch (ex) {
+    staleness = { state: "unknown", running: VERSION, installed: null,
+                  reason: String(ex) };
+  }
+  // Logged either way. A check that only leaves a trace when it fails cannot be
+  // told apart from a check that never ran.
+  dbg("stalenessCheck", staleness);
+  return staleness;
+}
+
 /**
  * The single deliberate exception to "nothing touches the network": one request,
  * in direct response to the user's click in the panel, for the latest RELEASE —
@@ -2703,6 +2753,18 @@ async function start() {
       `grouping ${cfg().enabled ? "on" : "off"}, minTabs ${cfg().minTabs}`
   );
 
+  // Not awaited: the comparison is diagnostic, and grouping must not wait on a
+  // file read to start working. The panel reads the result when it opens, by
+  // which time this has long finished.
+  checkStaleness().then(result => {
+    if (result.state === "mismatch") {
+      console.warn(
+        `${LOG} running ${result.running}, but ${result.installed} is installed. ` +
+          `Restart Zen and clear the startup cache (about:support).`
+      );
+    }
+  });
+
   const spaces = window.gZenWorkspaces;
   dbg("started", {
     version: VERSION,
@@ -2719,6 +2781,13 @@ async function start() {
 if (core) {
   window.ZSTG = {
     version: VERSION,
+    // The result of the startup comparison, for the panel. A getter and not a
+    // snapshot: the panel can open before the read has finished, and a copy taken
+    // at definition time would be null forever.
+    get staleness() {
+      return staleness;
+    },
+    checkStaleness,
     inspect,
     selfTest,
     keyFromText,

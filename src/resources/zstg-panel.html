@@ -413,12 +413,33 @@
       .rule { display: flex; gap: 8px; padding: 8px 18px; align-items: center; }
       .rule input.name { width: 150px; flex: none; }
       .rule input.doms { flex: 1; }
+
+      /* The stale-version banner. A card like the sections, not a .warning strip:
+         .warning lives inside a card and reads as a note about one setting, while
+         this is about the whole page. Deliberately NOT dismissible — the condition
+         lasts until Zen restarts, and a warning that can be closed while the
+         problem remains teaches that it was decoration. */
+      #stale {
+        background: color-mix(in srgb, #ff9f0a 20%, var(--card));
+        border: 1px solid color-mix(in srgb, #ff9f0a 45%, transparent);
+        border-radius: var(--radius);
+        margin-bottom: 24px;
+        padding: 14px 18px;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      #stale b { display: block; font-weight: 600; margin-bottom: 4px; }
     </style>
   </head>
   <body>
     <main>
       <h1>Spacekeeper <span class="version" id="version"></span></h1>
       <p class="sub" id="subtitle"></p>
+
+      <!-- Filled only when the running version differs from the installed one.
+           Above everything on purpose: it explains why the rest of the page may
+           not behave as its own documentation says. -->
+      <div id="stale" hidden></div>
 
       <section id="grouping"></section>
       <section id="subdomains"></section>
@@ -487,11 +508,44 @@
         if (ZSTG?.version) {
           target.textContent = `v${ZSTG.version}`;
         } else {
-          target.textContent = t("noWindow");
+          // Two different failures used to share one message, and the shared one
+          // named the browsing context — which sent a version-mismatch diagnosis
+          // after Fission for half an hour. No window reachable is a different
+          // problem from a window that has no mod in it.
+          target.textContent = chromeWindow ? t("notLoaded") : t("noWindow");
           target.classList.add("missing");
         }
       }
       document.getElementById("subtitle").textContent = t("app.subtitle");
+
+      // ---- Running version versus installed version --------------------
+      // The script compares them at startup; the panel only reports. The read is
+      // asynchronous, so a panel opened early can arrive before the answer —
+      // hence the re-ask rather than trusting the first look.
+      {
+        const box = document.getElementById("stale");
+        const show = s => {
+          if (!s || s.state !== "mismatch") {
+            box.hidden = true;
+            return;
+          }
+          box.textContent = "";
+          box.append(
+            Object.assign(document.createElement("b"), { textContent: t("stale.title") }),
+            document.createTextNode(
+              t("stale.body", { running: s.running, installed: s.installed })
+            )
+          );
+          box.hidden = false;
+        };
+
+        if (ZSTG) {
+          show(ZSTG.staleness);
+          if (!ZSTG.staleness) {
+            ZSTG.checkStaleness?.().then(show).catch(() => {});
+          }
+        }
+      }
 
       const el = (tag, attrs = {}, ...children) => {
         const e = document.createElement(tag);

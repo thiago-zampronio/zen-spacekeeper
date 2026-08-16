@@ -195,6 +195,12 @@ $anchors = [ordered]@{
     "configuration/log off by default"             = 'debugLog: false'
     "favicon-colors/snapped to the palette"        = 'function colorName'
     "favicon-colors/classified by hue"             = 'function rgbToHsl'
+    "diagnostics/staleness compared at startup"    = 'async function checkStaleness'
+    "diagnostics/staleness recorded either way"    = 'dbg\("stalenessCheck"'
+    "diagnostics/staleness exposed to the panel"   = 'get staleness\(\)'
+    "control-panel/stale banner"                   = 'stale\.title'
+    "control-panel/not-loaded is its own message"  = 'notLoaded'
+    "installation/check notices stale code"        = 'Get-StaleState|stale_state'
     "languages/single catalog"                     = 'export const CATALOG'
     "languages/base language fallback"             = 'BASE_LANGUAGE'
     "languages/missing key is recorded"            = 'missingText'
@@ -379,6 +385,29 @@ $onlySh = $shFiles | Where-Object { $psFiles -notcontains $_ }
 Check (($onlyPs.Count -eq 0) -and ($onlySh.Count -eq 0)) "both installers deploy the same files"
 foreach ($f in $onlyPs) { Write-Output "       only in install.ps1: $f" }
 foreach ($f in $onlySh) { Write-Output "       only in install.sh:  $f" }
+
+# The staleness warning is the same three lines in both installers. It is the
+# sentence a user reads once, at the moment the mod appears not to have updated,
+# so the two platforms must not describe the same condition differently.
+$staleLines = @(
+    "Zen has been running since before these files were installed,",
+    "so it is still executing the previous version.",
+    "Close Zen, clear the startup cache in about:support, and open it again."
+)
+$staleMismatch = @()
+foreach ($line in $staleLines) {
+    if (-not ($ps1.Contains($line))) { $staleMismatch += "install.ps1: $line" }
+    if (-not ($sh.Contains($line))) { $staleMismatch += "install.sh: $line" }
+}
+Check ($staleMismatch.Count -eq 0) "staleness wording matches between the installers"
+foreach ($m in $staleMismatch) { Write-Output "       missing - $m" }
+
+# Both must write the marker and both must remove it, or one platform silently
+# loses the check and the other keeps a file nothing reads.
+Check (($ps1 -match 'Write-InstallMarker') -and ($sh -match 'write_install_marker')) `
+      "both installers write the install marker"
+Check (($ps1 -match 'Remove-Item \$marker') -and ($sh -match 'rm -f "\$\(install_marker\)"')) `
+      "both installers remove the marker on uninstall"
 
 # The loader's profile-side utilities are listed by name in install.sh because
 # raw.githubusercontent serves files, not directories. A file added to the vendored

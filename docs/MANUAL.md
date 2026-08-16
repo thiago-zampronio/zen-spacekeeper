@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.48.3 ready — active Space …`.
+`[ZSTG] 0.49.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -76,6 +76,36 @@ Run from a clone, both installers use the local files instead of downloading.
 Both installers also take a source override — `-Repo` and `-Branch` on Windows,
 `--repo` and `--branch` elsewhere — pointing a standalone run at another
 repository or branch. Useful mainly for development.
+
+### Installing while Zen is open
+
+Zen runs the version it loaded when it started. Installing over a running Zen
+replaces the files on disk without touching what is in memory, so the browser goes
+on running the previous version — and every check that compares files to files
+correctly reports that everything is installed.
+
+Three things notice this now, and each covers a gap the others leave:
+
+- **The panel** shows a banner naming the running version, the installed one, and
+  the remedy. It appears without being looked for, but only once you open the panel.
+- **The mod itself** compares the two at startup and records the result in
+  `zstg-debug.log` — with nobody present, and whether or not they differ. A check
+  that only leaves a trace when it fails cannot be told from one that never ran.
+- **`-Check` / `--check`** reports it before the browser is involved at all, which
+  is the only one available when the mod is not loading in the first place.
+
+The remedy always names both halves: close Zen, clear the startup cache in
+`about:support`, then open it again. **Restarting alone is not enough** — a stale
+startup cache reproduces the same state.
+
+What none of them can do is fix it in place. fx-autoconfig offers no supported way
+to reload a chrome script, and a half-swapped script would be a worse state than a
+consistently stale one.
+
+The installer's half compares an install marker against the profile lock file, and
+stays silent whenever it cannot tell — Zen not running, no marker, no lock. It
+answers "did the browser start before the install", not "which version is running";
+only the mod itself can answer the second.
 
 Uninstalling leaves the loader in place, because other mods may depend on it, and
 keeps your preferences so a reinstall finds your configuration. Updating and
