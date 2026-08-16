@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.49.0
+// @version        0.50.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.49.0";
+const VERSION = "0.50.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1647,6 +1647,13 @@ let staleness = null;
  * "did an installer run recently", which is a different question that agrees most
  * of the time and disagrees precisely when it matters.
  *
+ * Called at startup, and again every time the panel opens. NOT on a timer: the
+ * condition is rare, the person who would act on it is the one opening the panel,
+ * and a perpetual half-hourly file read is a standing cost for an answer nobody is
+ * waiting for. The startup call is nearly always "match" — the script has just been
+ * read from the file it compares against — and is kept only because it is the one
+ * moment that can catch a genuinely stale cached load.
+ *
  * Unreadable or unparsable is "unknown", NEVER "mismatch": a false alarm here
  * teaches the user to dismiss the real one.
  */
@@ -1959,6 +1966,25 @@ function ungroupAllOurs() {
     _cfg.groups = {};
   }
   return n;
+}
+
+/**
+ * Restart with the startup cache invalidated, and nothing else.
+ *
+ * Deliberately NOT resetAndRestart: that one dissolves every group first, which is
+ * right when handing the browser back on uninstall and wrong here — trading a stale
+ * version for lost organization is a worse outcome than the problem being fixed.
+ *
+ * Returns false when the utility is unavailable, and the panel falls back to the
+ * manual steps. False always means nothing happened.
+ */
+function restartToApply() {
+  const restart = window.UC_API?.Runtime?.restart;
+  if (typeof restart !== "function") {
+    return false;
+  }
+  dbg("restartToApply", { running: VERSION });
+  return restart(true);
 }
 
 /**
@@ -2720,19 +2746,6 @@ async function start() {
     () => backgroundUpdateCheck("heartbeat"),
     4 * 3600000
   );
-  // The staleness comparison needs its own clock, and testing showed why: at
-  // startup the script has just been read from the file, so the two versions
-  // agree almost by definition. The case this exists for opens LATER — an
-  // install lands while the browser keeps running the code it already had — and
-  // a check that only runs at startup can never be inside that window.
-  //
-  // Its own timer rather than a ride on backgroundUpdateCheck: that one is gated
-  // on the update preference and makes a network request, and neither should
-  // decide whether a local file comparison happens.
-  const stalenessTimer = window.setInterval(
-    () => { checkStaleness(); },
-    30 * 60000
-  );
   checkZenContract();
 
   window.addEventListener(
@@ -2754,7 +2767,6 @@ async function start() {
       window.clearInterval(idleSweepTimer);
       window.clearTimeout(updateCheckTimer);
       window.clearInterval(updateRecheckTimer);
-      window.clearInterval(stalenessTimer);
       removeUpdatePill();
       groupLastTouch.clear();
       unregisterPanel();
@@ -2802,6 +2814,7 @@ if (core) {
       return staleness;
     },
     checkStaleness,
+    restartToApply,
     inspect,
     selfTest,
     keyFromText,

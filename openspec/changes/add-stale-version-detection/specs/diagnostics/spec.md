@@ -62,10 +62,41 @@ remove: the log is only read by someone who already suspects something.
 - **THEN** the panel states which version is running and which is installed
 - **AND** it states that the browser must be restarted and the startup cache cleared
 
-#### Scenario: The remedy is stated where it can be acted on
+#### Scenario: The remedy is offered as an action
 
 - **WHEN** the mismatch is reported
-- **THEN** the report names the startup cache as part of the remedy
+- **THEN** the report offers to perform the remedy
+
+#### Scenario: The remedy cannot be performed
+
+- **GIVEN** the browser does not expose a way to restart with the cache cleared
+- **WHEN** the mismatch is reported
+- **THEN** the report states the manual steps instead
+- **AND** the manual steps name the startup cache
 
 Restarting alone is not enough — a stale startup cache reproduces the same state,
-which is why the remedy has to name both halves.
+which is why the manual form has to name both halves. When the product can do it,
+asking the user to do it by hand is asking them to perform a chore the product
+already knows how to finish.
+
+### Requirement: Applying the update is one action, and it is not destructive
+
+The system SHALL offer, alongside the mismatch report, a way to restart the browser
+with the startup cache cleared, and that action SHALL NOT dissolve the user's groups
+nor change any preference.
+
+A clean-handover restart that also dissolves groups already exists for uninstalling.
+Reusing it here would trade a stale version for lost organization, which is a worse
+outcome than the problem being fixed.
+
+#### Scenario: Applying from the report
+
+- **GIVEN** a reported version mismatch
+- **WHEN** the user chooses to apply it
+- **THEN** the browser restarts with the startup cache cleared
+- **AND** the groups and preferences are left as they were
+
+#### Scenario: The browser restores the session
+
+- **WHEN** the restart happens
+- **THEN** it uses the browser's own restart, so the session is restored as usual

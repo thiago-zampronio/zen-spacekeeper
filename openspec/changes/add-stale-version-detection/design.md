@@ -42,29 +42,37 @@ layer is picked so that the others' blind spots are covered:
 - The **installer** check runs before the browser is involved at all, and is the only
   one available when the mod is not loading at all.
 
-### The script check needs its own clock, not just startup
+### The comparison runs at startup and on every panel open — not on a timer
 
-This was written as a startup-only comparison, and testing it disproved the
-reasoning behind it. At startup the script has just been read from the file it is
-being compared against, so the two agree almost by definition — the case this
-exists for opens later, when an install lands under a running browser, and a
-startup-only check can never be inside that window.
+This was written as a startup-only comparison, and testing disproved the reasoning
+behind it. At startup the script has just been read from the file it is being
+compared against, so the two agree almost by definition — the case this exists for
+opens later, when an install lands under a running browser, and a startup-only
+check can never be inside that window.
 
 The first draft of this document claimed the startup check "would have caught this
 case immediately". It would not have: on the day this was found, the browser had
 been running continuously since before the install and never restarted, so no
-startup happened during the whole failure.
+startup happened during the whole failure. A restart without clearing the startup
+cache was the other hypothesis, and that was tested too — the browser loaded the
+current file anyway.
 
-A restart without clearing the startup cache was expected to reproduce it from the
-cache instead — that was tested too, and the browser loaded the current file
-anyway. So the comparison also runs on a slow interval, which is the only version
-of this layer that is inside the window it was built for. It gets its own timer
-rather than riding the update check's: that one is gated on a preference and makes
-a network request, and neither should decide whether a local file comparison
-happens.
+A half-hourly timer was tried next and then removed, at the owner's call and with
+the better argument. The condition is rare and the value is entirely in the banner;
+the person who would act on a stale version is precisely the one opening the panel,
+and a perpetual file read on a clock is a standing cost for an answer nobody is
+waiting for. What the timer bought was a log line arriving unprompted — worth
+something only to a reader who is already investigating, and that reader can open
+the panel.
 
-The panel re-reads on every open for the same reason — the startup answer is
-itself stale by the time the panel matters.
+So the panel re-reads on every open, which is the layer that actually covers the
+window, and the startup call is kept for the one thing it can still catch: a
+genuinely stale cached load, where the code running and the file on disk differ at
+load time.
+
+The honest consequence is that this is two layers and a remnant, not three. The
+installer's check is the only one that works with no browser involved, and the
+panel's is the only one that catches the ordinary case.
 
 ### The script compares against the file, not against a marker
 

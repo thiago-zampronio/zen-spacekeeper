@@ -179,7 +179,12 @@ const en = {
 
   "stale.title": "Zen is running an older version than the one installed",
   "stale.body":
-    "Zen loaded version {running} when it started, and version {installed} is installed. Files updated while Zen is open only take effect on the next start. Close Zen, open about:support and click \"Clear startup cache\", then open Zen again — restarting alone is not enough. Until then you are using the older version, and this page may describe things it does not have.",
+    "Zen loaded version {running} when it started, and version {installed} is installed. Files updated while Zen is open only take effect on the next start, so until then you are using the older version and this page may describe things it does not have.",
+  "stale.restart": "Restart Zen and apply {installed}",
+  "stale.restartNote":
+    "Your tabs come back — Zen restores the session. Your groups and settings are untouched.",
+  "stale.manual":
+    "Close Zen, open about:support and click \"Clear startup cache\", then open Zen again. Restarting alone is not enough.",
 
   "language.title": "Language",
   "language.short": "Follows the browser unless you pick one.",
@@ -387,7 +392,12 @@ const pt = {
 
   "stale.title": "O Zen está rodando uma versão mais antiga que a instalada",
   "stale.body":
-    "O Zen carregou a versão {running} quando abriu, e a versão {installed} é a que está instalada. Arquivos atualizados com o Zen aberto só valem na próxima inicialização. Feche o Zen, abra about:support e clique em \"Limpar cache de inicialização\", depois abra o Zen de novo — só reiniciar não basta. Até lá você está usando a versão antiga, e esta página pode descrever coisas que ela não tem.",
+    "O Zen carregou a versão {running} quando abriu, e a versão {installed} é a que está instalada. Arquivos atualizados com o Zen aberto só valem na próxima inicialização, então até lá você está usando a versão antiga e esta página pode descrever coisas que ela não tem.",
+  "stale.restart": "Reiniciar o Zen e aplicar a {installed}",
+  "stale.restartNote":
+    "Suas abas voltam — o Zen restaura a sessão. Seus grupos e ajustes ficam intactos.",
+  "stale.manual":
+    "Feche o Zen, abra about:support e clique em \"Limpar cache de inicialização\", depois abra o Zen de novo. Só reiniciar não basta.",
 
   "language.title": "Idioma",
   "language.short": "Segue o navegador, a menos que você escolha um.",
@@ -595,7 +605,12 @@ const es = {
 
   "stale.title": "Zen está ejecutando una versión más antigua que la instalada",
   "stale.body":
-    "Zen cargó la versión {running} al abrirse, y la versión instalada es {installed}. Los archivos actualizados con Zen abierto solo se aplican en el siguiente inicio. Cierra Zen, abre about:support y pulsa \"Vaciar caché de inicio\", y vuelve a abrir Zen — reiniciar por sí solo no basta. Hasta entonces estás usando la versión antigua, y esta página puede describir cosas que no tiene.",
+    "Zen cargó la versión {running} al abrirse, y la versión instalada es {installed}. Los archivos actualizados con Zen abierto solo se aplican en el siguiente inicio, así que hasta entonces estás usando la versión antigua y esta página puede describir cosas que no tiene.",
+  "stale.restart": "Reiniciar Zen y aplicar la {installed}",
+  "stale.restartNote":
+    "Tus pestañas vuelven — Zen restaura la sesión. Tus grupos y ajustes quedan intactos.",
+  "stale.manual":
+    "Cierra Zen, abre about:support y pulsa \"Vaciar caché de inicio\", y vuelve a abrir Zen. Reiniciar por sí solo no basta.",
 
   "language.title": "Idioma",
   "language.short": "Sigue al navegador, a menos que elijas uno.",

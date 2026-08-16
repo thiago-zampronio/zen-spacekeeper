@@ -5,6 +5,18 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.50.0 — the stale-version banner does the restart for you
+
+- The banner used to end with instructions: close Zen, go to about:support, clear
+  the startup cache, open Zen again. All correct, and all of it work the product
+  already knew how to do. Now it offers a button that does exactly that.
+- It restarts with the cache cleared and touches nothing else. The clean-handover
+  restart that dissolves your groups already exists for uninstalling; reusing it
+  here would trade a stale version for lost organization. Your tabs come back the
+  way they always do, and your groups and settings are untouched.
+- The written steps stay as the fallback, for a browser that does not expose the
+  restart utility — where the button cannot work, the instructions still can.
+
 ## 0.49.0 — it tells you when Zen is running an older copy
 
 - Installing while Zen is open replaces the files without touching what the

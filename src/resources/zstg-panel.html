@@ -429,6 +429,14 @@
         line-height: 1.55;
       }
       #stale b { display: block; font-weight: 600; margin-bottom: 4px; }
+      .stale-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .stale-note { color: var(--secondary); font-size: 12.5px; }
     </style>
   </head>
   <body>
@@ -536,6 +544,35 @@
               t("stale.body", { running: s.running, installed: s.installed })
             )
           );
+
+          // The product knows how to restart with the cache cleared, so asking the
+          // user to walk through about:support is asking them to finish a chore it
+          // could finish itself. The manual steps stay as the fallback for when the
+          // browser does not expose the utility.
+          if (typeof ZSTG?.restartToApply === "function") {
+            const act = document.createElement("div");
+            act.className = "stale-actions";
+            const btn = document.createElement("button");
+            btn.className = "primary";
+            btn.textContent = t("stale.restart", { installed: s.installed });
+            btn.addEventListener("click", () => {
+              btn.disabled = true;
+              // false means nothing happened: fall back to the manual steps rather
+              // than leave a dead button and a user who thinks they acted.
+              if (ZSTG.restartToApply() === false) {
+                btn.remove();
+                box.append(document.createTextNode(" " + t("stale.manual")));
+              }
+            });
+            const note = document.createElement("span");
+            note.className = "stale-note";
+            note.textContent = t("stale.restartNote");
+            act.append(btn, note);
+            box.append(act);
+          }
+          else {
+            box.append(document.createTextNode(" " + t("stale.manual")));
+          }
           box.hidden = false;
         };
 
