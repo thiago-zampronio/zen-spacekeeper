@@ -80,8 +80,9 @@
 
 - [x] 4.1 verify.ps1: the collapse anchor follows the new rule; anchors for the
       reduced-motion block and the preset attribute; EVERYTHING IN SYNC
-- [ ] 4.2 In a running Zen: toggle the four presets back-to-back and feel the
+- [x] 4.2 In a running Zen: toggle the four presets back-to-back and feel the
       difference; the panel preview plays the selected preset once; collapse
       never gates clicks; quick return cancels the focus collapse;
       reduced-motion restores instant; native folders unaffected —
-      user confirms and picks the shipping default by eye
+      user confirmed across the 0.30-0.38 field-test cycle ("melhorou bem")
+      and approved closing; the shipping default stays Swift
