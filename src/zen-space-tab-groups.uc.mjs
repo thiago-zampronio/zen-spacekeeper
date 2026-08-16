@@ -2720,6 +2720,19 @@ async function start() {
     () => backgroundUpdateCheck("heartbeat"),
     4 * 3600000
   );
+  // The staleness comparison needs its own clock, and testing showed why: at
+  // startup the script has just been read from the file, so the two versions
+  // agree almost by definition. The case this exists for opens LATER — an
+  // install lands while the browser keeps running the code it already had — and
+  // a check that only runs at startup can never be inside that window.
+  //
+  // Its own timer rather than a ride on backgroundUpdateCheck: that one is gated
+  // on the update preference and makes a network request, and neither should
+  // decide whether a local file comparison happens.
+  const stalenessTimer = window.setInterval(
+    () => { checkStaleness(); },
+    30 * 60000
+  );
   checkZenContract();
 
   window.addEventListener(
@@ -2741,6 +2754,7 @@ async function start() {
       window.clearInterval(idleSweepTimer);
       window.clearTimeout(updateCheckTimer);
       window.clearInterval(updateRecheckTimer);
+      window.clearInterval(stalenessTimer);
       removeUpdatePill();
       groupLastTouch.clear();
       unregisterPanel();

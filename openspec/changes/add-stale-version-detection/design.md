@@ -35,15 +35,36 @@ the self-update feature — so it can read the file it was loaded from.
 Repeating one check in three places moves the silence rather than removing it. Each
 layer is picked so that the others' blind spots are covered:
 
-- The **script** check runs with no user present and no restart, but only writes to
-  the log unless someone opens the panel.
+- The **script** check runs with no user present, but only writes to the log unless
+  someone opens the panel.
 - The **panel** banner is seen without looking for it, but only by someone who opens
   the panel.
 - The **installer** check runs before the browser is involved at all, and is the only
   one available when the mod is not loading at all.
 
-The first is the one that would have caught this case immediately; the third is the
-one that would have caught it before the panel was ever opened.
+### The script check needs its own clock, not just startup
+
+This was written as a startup-only comparison, and testing it disproved the
+reasoning behind it. At startup the script has just been read from the file it is
+being compared against, so the two agree almost by definition — the case this
+exists for opens later, when an install lands under a running browser, and a
+startup-only check can never be inside that window.
+
+The first draft of this document claimed the startup check "would have caught this
+case immediately". It would not have: on the day this was found, the browser had
+been running continuously since before the install and never restarted, so no
+startup happened during the whole failure.
+
+A restart without clearing the startup cache was expected to reproduce it from the
+cache instead — that was tested too, and the browser loaded the current file
+anyway. So the comparison also runs on a slow interval, which is the only version
+of this layer that is inside the window it was built for. It gets its own timer
+rather than riding the update check's: that one is gated on a preference and makes
+a network request, and neither should decide whether a local file comparison
+happens.
+
+The panel re-reads on every open for the same reason — the startup answer is
+itself stale by the time the panel matters.
 
 ### The script compares against the file, not against a marker
 

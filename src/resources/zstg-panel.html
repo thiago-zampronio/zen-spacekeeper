@@ -540,10 +540,14 @@
         };
 
         if (ZSTG) {
+          // The startup result is only a first paint: it was computed when the
+          // script had just been read from the file, so it almost always says
+          // "match". The window this exists for opens LATER — an install lands
+          // while the browser keeps running the code it already had — and in that
+          // window the startup answer is stale itself. Re-reading on every open is
+          // one file read, and it is the only way this page can be right.
           show(ZSTG.staleness);
-          if (!ZSTG.staleness) {
-            ZSTG.checkStaleness?.().then(show).catch(() => {});
-          }
+          ZSTG.checkStaleness?.().then(show).catch(() => {});
         }
       }
 

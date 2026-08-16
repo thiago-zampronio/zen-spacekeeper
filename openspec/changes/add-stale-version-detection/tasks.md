@@ -41,13 +41,26 @@
 
 Needs a running browser, and the mismatch has to be produced deliberately.
 
-- [ ] 6.1 Install an older version, start Zen, install the current one: the log
+Run end to end on Windows, driving Zen through the installer. The mismatch was
+produced by writing a different version into the profile while Zen ran — which is
+indistinguishable from having installed it.
+
+Testing 6.1 disproved the design's central claim and changed the implementation.
+The comparison was startup-only, and at startup the script has just been read from
+the file it is compared against, so it reported match every time. A restart
+without clearing the startup cache was expected to reproduce the stale load from
+cache; it did not — the browser read the current file anyway. The check now also
+runs on a slow interval, and with the interval temporarily shortened it produced
+state=mismatch running=0.49.0 installed=0.49.1 on its own, with nobody asking.
+The panel was changed to re-read on every open for the same reason.
+
+- [x] 6.1 Install an older version, start Zen, install the current one: the log
       records the mismatch without any user action
 - [ ] 6.2 The panel names both versions and the remedy
 - [ ] 6.3 Following the remedy clears the banner
-- [ ] 6.4 With versions in agreement, no banner and a recorded agreement in the log
-- [ ] 6.5 `--check` reports staleness in the same scenario, and stays quiet once Zen
+- [x] 6.4 With versions in agreement, no banner and a recorded agreement in the log
+- [x] 6.5 `--check` reports staleness in the same scenario, and stays quiet once Zen
       has been restarted
-- [ ] 6.6 `--check` stays quiet with Zen closed
+- [x] 6.6 `--check` stays quiet with Zen closed
 - [ ] 6.7 The panel's two "cannot reach the mod" states show their own messages
 - [ ] 6.8 Windows, macOS and Linux: the installer half behaves the same
