@@ -340,25 +340,43 @@ tab-group[zstg-key] .tab-group-label[zstg-hidden-count]::after {
  * and the button it leads to read as the same story.
  * --------------------------------------------------------------------------*/
 #zstg-update-pill {
-  appearance: none;
   position: fixed;
   left: 12px;
   bottom: 52px;
   z-index: 99999;
+  display: flex;
+  align-items: center;
   margin: 0;
   padding: 5px 12px;
   border-radius: 999px;
   /* Solid, not tinted: the pill floats over the user's wallpaper, and a
-     translucent chip is unreadable over a gradient. */
+     translucent chip is unreadable over a gradient. The script widens it to
+     the tab sidebar's measured width; these coordinates are the fallback. */
   background-color: #007aff;
   color: #ffffff;
   font-size: 11px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+#zstg-update-pill toolbarbutton {
+  appearance: none;
+  margin: 0;
+  padding: 0;
   cursor: pointer;
+}
+#zstg-update-pill .zstg-pill-main {
+  flex: 1;
+}
+#zstg-update-pill .zstg-pill-close {
+  margin-inline-start: 10px;
+  opacity: 0.8;
+  font-size: 10px;
+}
+#zstg-update-pill .zstg-pill-close:hover {
+  opacity: 1;
 }
 #zstg-update-pill .toolbarbutton-text {
   color: #ffffff;
 }
-#zstg-update-pill:hover {
+#zstg-update-pill .zstg-pill-main:hover {
   filter: brightness(1.12);
 }

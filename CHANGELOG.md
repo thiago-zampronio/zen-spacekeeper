@@ -5,6 +5,14 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.47.0 — nothing you missed goes unmentioned
+
+- Fell a few versions behind? Check for updates now shows what changed in
+  every release you missed — newest first, each under its version — not just
+  the latest one.
+- The update alert now stretches across the sidebar and carries a ✕: not in
+  the mood? Dismiss it and it stays quiet until you next open the browser.
+
 ## 0.46.0 — the pill never overstays
 
 - If the little update alert ever outlives its reason — you already updated,

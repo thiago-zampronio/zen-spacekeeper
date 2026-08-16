@@ -3,8 +3,10 @@
 ## 1. Script
 
 - [x] 1.1 `zen.stg.updateCheck` (bool, default true) in DEFAULTS/cfg;
-      `checkForUpdate` returns the release `notes`; `isNewerVersion` semver
-      compare in the script
+      `checkForUpdate` returns the `notes` of EVERY missed release, newest
+      first under its version (owner question: "3 versions behind shows each
+      release's changes or only the last?" — now each); `isNewerVersion`
+      semver compare in the script
 - [x] 1.2 `backgroundUpdateCheck` 45s after init and then every 4 hours per
       window (field finding: windows outlive releases — once per session never
       fired again in a long-lived window), gated on the pref, failures logged
@@ -14,7 +16,10 @@
       strip's periphery, an element Zen keeps in the DOM but never renders in
       vertical layout (field finding: log said updatePill, screenshot said
       nothing); solid blue so it reads over any wallpaper; label with the
-      version, click opens `about:spacekeeper#update`, removed on unload
+      version, click opens `about:spacekeeper#update`, removed on unload;
+      spans the tab sidebar's measured width; a \u2715 dismiss hides it and
+      silences the session's remaining checks (owner ask), logged as
+      updatePillDismissed
 
 ## 2. Panel, styles and strings
 

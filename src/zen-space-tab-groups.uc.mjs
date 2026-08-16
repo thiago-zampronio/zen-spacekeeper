@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.46.0
+// @version        0.47.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.46.0";
+const VERSION = "0.47.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1639,22 +1639,32 @@ function profilePath(relative) {
  * field on the pill's debut morning.
  */
 async function checkForUpdate(via = "panel") {
-  const r = await window.fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+  // The list, not just the latest: someone three versions behind deserves the
+  // notes of every release they missed, newest first — the from -> to line
+  // alone hides two releases' worth of reasons to update.
+  const r = await window.fetch(`https://api.github.com/repos/${REPO}/releases?per_page=15`, {
     headers: { Accept: "application/vnd.github+json" },
   });
   if (!r.ok) {
     throw new Error(`HTTP ${r.status}`);
   }
-  const release = await r.json();
-  const tag = String(release.tag_name ?? "");
-  dbg("updateCheck", { tag, via, installed: VERSION });
+  const releases = (await r.json()).filter(x => !x.draft && !x.prerelease);
+  const newer = releases.filter(x =>
+    isNewerVersion(String(x.tag_name ?? "").replace(/^v/, ""), VERSION)
+  );
+  const head = newer[0] ?? releases[0];
+  const tag = String(head?.tag_name ?? "");
+  dbg("updateCheck", { tag, via, installed: VERSION, missed: newer.length });
   return {
     tag,
     version: tag.replace(/^v/, ""),
-    // The release's published notes ride along so the panel can show WHAT
-    // changed next to the from -> to line — the changelog entry, per the
-    // releasing rule.
-    notes: String(release.body ?? ""),
+    // Every missed release's published notes ride along so the panel shows
+    // WHAT changed next to the from -> to line — the changelog entries, per
+    // the releasing rule.
+    notes: newer
+      .map(x => x.tag_name + "\n" + String(x.body ?? "").trim())
+      .join("\n\n")
+      .trim(),
   };
 }
 
@@ -1682,20 +1692,49 @@ function isNewerVersion(latest, current) {
  */
 const UPDATE_PILL_ID = "zstg-update-pill";
 
+// Dismissing the pill is a session-wide "not now": the alert goes away AND the
+// heartbeat stops asking, until the next restart brings a fresh session.
+let updatePillDismissed = false;
+
 function showUpdatePill(version) {
-  if (window.document.getElementById(UPDATE_PILL_ID)) {
+  if (updatePillDismissed || window.document.getElementById(UPDATE_PILL_ID)) {
     return;
   }
   const host = window.document.documentElement;
-  const pill = window.document.createXULElement("toolbarbutton");
+  const pill = window.document.createXULElement("hbox");
   pill.id = UPDATE_PILL_ID;
-  pill.setAttribute("label", t("update.pill", { version }));
-  pill.setAttribute("tooltiptext", t("update.pillTip"));
-  pill.addEventListener("command", () => {
+  pill.setAttribute("align", "center");
+  const main = window.document.createXULElement("toolbarbutton");
+  main.className = "zstg-pill-main";
+  main.setAttribute("label", t("update.pill", { version }));
+  main.setAttribute("tooltiptext", t("update.pillTip"));
+  main.addEventListener("command", () => {
     window.gBrowser.selectedTab = window.gBrowser.addTrustedTab(
       "about:spacekeeper#update"
     );
   });
+  const close = window.document.createXULElement("toolbarbutton");
+  close.className = "zstg-pill-close";
+  close.setAttribute("label", "\u2715");
+  close.setAttribute("tooltiptext", t("update.dismiss"));
+  close.addEventListener("command", () => {
+    updatePillDismissed = true;
+    removeUpdatePill();
+    dbg("updatePillDismissed", { version });
+  });
+  pill.append(main, close);
+  // Span the tab sidebar edge to edge: its width only exists at runtime, so
+  // it is measured when the pill shows. The CSS left/width are the fallback
+  // for the day the measurement fails.
+  try {
+    const rect = window.gBrowser.tabContainer?.getBoundingClientRect?.();
+    if (rect && rect.width > 120) {
+      pill.style.left = `${Math.round(rect.left) + 8}px`;
+      pill.style.width = `${Math.round(rect.width) - 16}px`;
+    }
+  } catch {
+    // fixed-position fallback from the stylesheet
+  }
   host.appendChild(pill);
   dbg("updatePill", { version });
 }
@@ -1705,7 +1744,7 @@ function removeUpdatePill() {
 }
 
 async function backgroundUpdateCheck(via) {
-  if (!cfg().updateCheck) {
+  if (!cfg().updateCheck || updatePillDismissed) {
     return;
   }
   try {

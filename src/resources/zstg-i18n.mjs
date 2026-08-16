@@ -199,6 +199,7 @@ const en = {
   "update.pill": "Update {version} available",
   "update.pillTip": "Open Spacekeeper to see what changed and update",
   "update.notes": "What changed:",
+  "update.dismiss": "Not now — hidden until the next restart",
   "uninstall.button": "Uninstall Spacekeeper",
   "uninstall.title": "Uninstall Spacekeeper?",
   "uninstall.body":
@@ -400,6 +401,7 @@ const pt = {
   "update.pill": "Atualização {version} disponível",
   "update.pillTip": "Abra o Spacekeeper para ver o que mudou e atualizar",
   "update.notes": "O que mudou:",
+  "update.dismiss": "Agora não — escondido até o próximo restart",
   "uninstall.button": "Desinstalar o Spacekeeper",
   "uninstall.title": "Desinstalar o Spacekeeper?",
   "uninstall.body":
@@ -601,6 +603,7 @@ const es = {
   "update.pill": "Actualización {version} disponible",
   "update.pillTip": "Abre Spacekeeper para ver qué cambió y actualizar",
   "update.notes": "Qué cambió:",
+  "update.dismiss": "Ahora no — oculto hasta el próximo reinicio",
   "uninstall.button": "Desinstalar Spacekeeper",
   "uninstall.title": "¿Desinstalar Spacekeeper?",
   "uninstall.body":

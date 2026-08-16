@@ -56,8 +56,11 @@ The system SHALL, when the automatic check finds a newer release, show a small
 floating alert over the sidebar's lower corner naming the available version —
 anchored to the window itself, so no browser-layout internals can hide it;
 clicking it SHALL open the panel's update section with the check already
-performed — the version message and the Update action visible; and the alert
-SHALL appear only when a newer release exists.
+performed — the version message and the Update action visible; the alert SHALL
+span the tab sidebar's width when that width can be measured; SHALL offer a
+dismiss control that hides the alert and silences further automatic checks
+until the next session; and the alert SHALL appear only when a newer release
+exists.
 
 #### Scenario: The alert appears and leads to one-click distance
 
@@ -65,6 +68,14 @@ SHALL appear only when a newer release exists.
 - **WHEN** the user clicks the alert
 - **THEN** the panel opens on the update section
 - **AND** the from → to message and the Update button are already on screen
+
+#### Scenario: Not now means quiet until tomorrow
+
+- **GIVEN** the alert is showing
+- **WHEN** the user clicks its dismiss control
+- **THEN** the alert disappears
+- **AND** no further automatic check runs in this session
+- **AND** the next session checks and alerts normally
 
 #### Scenario: Up to date means no alert
 
@@ -74,16 +85,24 @@ SHALL appear only when a newer release exists.
 
 ### Requirement: A check tells what changed
 
-The system SHALL include the release's published notes in the check result and
-SHALL show them with the from → to message, so the decision to update is made
-with the changes in view; a release without notes SHALL degrade to the version
-message alone.
+The system SHALL include, in the check result, the published notes of every
+release newer than the installed version — newest first, each under its
+version — and SHALL show them with the from → to message, so the decision to
+update is made with all the missed changes in view; releases without notes
+SHALL degrade to the version message alone.
 
 #### Scenario: Notes with the versions
 
 - **GIVEN** a newer release with published notes
 - **WHEN** the check completes — clicked or automatic-then-opened
 - **THEN** the panel shows the from → to versions and what the release brought
+
+#### Scenario: Several versions behind means several sets of notes
+
+- **GIVEN** the installed version is three releases behind
+- **WHEN** the check completes
+- **THEN** the notes of all three missed releases appear, newest first, each
+  under its version
 
 ### Requirement: Every release publishes its changes
 
