@@ -270,6 +270,9 @@
         align-items: center;
       }
       .mockup { display: block; border-radius: 6px; }
+      /* Release notes ride in the maintenance output; long ones scroll instead
+         of stretching the card. */
+      .maint-out { max-height: 280px; overflow-y: auto; white-space: pre-wrap; }
 
       /* The motion preview: ONE animated thumbnail for the whole radio group,
          so the user sees what each preset promises before feeling it on real
@@ -1353,7 +1356,7 @@
       // the whole product that contacts the network, and only when clicked.
       const sMaintenance = document.getElementById("maintenance");
       heading("maintenance", "sec.maintenance", t("maintenance.help"));
-      const maintOutput = el("pre", { text: "—" });
+      const maintOutput = el("pre", { class: "maint-out", text: "—" });
       let updateTag = null;
 
       const btnCheck = el("button", { class: "accented", text: t("update.check") });
@@ -1414,7 +1417,12 @@
         return false;
       }
 
-      btnCheck.addEventListener("click", async () => {
+      // The release notes are markdown written for the GitHub page; here they
+      // read as plain text, so the heavy markers go.
+      const flattenNotes = md =>
+        md.replace(/^#+\s*/gm, "").replace(/\*\*/g, "").trim();
+
+      const runUpdateCheck = async () => {
         if (!ZSTG?.checkForUpdate) {
           maintOutput.textContent = t("noWindow");
           return;
@@ -1432,11 +1440,16 @@
               current: ZSTG.version,
               latest: r.version,
             });
+            if (r.notes) {
+              maintOutput.textContent +=
+                "\n\n" + t("update.notes") + "\n\n" + flattenNotes(r.notes);
+            }
           }
         } catch (ex) {
           maintOutput.textContent = t("update.failed", { error: String(ex) });
         }
-      });
+      };
+      btnCheck.addEventListener("click", runUpdateCheck);
 
       btnUpdate.addEventListener("click", async () => {
         if (!updateTag || !ZSTG?.applyUpdate) {
@@ -1513,6 +1526,14 @@
         maintOutput,
         el("div", { class: "actions danger" }, btnUninstall)
       );
+
+      // The update pill in the tab strip links here with #update: land with
+      // the check already performed — versions and the Update button on
+      // screen, one click from done.
+      if (window.location.hash === "#update") {
+        sMaintenance.scrollIntoView({ block: "start" });
+        runUpdateCheck();
+      }
 
       // Fields commit on `change`, which needs a blur. Closing the tab or quitting
       // the browser never blurs, so a pending edit silently vanished. Blurring the

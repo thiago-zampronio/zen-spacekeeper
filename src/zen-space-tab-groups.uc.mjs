@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.38.0
+// @version        0.39.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.38.0";
+const VERSION = "0.39.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -75,6 +75,11 @@ const DEFAULTS = {
   // is slower. Exists as a magnifying glass — at 25% the character of each
   // preset is legible enough to judge — and as taste once judged.
   motionSpeed: 100,
+  // Once per session, shortly after startup, ask GitHub whether a newer
+  // release exists — metadata only, never a download — and show a quiet pill
+  // at the end of the tab strip when there is one. The second, disclosed
+  // exception to the no-network rule; off turns it into zero requests.
+  updateCheck: true,
   spaceScopedTabSwitch: true,
   // Internal pages (about:, chrome:) share one System group per Space.
   systemGroup: true,
@@ -319,6 +324,7 @@ function cfg() {
     focusIdleMinutes: Math.min(1440, Math.max(1, prefInt("focusIdleMinutes"))),
     focusReorder: prefBool("focusReorder"),
     motionSpeed: Math.min(400, Math.max(25, prefInt("motionSpeed"))),
+    updateCheck: prefBool("updateCheck"),
     collapseMotion: (() => {
       const v = prefStr("collapseMotion");
       return ["off", "swift", "fold", "cascade"].includes(v) ? v : DEFAULTS.collapseMotion;
@@ -390,7 +396,20 @@ function keyFromURI(uri, over) {
   if (info && info.key === "system:") {
     return { key: info.key, label: t("group.system") };
   }
+  if (info) {
+    return { key: info.key, label: capLabel(info.label) };
+  }
   return info;
+}
+
+/*
+ * One casing pattern on the strip: every label the system derives starts with
+ * a capital letter ("Youtube", "Mail.google"). Display only — the KEY stays
+ * lowercase, so no stored identity moves. Applied at the derivation boundary,
+ * never to text the user typed.
+ */
+function capLabel(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 function keyFromTab(tab) {
@@ -720,6 +739,14 @@ function organize(tab, force = false) {
 
   if (target) {
     recordManualColor(target);
+    // A label equal to the derived one modulo case is our old lowercase label;
+    // anything else is the user's rename and is never touched.
+    if (
+      target.label !== info.label &&
+      target.label?.toLowerCase() === info.label.toLowerCase()
+    ) {
+      target.label = info.label;
+    }
     if (current === target) {
       return;
     }
@@ -1627,7 +1654,78 @@ async function checkForUpdate() {
   const release = await r.json();
   const tag = String(release.tag_name ?? "");
   dbg("updateCheck", { tag });
-  return { tag, version: tag.replace(/^v/, "") };
+  return {
+    tag,
+    version: tag.replace(/^v/, ""),
+    // The release's published notes ride along so the panel can show WHAT
+    // changed next to the from -> to line — the changelog entry, per the
+    // releasing rule.
+    notes: String(release.body ?? ""),
+  };
+}
+
+function isNewerVersion(latest, current) {
+  const a = String(latest).split(".").map(Number);
+  const b = String(current).split(".").map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] || 0) - (b[i] || 0);
+    if (d !== 0) {
+      return d > 0;
+    }
+  }
+  return false;
+}
+
+/*
+ * The update pill: a quiet toolbarbutton at the end of the tab strip, shown
+ * only when the background check found a newer release. Anchored at the
+ * strip's periphery (where the new-tab button lives); if Zen renames that
+ * element the pill simply does not appear — the panel path never depends on
+ * it. Clicking lands one click from done: the panel's update section with the
+ * check already performed.
+ */
+const UPDATE_PILL_ID = "zstg-update-pill";
+
+function showUpdatePill(version) {
+  if (window.document.getElementById(UPDATE_PILL_ID)) {
+    return;
+  }
+  const host = window.document.getElementById("tabbrowser-arrowscrollbox-periphery");
+  if (!host) {
+    dbg("updatePillNoAnchor", { version });
+    return;
+  }
+  const pill = window.document.createXULElement("toolbarbutton");
+  pill.id = UPDATE_PILL_ID;
+  pill.setAttribute("label", t("update.pill", { version }));
+  pill.setAttribute("tooltiptext", t("update.pillTip"));
+  pill.addEventListener("command", () => {
+    window.gBrowser.selectedTab = window.gBrowser.addTrustedTab(
+      "about:spacekeeper#update"
+    );
+  });
+  host.appendChild(pill);
+  dbg("updatePill", { version });
+}
+
+function removeUpdatePill() {
+  window.document.getElementById(UPDATE_PILL_ID)?.remove();
+}
+
+async function backgroundUpdateCheck() {
+  if (!cfg().updateCheck) {
+    return;
+  }
+  try {
+    const r = await checkForUpdate();
+    if (r.version && isNewerVersion(r.version, VERSION)) {
+      showUpdatePill(r.version);
+    }
+  } catch (e) {
+    // An offline start must not surface an error for a feature nobody asked
+    // to run right now; the panel's own check reports loudly when clicked.
+    dbg("updateCheckFailed", { error: String(e) });
+  }
 }
 
 async function fetchRaw(tag, path) {
@@ -1691,6 +1789,8 @@ async function applyUpdate(tag) {
   }
 
   dbg("updated", { tag, files: fetched.length, loaderChanged });
+  // The alert's job ends the moment the update is applied.
+  removeUpdatePill();
   return { updated: fetched.length, loaderChanged };
 }
 
@@ -2522,6 +2622,8 @@ async function start() {
   // window, and the sweep is a Map scan — it exits in two reads when the idle
   // strategy is not the one running.
   const idleSweepTimer = window.setInterval(() => guarded(sweepIdleGroups), 30000);
+  // One shot per window session, far from the startup path. Metadata only.
+  const updateCheckTimer = window.setTimeout(() => backgroundUpdateCheck(), 45000);
   checkZenContract();
 
   window.addEventListener(
@@ -2541,6 +2643,8 @@ async function start() {
       uninstallSpaceScopedSwitch();
       clearFocusTimers();
       window.clearInterval(idleSweepTimer);
+      window.clearTimeout(updateCheckTimer);
+      removeUpdatePill();
       groupLastTouch.clear();
       unregisterPanel();
     },

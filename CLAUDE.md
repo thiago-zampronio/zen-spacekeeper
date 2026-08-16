@@ -52,6 +52,7 @@ that node's parent — which is what guarantees the group is born in the right S
 ## Where things live
 
 ```
+CHANGELOG.md             one entry per released version; the release notes source
 install.ps1              Windows installer: loader + mod, detects Zen and profile
 install.sh               the same installer for macOS and Linux (POSIX sh)
 eslint.config.mjs        no-undef + no-unused-vars over src/, nothing of style
@@ -101,10 +102,12 @@ npm install
 A release is a version bump plus a push to `main` — the piped installers serve
 whatever `main` holds. The version lives in three places that `verify.ps1` keeps
 honest: the `@version` header and the `VERSION` constant in the script, and the
-`[ZSTG] x.y.z ready` literal in the docs (docs/MANUAL.md). Bump all three, run the installer to
-refresh your profile, run `verify.ps1`, and only then push. For milestones, also
-tag it and publish notes (`gh release create vX.Y.Z`) — releases are where new
-users judge whether the project is alive.
+`[ZSTG] x.y.z ready` literal in the docs (docs/MANUAL.md). Bump all three, write the
+version's entry in `CHANGELOG.md` — verify.ps1 fails without it, so a release
+cannot ship silent — run the installer to refresh your profile, run `verify.ps1`,
+and only then push. Publish the release (`gh release create vX.Y.Z`) with the
+changelog entry as its notes: the panel shows those notes next to "update
+available", so they are user-facing copy, not an afterthought.
 
 `verify.ps1` catches a requirement with no implementation, a pref with no
 documentation, a README citing a function that no longer exists, and a stale file in

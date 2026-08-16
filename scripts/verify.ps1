@@ -137,6 +137,7 @@ $anchors = [ordered]@{
     "favicon-colors/applies when the icon arrives" = 'function onTabAttrModified'
     "favicon-colors/manual precedence"             = 'function recordManualColor'
     "group-presentation/label from the key"        = 'label: info.label'
+    "group-presentation/labels capitalized"        = 'capLabel'
     "group-presentation/identity by attribute"     = 'KEY_ATTR'
     "group-presentation/collapse hides tabs"       = 'max-height: 0'
     "group-presentation/motion presets"            = 'zstg-motion'
@@ -211,6 +212,9 @@ $anchors = [ordered]@{
     "loader-guard/restore from cache"              = 'loader-cache/config.js'
     "loader-guard/removal invokable"               = '"--remove"'
     "self-update/release not branch"               = 'releases/latest'
+    "self-update/update announces itself"          = 'showUpdatePill'
+    "self-update/background check gated"           = 'backgroundUpdateCheck'
+    "self-update/check tells what changed"         = 'update.notes'
     "self-update/all-or-nothing staging"           = 'spacekeeper-staging'
     "self-update/loader reported not applied"      = 'loaderChanged'
     "control-panel/one-click uninstall"            = 'uninstallSelf'
@@ -273,6 +277,12 @@ Check ($vConst.Length -gt 0) "the version constant was found in the script"
 Check ($vHeader -eq $vConst) "the header version matches the constant ($vHeader / $vConst)"
 $vLiterals = [regex]::Matches($js, 'version: "[^"]+"').Count
 Check ($vLiterals -eq 0) "the version is not duplicated as a literal ($vLiterals found)"
+
+# A release cannot ship silent: the changelog must carry an entry for the
+# version being shipped, and the GitHub release notes are that entry.
+$changelogPath = Join-Path $root "CHANGELOG.md"
+$changelog = if (Test-Path $changelogPath) { Get-Content $changelogPath -Raw } else { "" }
+Check ($changelog -match [regex]::Escape("## $vConst")) "CHANGELOG.md has an entry for $vConst"
 
 $readme = Get-Content (Join-Path $root "README.md") -Raw
 # The user-facing docs are two layers: the README is the light pitch, the manual

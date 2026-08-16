@@ -64,7 +64,8 @@ read-it-first path and the fine print live in the
 - **Respects your organization** — pinned tabs, essential tabs, Zen folders,
   split view and groups you made by hand are never touched.
 - **Private by design** — no telemetry, everything stays on your machine, and the
-  only action that ever contacts the network is the update you explicitly click.
+  only network traffic is update-shaped: the update you explicitly click, and a
+  once-per-session check for a newer release (metadata only, off with one pref).
 - **Takes care of itself** — an optional guard restores the loader when a Zen
   update deletes it (or tells you, within seconds); updates and uninstall are one
   click inside the panel.

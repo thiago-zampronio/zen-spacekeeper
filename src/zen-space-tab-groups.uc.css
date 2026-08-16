@@ -330,3 +330,23 @@ tab-group[zstg-key] .tab-group-label[zstg-hidden-count]::after {
   font-variant-numeric: tabular-nums;
   opacity: 0.55;
 }
+
+/* ---------------------------------------------------------------------------
+ * The update pill
+ *
+ * Shown at the end of the tab strip by the once-per-session background check,
+ * only when a newer release exists. Quiet on purpose: an update is news, not
+ * an alarm. The fixed blue matches the panel's primary action, so the pill
+ * and the button it leads to read as the same story.
+ * --------------------------------------------------------------------------*/
+#zstg-update-pill {
+  appearance: none;
+  margin: 6px 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, #007aff 18%, transparent);
+  font-size: 0.85em;
+}
+#zstg-update-pill:hover {
+  background-color: color-mix(in srgb, #007aff 30%, transparent);
+}
