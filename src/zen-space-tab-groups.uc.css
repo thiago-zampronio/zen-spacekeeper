@@ -84,27 +84,35 @@ tab-group[zstg-key][zstg-motion="swift"][collapsed] > .tab-group-container > .ta
    Field-tested at 150/200 the presets blurred together: a 40-60ms gap between
    presets sits under the noticing threshold, so Fold now carries the slow end
    of the spread — expand at 300ms, more than double Swift's — while the
-   collapse stays inside the frequent-action budget. */
+   collapse stays inside the frequent-action budget.
+   Both directions glide on ease-in-out, ON PURPOSE: a decelerate curve dumps
+   nearly all its movement into the opening instants, which in slow motion
+   revealed Fold's expand reading exactly like Swift's pop. The sheet must
+   never pop — slow in, slow out, in both directions. */
 tab-group[zstg-key][zstg-motion="fold"] > .tab-group-container > .tabbrowser-tab {
   transition:
-    max-height calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.05, 0.7, 0.1, 1),
-    margin calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.05, 0.7, 0.1, 1),
+    max-height calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
+    margin calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
     opacity calc(200ms * var(--zstg-motion-scale, 1)) cubic-bezier(0, 0, 0.2, 1) calc(60ms * var(--zstg-motion-scale, 1)) !important;
 }
 tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
   transition:
-    max-height calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.3, 0, 0.8, 0.15),
-    margin calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.3, 0, 0.8, 0.15),
-    opacity calc(130ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.3, 0, 0.8, 0.15) !important;
+    max-height calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
+    margin calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
+    opacity calc(130ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1) !important;
 }
 
 /* Cascade — rows tuck up into the colored chip and deal back out from it: the
-   motion draws where the tabs live. The stagger exists on EXPAND ONLY (30ms per
-   row, capped at row 6, so the last row starts appearing from 150ms — a row is
+   motion draws where the tabs live. The expand deals top-down (30ms per row,
+   capped at row 6, so the last row starts appearing from 150ms — a row is
    clickable the moment the group expands, mid-flight, so the stagger delays
-   sight, never reach); the collapse is one un-staggered beat, because focus
-   mode fires it many times per minute. Field-tested at 15ms the stagger read
-   as Fold; 30ms is where the dealing-out becomes the thing you see. */
+   sight, never reach). The collapse gathers BOTTOM-UP at half the step (15ms,
+   nth-last-child so the bottom row tucks first — cards are dealt out in order
+   and gathered from the top of the pile): the first draft made it one
+   un-staggered beat for focus-mode frequency, and in slow motion that collapse
+   read exactly like Swift's. Total collapse stays ~215ms, inside the budget.
+   Field-tested at 15ms the expand stagger read as Fold; 30ms is where the
+   dealing-out becomes the thing you see. */
 tab-group[zstg-key][zstg-motion="cascade"] > .tab-group-container > .tabbrowser-tab {
   transition:
     max-height calc(200ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -127,6 +135,13 @@ tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .
   transition-delay: 0ms !important;
   transform: translateY(-10px);
 }
+/* The gather-up: later than the blanket 0ms above so these win, counted from
+   the last row so the pile closes bottom-first. */
+tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]):nth-last-child(2) { transition-delay: calc(15ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]):nth-last-child(3) { transition-delay: calc(30ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]):nth-last-child(4) { transition-delay: calc(45ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]):nth-last-child(5) { transition-delay: calc(60ms * var(--zstg-motion-scale, 1)) !important; }
+tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]):nth-last-child(n+6) { transition-delay: calc(75ms * var(--zstg-motion-scale, 1)) !important; }
 
 /* The OS accessibility setting beats every preset: reduced motion means instant,
    exactly the pre-motion behavior. This is a spec requirement, not politeness. */

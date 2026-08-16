@@ -304,13 +304,13 @@
       }
       .mprev[data-motion="fold"] .mmove {
         transition:
-          transform calc(300ms * var(--s, 1)) cubic-bezier(0.05, 0.7, 0.1, 1),
+          transform calc(300ms * var(--s, 1)) cubic-bezier(0.45, 0, 0.55, 1),
           opacity calc(200ms * var(--s, 1)) cubic-bezier(0, 0, 0.2, 1) calc(60ms * var(--s, 1));
       }
       .mprev[data-motion="fold"][data-state="collapsed"] .mmove {
         transition:
-          transform calc(180ms * var(--s, 1)) cubic-bezier(0.3, 0, 0.8, 0.15),
-          opacity calc(130ms * var(--s, 1)) cubic-bezier(0.3, 0, 0.8, 0.15);
+          transform calc(180ms * var(--s, 1)) cubic-bezier(0.45, 0, 0.55, 1),
+          opacity calc(130ms * var(--s, 1)) cubic-bezier(0.45, 0, 0.55, 1);
       }
       .mprev[data-motion="cascade"] .mmove {
         transition:
@@ -328,6 +328,10 @@
           opacity calc(110ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1);
         transition-delay: 0ms;
       }
+      .mprev[data-motion="cascade"][data-state="collapsed"] .mrows > :nth-last-child(2) { transition-delay: calc(15ms * var(--s, 1)); }
+      .mprev[data-motion="cascade"][data-state="collapsed"] .mrows > :nth-last-child(3) { transition-delay: calc(30ms * var(--s, 1)); }
+      .mprev[data-motion="cascade"][data-state="collapsed"] .mrows > :nth-last-child(4) { transition-delay: calc(45ms * var(--s, 1)); }
+      .mprev[data-motion="cascade"][data-state="collapsed"] .mmove:not(.mfade) { transition-delay: calc(45ms * var(--s, 1)); }
       /* When the OS asks for reduced motion the real collapse is instant, so a
          preview that animates would be advertising something the user will
          never get. */
@@ -415,6 +419,8 @@
       <section id="rules"></section>
       <section id="exclusions"></section>
       <section id="appearance"></section>
+      <section id="motion"></section>
+      <section id="focus"></section>
       <section id="actions"></section>
       <section id="diagnostics"></section>
       <section id="maintenance"></section>
@@ -740,7 +746,9 @@
 
       function number(pref, min, max) {
         const input = el("input", { type: "number", min, max });
-        input.value = readInt(pref, min);
+        // Clamped on read too: a pref poked out of range in about:config was
+        // displayed verbatim, and 800 groups kept open reads as a broken panel.
+        input.value = Math.min(max, Math.max(min, readInt(pref, min)));
         input.addEventListener("change", () => {
           const v = Math.min(max, Math.max(min, Number(input.value) || min));
           input.value = v;
@@ -1072,7 +1080,7 @@
         // its durations exactly as --zstg-motion-scale multiplies the sidebar's.
         const scale = 100 / Math.min(400, Math.max(25, readInt("motionSpeed", 100)));
         motionPreview.style.setProperty("--s", String(scale));
-        const collapseMs = ({ swift: 110, fold: 180, cascade: 140 }[value] ?? 0) * scale;
+        const collapseMs = ({ swift: 110, fold: 180, cascade: 215 }[value] ?? 0) * scale;
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             motionPreview.setAttribute("data-state", "collapsed");
@@ -1096,7 +1104,6 @@
         op.append(radio, txt);
         motionChoice.append(op);
       }
-      const motionHeader = el("h2", { text: t("motion.title") });
       const motionPreviewBox = el("div", { class: "preview-box" });
       motionPreviewBox.append(
         motionPreview,
@@ -1104,15 +1111,15 @@
       );
       const motionWrap = el("div", { class: "motion-wrap" });
       motionWrap.append(motionChoice, motionPreviewBox);
-      sAppearance.append(motionHeader, motionWrap);
-      headerHelp(motionHeader, t("motion.help"));
+      const sMotion = document.getElementById("motion");
+      sMotion.append(motionWrap);
       // The speed field replays the preview on change, so slowing down and
       // watching is one gesture — the field exists exactly for that comparison.
       const nSpeed = number("motionSpeed", 25, 400);
       nSpeed.addEventListener("change", () =>
         playMotionPreview(readStr("collapseMotion", "swift"))
       );
-      sAppearance.append(
+      sMotion.append(
         row(
           t("motionSpeed.title"),
           t("motionSpeed.short"),
@@ -1121,9 +1128,11 @@
           t("motionSpeed.help")
         )
       );
+      heading("motion", "motion.title", t("motion.help"));
       playMotionPreview(currentMotion);
 
-      sAppearance.append(
+      const sFocus = document.getElementById("focus");
+      sFocus.append(
         row(
           t("focus.title"),
           t("focus.short"),
@@ -1148,7 +1157,10 @@
           nDelay,
           null,
           t("focusDelay.help")
-        ),
+        )
+      );
+      heading("focus", "focus.title");
+      sAppearance.append(
         row(t("language.title"), t("language.short"), languageSelect, null, null)
       );
       syncFocus(readBool("focusMode", false));

@@ -16,6 +16,11 @@
       transition has no dead zone and the presets stay distinguishable — found
       in field testing, where a 4em cap crammed every preset into the same
       "beat, then vanish"
+- [x] 1.5 Direction fixes from the slow-motion field test: Fold glides on
+      ease-in-out in BOTH directions (its decelerate expand read as Swift's
+      pop); Cascade gathers bottom-up on collapse (15ms per row via
+      nth-last-child, half the expand step — its single-beat collapse read as
+      Swift's), loose space closing with the last tucked row
 
 ## 2. Script
 
@@ -48,6 +53,13 @@
       preview obeys it through the same scale factor and replays on change, so
       slowing down and watching is one gesture; strings in three languages;
       MANUAL pref row
+- [x] 3.5 The Appearance card split in three — Appearance (color, language),
+      Collapse motion (radios, preview, speed) and Focus mode (toggle, kept
+      open, delay): one card holding all of it read as a single undifferentiated
+      wall (user print)
+- [x] 3.6 Number fields clamp on read, and cfg clamps focusKeep to 1-10: an
+      out-of-range pref (800 typed into the wrong field) was displayed verbatim
+      and silently neutered focus mode
 
 ## 4. Verification
 

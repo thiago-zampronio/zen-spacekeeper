@@ -18,8 +18,9 @@ of a real tab row, so no dead headroom eats the visible motion; SHALL show, in
 the panel, one animated preview of the selected preset that plays once per
 selection change and then rests; SHALL scale every preset's timing — and the
 preview's — by a user-set speed percentage, where 100 is the designed timing and
-lower is slower; and SHALL keep the animation scoped to the groups the system
-created.
+lower is slower; SHALL keep each preset's character legible in both directions,
+so no preset reads as another on either collapse or expand; and SHALL keep the
+animation scoped to the groups the system created.
 
 An instant collapse initiated by the system (focus mode) looks like a glitch; the
 motion is what marks it as intended. But motion on a frequent action is a tax the
@@ -47,6 +48,15 @@ motion tells, and the frequency rule bounds every option.
 - **THEN** a single thumbnail beside the choices plays that preset's collapse and
   expand once, with the preset's own durations, and then rests expanded
 - **AND** under OS reduced motion the preview is instant, like the real thing
+
+#### Scenario: Both directions carry the preset's character
+
+- **GIVEN** any two motion presets
+- **WHEN** the same group is collapsed under one and then the other, or expanded
+  under one and then the other
+- **THEN** the two motions are distinguishable in that direction — a slowed-down
+  comparison must not reveal one preset degenerating into another on either
+  collapse or expand
 
 #### Scenario: The speed setting stretches every motion
 

@@ -38,16 +38,23 @@ tab critical path):
   80ms — the cheapest motion that still reads as caused; invisible by hour two.
   Default by the frequency rule: both directions are frequent in focus mode, so
   the binding HIG constraint is frequent-equals-faster, not the 200-300ms budget.
-- `fold` (180ms collapse / 300ms expand): the group closes as one sheet and
-  discloses open — native-sidebar vocabulary, the deliberate end of the spread.
+- `fold` (180ms collapse / 300ms expand, ease-in-out both ways): the group
+  closes as one sheet and discloses open — native-sidebar vocabulary, the
+  deliberate end of the spread. Slow motion exposed the first curve choice: a
+  decelerate expand dumps nearly all movement into the opening instants and
+  reads as Swift's pop, so both directions glide — the sheet never pops.
   First shipped at 150/200 ("tuned down from 180/240" by the frequency rule) and
   field-tested indistinguishable from Swift: a 40-60ms gap between presets sits
   under the noticing threshold. The presets only earn their existence if they
   differ, so Fold carries the slow end — its collapse still inside the
   frequent-action budget, its expand more than double Swift's.
-- `cascade` (140ms collapse, single beat / 200ms expand with a 30ms-per-row
-  stagger capped at row 6, translateY -10px): rows tuck into the chip and deal
-  back out. The original review feared a long stagger gating clicks, but a row
+- `cascade` (200ms expand with a 30ms-per-row stagger capped at row 6,
+  translateY -10px / 140ms collapse gathering bottom-up at 15ms per row,
+  nth-last-child, ~215ms total): rows deal out from the chip top-down and are
+  gathered back bottom-first, like cards. The first draft collapsed in one
+  un-staggered beat for focus-mode frequency — slow motion showed that collapse
+  reading exactly as Swift's, so the gather-up stagger exists at half the
+  expand's step, still inside the frequency budget. The original review feared a long stagger gating clicks, but a row
   is clickable the moment the group expands, mid-flight — the stagger delays
   sight, never reach. Field-tested at 15ms it read as Fold; at 30ms the
   dealing-out becomes the thing you see (last row visible from 150ms, settled

@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.35.0 ready — active Space …`.
+`[ZSTG] 0.36.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -181,7 +181,7 @@ restarting.
 | `zen.stg.locale` | string | `auto` | interface language: `auto`, `en`, `pt-BR` or `es` |
 | `zen.stg.minTabs` | int | `1` | minimum tabs with the same key to create a group |
 | `zen.stg.focusMode` | bool | `false` | keeps only the most recently used groups open |
-| `zen.stg.focusKeep` | int | `3` | how many groups focus mode keeps open (`1` = only the active one) |
+| `zen.stg.focusKeep` | int | `3` | how many groups focus mode keeps open, 1-10 (`1` = only the active one) |
 | `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
 | `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |
 | `zen.stg.motionSpeed` | int | `100` | speed of the motion presets, in percent (25-400); lower is slower, handy for comparing them |

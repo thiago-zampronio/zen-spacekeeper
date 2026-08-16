@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.35.0
+// @version        0.36.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.35.0";
+const VERSION = "0.36.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -300,7 +300,10 @@ function cfg() {
     subdomainLabel: prefStr("subdomainLabel") === "sub" ? "sub" : "host",
     minTabs: prefInt("minTabs"),
     focusMode: prefBool("focusMode"),
-    focusKeep: Math.max(1, prefInt("focusKeep")),
+    // Clamped to the panel's range: an out-of-range value (a pref poked in
+    // about:config, a number typed into the wrong field) silently neuters
+    // focus mode — 800 groups kept open means nothing ever collapses.
+    focusKeep: Math.min(10, Math.max(1, prefInt("focusKeep"))),
     focusDelay: prefIntZero("focusDelay"),
     motionSpeed: Math.min(400, Math.max(25, prefInt("motionSpeed"))),
     collapseMotion: (() => {
