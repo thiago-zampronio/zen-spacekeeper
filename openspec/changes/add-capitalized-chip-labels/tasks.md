@@ -6,11 +6,15 @@
       and the shared derivation tests caught the asymmetry in the browser
       (4 label checks failed under the real eTLD while node passed): the
       casing is part of derivation, so it belongs where labels are born, and
-      the shared cases now expect "Youtube"/"Mail.google" plus a dedicated
+      the shared cases now expect "Youtube"/"Mail.Google" plus a dedicated
       capitalization case; reclaim recases only when the live label equals
       the derived one case-insensitively; rename prompt untouched
 - [x] 1.2 verify anchor follows (`capLabel`); MANUAL label examples updated;
       EVERYTHING IN SYNC
+
+- [x] 1.3 Owner refinement: dotted host labels capitalize BOTH parts
+      ("Mail.Google") — capLabel works per dot-separated segment, and the
+      shared "host label style" check expects it (both judges again)
 
 ## 2. In a running Zen (user confirms)
 

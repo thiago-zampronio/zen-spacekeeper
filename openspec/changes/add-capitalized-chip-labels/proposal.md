@@ -9,8 +9,9 @@ model, first letter uppercase, rest as it comes.
 
 ## What Changes
 
-Every label the system derives is displayed with its first letter uppercased
-("Youtube", "Mail.google"). Group identity is untouched — the key stays
+Every label the system derives is displayed with each dot-separated part's
+first letter uppercased ("Youtube", "Mail.Google" — the owner refined the
+dotted case: both halves capitalized reads better). Group identity is untouched — the key stays
 lowercase, so no existing group is orphaned. Groups alive from an older
 session are relabeled only when the current label IS the derived one modulo
 case; a user's rename ("Videos", "estudos") is never touched. The rename

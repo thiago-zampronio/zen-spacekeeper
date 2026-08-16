@@ -118,13 +118,19 @@ export function colorName(h) {
  * @returns {{key: string, label: string}|null} null when not groupable.
  */
 /*
- * One casing pattern on the strip: every label the system derives starts with
- * a capital letter ("Youtube", "Mail.google"). Display only — keys never
- * change case, so no stored identity moves. User renames are handled by the
- * caller and never pass through here.
+ * One casing pattern on the strip: every dot-separated part of a derived label
+ * starts with a capital letter ("Youtube", "Mail.Google"). Display only —
+ * keys never change case, so no stored identity moves. User renames are
+ * handled by the caller and never pass through here.
  */
 export function capLabel(s) {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  if (!s) {
+    return s;
+  }
+  return s
+    .split(".")
+    .map(part => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .join(".");
 }
 
 export function keyFromParts(scheme, host, c, etld, path = "") {
@@ -305,7 +311,7 @@ export function runDerivationTests(keyFromText) {
     k("https://a.example.com", googleOnly) === k("https://b.example.com", googleOnly),
     true
   );
-  check("host label style", lbl("https://mail.google.com", googleOnly), "Mail.google");
+  check("host label style", lbl("https://mail.google.com", googleOnly), "Mail.Google");
   check(
     "subdomain label style",
     lbl("https://mail.google.com", { ...googleOnly, subdomainLabel: "sub" }),

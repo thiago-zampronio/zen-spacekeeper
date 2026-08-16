@@ -5,6 +5,13 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.41.0 — Mail.Google, and the pill's field day
+
+- **Changed: dotted labels capitalize both parts.** Host-style chips now read
+  "Mail.Google" instead of "Mail.google" — every dot-separated part of a
+  derived label starts with a capital letter. Renames stay untouched, keys
+  never change case.
+
 ## 0.40.0 — the two judges agree on capital letters
 
 - **Fixed: the panel self-test failed 4 label checks after 0.39.** The

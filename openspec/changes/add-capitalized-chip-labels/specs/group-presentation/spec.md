@@ -9,7 +9,7 @@ One casing pattern on the strip: derived labels start with a capital letter.
 ### Requirement: Label derived from the key
 
 The system SHALL label the groups it creates with the corresponding group key,
-displayed with the first letter uppercased; SHALL apply the same casing when
+displayed with each dot-separated part's first letter uppercased; SHALL apply the same casing when
 reclaiming a group whose label is still the derived one; and SHALL NOT alter a
 label the user renamed.
 
@@ -17,6 +17,12 @@ label the user renamed.
 
 - **WHEN** a group is created for `https://www.youtube.com/watch`
 - **THEN** the displayed label is `Youtube`
+
+#### Scenario: Host-style labels capitalize both parts
+
+- **GIVEN** subdomain grouping for `google.com` with the host label style
+- **WHEN** a group is created for `https://mail.google.com`
+- **THEN** the displayed label is `Mail.Google`
 
 #### Scenario: Group by custom rule
 
