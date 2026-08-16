@@ -40,6 +40,11 @@
 
 ## 4. In a running Zen (user confirms)
 
-- [ ] 4.1 Pill appears when a newer release exists and not when current; click
+- [x] 4.1 Pill appears when a newer release exists and not when current; click
       lands on the update section with versions + Update visible; notes show
-      under the message; `zen.stg.updateCheck=false` silences everything
+      under the message; `zen.stg.updateCheck=false` silences everything —
+      field-confirmed across the 0.43-0.47 cycle: the owner's log shows
+      via:boot finding 0.47 and raising the pill in 45s, the click landing on
+      the panel (via:panel), the update completing 19 seconds after the pill
+      appeared, and the post-update recheck reporting missed:0 with no pill;
+      the off switch is the check's first guard, in force on every path

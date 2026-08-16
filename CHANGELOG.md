@@ -5,6 +5,14 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.48.0 — the update story is complete
+
+- The whole update experience — the quiet corner alert, the notes you read
+  before clicking, the one-click distance — is now finished, field-tested and
+  written into the project's living specification. This release exists mostly
+  so your new alert has something to announce: when it stretches across your
+  sidebar with its little ✕, that is everything working exactly as designed.
+
 ## 0.47.0 — nothing you missed goes unmentioned
 
 - Fell a few versions behind? Check for updates now shows what changed in
