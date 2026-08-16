@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.48.0
+// @version        0.48.1
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.48.0";
+const VERSION = "0.48.1";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1649,9 +1649,13 @@ async function checkForUpdate(via = "panel") {
     throw new Error(`HTTP ${r.status}`);
   }
   const releases = (await r.json()).filter(x => !x.draft && !x.prerelease);
-  const newer = releases.filter(x =>
-    isNewerVersion(String(x.tag_name ?? "").replace(/^v/, ""), VERSION)
-  );
+  // Sorted by VERSION, not by publish date: a hotfix published after a bigger
+  // release must never become the head — the API's order is chronological,
+  // and chronology is not semver.
+  const ver = x => String(x.tag_name ?? "").replace(/^v/, "");
+  const newer = releases
+    .filter(x => isNewerVersion(ver(x), VERSION))
+    .sort((a, b) => (isNewerVersion(ver(a), ver(b)) ? -1 : 1));
   const head = newer[0] ?? releases[0];
   const tag = String(head?.tag_name ?? "");
   dbg("updateCheck", { tag, via, installed: VERSION, missed: newer.length });

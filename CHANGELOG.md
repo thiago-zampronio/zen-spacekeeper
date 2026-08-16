@@ -5,6 +5,12 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.48.1 — the right version wins the race
+
+- Under the hood: when several releases pile up, the update now always points
+  at the highest version — not the most recently published one. A small
+  correctness fix caught while rehearsing the update flow.
+
 ## 0.48.0 — the update story is complete
 
 - The whole update experience — the quiet corner alert, the notes you read
