@@ -5,6 +5,13 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.48.3 — the grand finale of the rehearsal
+
+- The last of three rehearsal releases. If your panel is showing this note
+  stacked on top of others you never installed, the "nothing you missed goes
+  unmentioned" promise is holding. Update whenever you like — the pill can
+  wait, and its ✕ means it will.
+
 ## 0.48.2 — a rehearsal, on purpose
 
 - Nothing changed here: this release exists so the update alert, its ✕ and

@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.48.2 ready — active Space …`.
+`[ZSTG] 0.48.3 ready — active Space …`.
 
 ### When detection needs help
 
