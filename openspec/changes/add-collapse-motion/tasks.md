@@ -21,6 +21,15 @@
       pop); Cascade gathers bottom-up on collapse (15ms per row via
       nth-last-child, half the expand step — its single-beat collapse read as
       Swift's), loose space closing with the last tucked row
+- [x] 1.6 Fold rebuilt as window-plus-sheet after the owner's "each item closes
+      separately" verdict (designer-vs-frontend adversarial review): container
+      max-height is the only layout animation, rows share one translateY behind
+      a permanent overflow-y clip, no opacity, 300ms both directions on one
+      point-symmetric curve; the base hiding rule excludes fold; the script
+      publishes --zstg-sheet-measured and --zstg-rows per group from
+      updateHiddenCount and restampMotionAll; selected-tab branch floors the
+      window at one row; chip tint dyes on the same clock; reduced motion
+      covers the container
 
 ## 2. Script
 

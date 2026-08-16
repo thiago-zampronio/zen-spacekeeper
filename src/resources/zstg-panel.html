@@ -302,16 +302,19 @@
           transform calc(110ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1),
           opacity calc(80ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1);
       }
+      /* Fold: one rule matching both states — the same destination-state
+         mechanic as the real stylesheet, so the mirror holds by construction.
+         Occlusion does the hiding: rows share one travel behind the cover and
+         never fade. */
       .mprev[data-motion="fold"] .mmove {
-        transition:
-          transform calc(300ms * var(--s, 1)) cubic-bezier(0.45, 0, 0.55, 1),
-          opacity calc(200ms * var(--s, 1)) cubic-bezier(0, 0, 0.2, 1) calc(60ms * var(--s, 1));
+        transition: transform calc(300ms * var(--s, 1)) cubic-bezier(0.7, 0, 0.3, 1);
       }
-      .mprev[data-motion="fold"][data-state="collapsed"] .mmove {
-        transition:
-          transform calc(180ms * var(--s, 1)) cubic-bezier(0.45, 0, 0.55, 1),
-          opacity calc(130ms * var(--s, 1)) cubic-bezier(0.45, 0, 0.55, 1);
+      .mprev[data-motion="fold"][data-state="collapsed"] .mrows > .mmove {
+        transform: translateY(-34px);
       }
+      .mprev[data-motion="fold"][data-state="collapsed"] .mfade { opacity: 1; }
+      .mprev .mcover { opacity: 0; }
+      .mprev[data-motion="fold"] .mcover { opacity: 1; }
       .mprev[data-motion="cascade"] .mmove {
         transition:
           transform calc(200ms * var(--s, 1)) cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -695,12 +698,6 @@
             "stroke-width": 1,
           })
         );
-        s.append(
-          svgEl("rect", {
-            x: 7, y: 7, width: 30, height: 7, rx: 3.5,
-            fill: MOCK_COLORS[1], opacity: 0.85,
-          })
-        );
         const rows = svgEl("g", { class: "mrows" });
         for (let i = 0; i < 4; i++) {
           const r = svgEl("rect", {
@@ -719,6 +716,21 @@
           r.style.setProperty("--up", "-32px");
           s.append(r);
         }
+        // The occluder band and the chip are drawn AFTER the rows: under fold
+        // the rows slide behind both, which is the entire story. The cover is
+        // invisible for the other presets.
+        s.append(
+          svgEl("rect", {
+            x: 0.5, y: 0.5, width: W - 1, height: 16, rx: 6,
+            fill: MOCK_BG, class: "mcover",
+          })
+        );
+        s.append(
+          svgEl("rect", {
+            x: 7, y: 7, width: 30, height: 7, rx: 3.5,
+            fill: MOCK_COLORS[1], opacity: 0.85,
+          })
+        );
         return s;
       }
 
@@ -1016,13 +1028,22 @@
         focusState[1] = Number(nFocus.value);
         pFocus.update(focusState);
       });
-      // With focus mode off this number does nothing — leaving it enabled invites
-      // fiddling with an inert setting.
-      const syncFocus = on => {
-        nFocus.disabled = !on;
-        nFocus.closest(".row")?.classList.toggle("inert", !on);
-        nDelay.disabled = !on;
-        nDelay.closest(".row")?.classList.toggle("inert", !on);
+      // Each field belongs to one strategy — leaving it enabled under another
+      // invites fiddling with an inert setting.
+      const syncFocus = mode => {
+        const groupsOn = mode === "groups";
+        const idleOn = mode === "idle";
+        nFocus.disabled = !groupsOn;
+        nFocus.closest(".row")?.classList.toggle("inert", !groupsOn);
+        nDelay.disabled = !groupsOn;
+        nDelay.closest(".row")?.classList.toggle("inert", !groupsOn);
+        nIdle.disabled = !idleOn;
+        nIdle.closest(".row")?.classList.toggle("inert", !idleOn);
+        const reorderInput = reorderToggle.querySelector("input");
+        if (reorderInput) {
+          reorderInput.disabled = mode === "off";
+        }
+        reorderToggle.closest(".row")?.classList.toggle("inert", mode === "off");
       };
 
       // Changing the language does not re-render what is already on screen, and a
@@ -1080,7 +1101,7 @@
         // its durations exactly as --zstg-motion-scale multiplies the sidebar's.
         const scale = 100 / Math.min(400, Math.max(25, readInt("motionSpeed", 100)));
         motionPreview.style.setProperty("--s", String(scale));
-        const collapseMs = ({ swift: 110, fold: 180, cascade: 215 }[value] ?? 0) * scale;
+        const collapseMs = ({ swift: 110, fold: 300, cascade: 215 }[value] ?? 0) * scale;
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             motionPreview.setAttribute("data-state", "collapsed");
@@ -1132,18 +1153,48 @@
       playMotionPreview(currentMotion);
 
       const sFocus = document.getElementById("focus");
+      const nIdle = number("focusIdleMinutes", 1, 1440);
+      const reorderToggle = toggle("focusReorder");
+
+      // One radio group of three, Off first — the same shape as the motion
+      // presets. Strategy and master switch are written together so a
+      // pre-strategies profile with focus on lands on Max groups (the default
+      // strategy), exactly what it had.
+      const focusOptions = [
+        ["off", t("focusStrategy.off"), t("focusStrategy.off.desc")],
+        ["groups", t("focusStrategy.groups"), t("focusStrategy.groups.desc")],
+        ["idle", t("focusStrategy.idle"), t("focusStrategy.idle.desc")],
+      ];
+      const focusChoice = el("div", { class: "choice" });
+      const currentFocus = readBool("focusMode", false)
+        ? (readStr("focusStrategy", "groups") === "idle" ? "idle" : "groups")
+        : "off";
+      for (const [value, name, desc] of focusOptions) {
+        const op = el("label", { class: "option" });
+        const radio = el("input", { type: "radio", name: "focusStrategy" });
+        radio.checked = currentFocus === value;
+        radio.addEventListener("change", () => {
+          if (value === "off") {
+            writeBool("focusMode", false);
+          } else {
+            writeStr("focusStrategy", value);
+            writeBool("focusMode", true);
+          }
+          focusState[0] = value !== "off";
+          pFocus.update(focusState);
+          syncFocus(value);
+        });
+        const txt = el("div", { class: "txt" });
+        txt.append(el("b", { text: name }), el("span", { text: desc }));
+        op.append(radio, txt);
+        focusChoice.append(op);
+      }
+      const focusPreviewBox = el("div", { class: "preview-box" });
+      focusPreviewBox.append(pFocus.box);
+      const focusWrap = el("div", { class: "motion-wrap" });
+      focusWrap.append(focusChoice, focusPreviewBox);
       sFocus.append(
-        row(
-          t("focus.title"),
-          t("focus.short"),
-          toggle("focusMode", v => {
-            focusState[0] = v;
-            pFocus.update(focusState);
-            syncFocus(v);
-          }),
-          pFocus.box,
-          t("focus.help")
-        ),
+        focusWrap,
         row(
           t("focusCount.title"),
           t("focusCount.short"),
@@ -1157,13 +1208,27 @@
           nDelay,
           null,
           t("focusDelay.help")
+        ),
+        row(
+          t("focusIdle.title"),
+          t("focusIdle.short"),
+          nIdle,
+          null,
+          t("focusIdle.help")
+        ),
+        row(
+          t("focusReorder.title"),
+          t("focusReorder.short"),
+          reorderToggle,
+          null,
+          t("focusReorder.help")
         )
       );
-      heading("focus", "focus.title");
+      heading("focus", "focus.title", t("focus.help"));
       sAppearance.append(
         row(t("language.title"), t("language.short"), languageSelect, null, null)
       );
-      syncFocus(readBool("focusMode", false));
+      syncFocus(currentFocus);
 
 
       // ---- Actions ----

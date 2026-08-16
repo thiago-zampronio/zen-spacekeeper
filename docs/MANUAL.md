@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.36.0 ready — active Space …`.
+`[ZSTG] 0.37.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -180,7 +180,10 @@ restarting.
 | `zen.stg.subdomainLabel` | string | `host` | name shown when a site is split: `host` (`mail.google`) or `sub` (`mail`) |
 | `zen.stg.locale` | string | `auto` | interface language: `auto`, `en`, `pt-BR` or `es` |
 | `zen.stg.minTabs` | int | `1` | minimum tabs with the same key to create a group |
-| `zen.stg.focusMode` | bool | `false` | keeps only the most recently used groups open |
+| `zen.stg.focusMode` | bool | `false` | focus mode master switch; the strategy pref picks the mechanic |
+| `zen.stg.focusStrategy` | string | `groups` | `groups` = the N most recently used groups stay open; `idle` = untouched groups collapse after a time window |
+| `zen.stg.focusIdleMinutes` | int | `60` | idle strategy window, 1-1440: minutes a group can sit untouched before collapsing; any touch resets it |
+| `zen.stg.focusReorder` | bool | `false` | with focus mode on, the activated group floats above its Space's groups |
 | `zen.stg.focusKeep` | int | `3` | how many groups focus mode keeps open, 1-10 (`1` = only the active one) |
 | `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
 | `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |
@@ -335,7 +338,9 @@ Zen folders and groups you created are not affected.
   panel. The panel shows one animated thumbnail beside the choices that plays
   the selected preset once, so you know what to expect before feeling it on
   real tabs. The height each row animates through is measured from a real tab
-  (published as `--zstg-row-cap`), and the OS reduced-motion setting makes
+  (published as `--zstg-row-cap`); Fold animates the whole group as one sheet
+  behind a closing window, from a measured sheet height
+  (`--zstg-sheet-measured`). The OS reduced-motion setting makes
   everything instant regardless of the preset. A speed field under the choices
   stretches every preset by the same factor — slow them down to compare, put
   100 back to live with one.

@@ -38,16 +38,22 @@ tab critical path):
   80ms — the cheapest motion that still reads as caused; invisible by hour two.
   Default by the frequency rule: both directions are frequent in focus mode, so
   the binding HIG constraint is frequent-equals-faster, not the 200-300ms budget.
-- `fold` (180ms collapse / 300ms expand, ease-in-out both ways): the group
-  closes as one sheet and discloses open — native-sidebar vocabulary, the
-  deliberate end of the spread. Slow motion exposed the first curve choice: a
-  decelerate expand dumps nearly all movement into the opening instants and
-  reads as Swift's pop, so both directions glide — the sheet never pops.
-  First shipped at 150/200 ("tuned down from 180/240" by the frequency rule) and
-  field-tested indistinguishable from Swift: a 40-60ms gap between presets sits
-  under the noticing threshold. The presets only earn their existence if they
-  differ, so Fold carries the slow end — its collapse still inside the
-  frequent-action budget, its expand more than double Swift's.
+- `fold` (300ms both directions, cubic-bezier(0.7, 0, 0.3, 1), zero delays):
+  one rigid sheet behind one closing window. Settled by a designer-vs-frontend
+  adversarial review after the owner's slow-motion verdict that per-row
+  shrinking reads as "each item closing separately": rows keep full height,
+  opacity and margins in every state; the container animates max-height between
+  the measured sheet height (--zstg-sheet-measured, published by the script,
+  calc(rows x cap) as pre-measurement fallback) and 0, all rows share ONE
+  translateY, and geometry sequences the story — row k tucks behind the chip at
+  p = k/N, "entrando um atras do outro" with zero stagger and zero fade. Mirror
+  symmetry is by construction: one duration, one point-symmetric curve, the
+  transition list declared once on resting rules that match in both states. The
+  owner retired the collapse-must-be-faster rule for this preset in favor of a
+  visual pattern; the fixed duration (not rows-scaled) keeps simultaneous
+  focus-mode collapses landing on one beat. When the collapsed group holds the
+  active tab, the window floors at one row, preceding rows compress on the same
+  clock, and the selected row rides up into the one-row window.
 - `cascade` (200ms expand with a 30ms-per-row stagger capped at row 6,
   translateY -10px / 140ms collapse gathering bottom-up at 15ms per row,
   nth-last-child, ~215ms total): rows deal out from the chip top-down and are

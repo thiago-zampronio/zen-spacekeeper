@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.36.0
+// @version        0.37.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.36.0";
+const VERSION = "0.37.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -58,6 +58,16 @@ const DEFAULTS = {
   // How long focus mode waits before collapsing a group that left the recent
   // set; returning to it in time cancels the collapse. 0 restores immediacy.
   focusDelay: 800,
+  // Which focus mechanic runs when focusMode is on: "groups" keeps the N most
+  // recently used groups open (the original behavior), "idle" retires groups
+  // nobody touched for focusIdleMinutes. focusMode itself stays a bool because
+  // pref names are stored identity — a pre-strategies profile with focus on
+  // lands here on "groups", exactly what it had.
+  focusStrategy: "groups",
+  focusIdleMinutes: 60,
+  // With focus mode on, lift a group to the top of its Space when it becomes
+  // active. Off by default: it moves things on the strip, which must be chosen.
+  focusReorder: false,
   // The collapse/expand motion preset: "off", "swift", "fold" or "cascade".
   // Settled by a designer-vs-product review under the HIG frequency rule.
   collapseMotion: "swift",
@@ -305,6 +315,9 @@ function cfg() {
     // focus mode — 800 groups kept open means nothing ever collapses.
     focusKeep: Math.min(10, Math.max(1, prefInt("focusKeep"))),
     focusDelay: prefIntZero("focusDelay"),
+    focusStrategy: prefStr("focusStrategy") === "idle" ? "idle" : "groups",
+    focusIdleMinutes: Math.min(1440, Math.max(1, prefInt("focusIdleMinutes"))),
+    focusReorder: prefBool("focusReorder"),
     motionSpeed: Math.min(400, Math.max(25, prefInt("motionSpeed"))),
     collapseMotion: (() => {
       const v = prefStr("collapseMotion");
@@ -819,6 +832,7 @@ function restampMotionAll() {
   for (const g of window.gBrowser.tabGroups) {
     if (isOurGroup(g)) {
       stampMotion(g);
+      publishSheetMetrics(g);
     }
   }
 }
@@ -1142,10 +1156,33 @@ const COUNT_ATTR = "zstg-hidden-count";
  * An attribute is the loosest possible coupling to the browser component — if the
  * internal structure changes, we lose the display, never the organization.
  */
+/*
+ * The Fold preset animates the container as a window over a rigid sheet of
+ * rows, so the stylesheet needs the sheet's height. CSS cannot measure; the
+ * script publishes, per group, the expanded container's content height
+ * (--zstg-sheet-measured) and the row count (--zstg-rows, the calc fallback's
+ * input). Published from updateHiddenCount because every tab-mutation path
+ * already calls it — staleness is at most one paint, the same guarantee the
+ * hidden count has. scrollHeight is measured only while expanded: under other
+ * presets a collapsed group's rows are zero-height, and a 0 published here
+ * would clip the sheet at rest.
+ */
+function publishSheetMetrics(group) {
+  const count = group.tabs?.length ?? 0;
+  group.style.setProperty("--zstg-rows", String(count));
+  if (!group.collapsed) {
+    const h = group.querySelector(".tab-group-container")?.scrollHeight ?? 0;
+    if (h > 0) {
+      group.style.setProperty("--zstg-sheet-measured", `${h}px`);
+    }
+  }
+}
+
 function updateHiddenCount(group) {
   if (!isOurGroup(group)) {
     return;
   }
+  publishSheetMetrics(group);
   if (!group.collapsed) {
     group.removeAttribute(COUNT_ATTR);
     group.querySelector(".tab-group-label")?.removeAttribute(COUNT_ATTR);
@@ -1200,8 +1237,102 @@ function clearFocusTimers() {
   focusTimers.clear();
 }
 
+/*
+ * Idle strategy state: one clock per group id, touched on select/open/close and
+ * on a manual chip-expand. Deliberately not persisted — a restart is a fresh
+ * day, and every clock starts at "now" (seeded at first sight by the sweep, so
+ * a restored group is never retired on a clock that never started).
+ */
+const groupLastTouch = new Map();
+
+function touchGroup(group) {
+  if (isOurGroup(group)) {
+    groupLastTouch.set(group.id, Date.now());
+  }
+}
+
+/*
+ * The idle sweep: retire groups nobody touched for the window. It goes through
+ * the normal collapsed flag, so motion presets animate the retirement and the
+ * hidden-count updates ride the existing listeners. The active tab's group is
+ * always immune — the user reading one tab for two hours is the opposite of
+ * idle.
+ */
+function sweepIdleGroups() {
+  const c = cfg();
+  if (!c.focusMode || c.focusStrategy !== "idle") {
+    return;
+  }
+  const windowMs = c.focusIdleMinutes * 60000;
+  const now = Date.now();
+  const activeGroup = window.gBrowser.selectedTab?.group;
+  const alive = new Set();
+  for (const g of window.gBrowser.tabGroups) {
+    if (!isOurGroup(g)) {
+      continue;
+    }
+    alive.add(g.id);
+    if (g.collapsed || g === activeGroup) {
+      continue;
+    }
+    const last = groupLastTouch.get(g.id);
+    if (last === undefined) {
+      groupLastTouch.set(g.id, now);
+      continue;
+    }
+    if (now - last >= windowMs) {
+      dbg("idleRetire", {
+        key: g.getAttribute(KEY_ATTR),
+        idleMinutes: Math.round((now - last) / 60000),
+      });
+      g.collapsed = true;
+    }
+  }
+  for (const id of [...groupLastTouch.keys()]) {
+    if (!alive.has(id)) {
+      groupLastTouch.delete(id);
+    }
+  }
+}
+
+/*
+ * The reorder option: the activated group floats above its Space's first group,
+ * so the working set reads top-down. Native move only and cosmetic by contract —
+ * on any failure it logs and leaves the strip alone (the TabMove debounce
+ * already runs the nest corrector, which covers the one bad outcome a move can
+ * have). Never called from TabMove: activation moments only, so it cannot fight
+ * a drag in progress.
+ */
+function maybeLiftGroup(group, activeTab) {
+  if (!cfg().focusReorder) {
+    return;
+  }
+  const spaceId = spaceOfTab(activeTab);
+  const first = [...window.gBrowser.tabGroups].find(
+    g => isOurGroup(g) && g.getAttribute(SPACE_ATTR) === spaceId
+  );
+  if (!first || first === group) {
+    return;
+  }
+  const target = first.tabs?.[0];
+  if (!target) {
+    return;
+  }
+  try {
+    dbg("focusLift", {
+      key: group.getAttribute(KEY_ATTR),
+      above: first.getAttribute(KEY_ATTR),
+      to: target._tPos,
+    });
+    window.gBrowser.moveTabTo(group, { tabIndex: target._tPos });
+  } catch (e) {
+    dbg("focusLiftFailed", { error: String(e) });
+  }
+}
+
 function applyFocusMode() {
-  if (!cfg().focusMode) {
+  const c = cfg();
+  if (!c.focusMode) {
     return;
   }
   const activeTab = window.gBrowser.selectedTab;
@@ -1209,6 +1340,18 @@ function applyFocusMode() {
 
   // A tab outside any group does not tear down your context: nothing is collapsed.
   if (!isOurGroup(activeGroup)) {
+    return;
+  }
+
+  touchGroup(activeGroup);
+  maybeLiftGroup(activeGroup, activeTab);
+
+  // The idle strategy has no keep-set: the sweep does the collapsing on its own
+  // clock. Focus still guarantees the active group is open, with either strategy.
+  if (c.focusStrategy === "idle") {
+    if (activeGroup.collapsed) {
+      activeGroup.collapsed = false;
+    }
     return;
   }
 
@@ -1670,6 +1813,9 @@ const progressListener = {
 
 function onTabOpen(e) {
   schedule(e.target);
+  // A new tab lands in its group asynchronously; the deferred read touches the
+  // group it actually joined, which is what the idle clock cares about.
+  window.setTimeout(() => guarded(() => touchGroup(e.target.group)), 0);
 }
 
 /**
@@ -1693,7 +1839,9 @@ function onTabAttrModified(e) {
   guarded(() => applyFaviconColor(group, tab, key));
 }
 
-function onTabClose() {
+function onTabClose(e) {
+  // Closing a tab is a touch: the user is working in that group right now.
+  guarded(() => touchGroup(e.target.group));
   window.setTimeout(() => {
     guarded(removeEmptyGroups);
     guarded(updateHiddenCounts);
@@ -1758,6 +1906,11 @@ function onTabSelect() {
 /** Covers the label click, the commands and focus mode in one place. */
 function onGroupCollapseChanged(e) {
   const g = e.target;
+  // A manual chip-expand restarts the idle clock: the user just asked for this
+  // group, retiring it one sweep later would undo their gesture.
+  if (e.type === "TabGroupExpand") {
+    guarded(() => touchGroup(g));
+  }
   window.setTimeout(() => guarded(() => updateHiddenCount(g)), 0);
 }
 
@@ -1780,8 +1933,10 @@ const prefObserver = {
       _cfg = null;
       applyMotionSpeed();
     }
-    // Turning focus mode off must not leave collapses in flight.
-    if (data === PREF_PREFIX + "focusMode") {
+    // Turning focus mode off must not leave collapses in flight; switching
+    // strategy must not either — a groups-strategy timer firing under the idle
+    // strategy would collapse on a rule the user just left.
+    if (data === PREF_PREFIX + "focusMode" || data === PREF_PREFIX + "focusStrategy") {
       clearFocusTimers();
     }
     // The language is resolved once and memoized; changing it has to invalidate
@@ -2334,6 +2489,10 @@ async function start() {
   installSpaceScopedSwitch();
   registerPanel();
   applyMotionSpeed();
+  // The idle sweep runs on its own cadence: 30s is far below any sensible idle
+  // window, and the sweep is a Map scan — it exits in two reads when the idle
+  // strategy is not the one running.
+  const idleSweepTimer = window.setInterval(() => guarded(sweepIdleGroups), 30000);
   checkZenContract();
 
   window.addEventListener(
@@ -2352,6 +2511,8 @@ async function start() {
       removeMenu();
       uninstallSpaceScopedSwitch();
       clearFocusTimers();
+      window.clearInterval(idleSweepTimer);
+      groupLastTouch.clear();
       unregisterPanel();
     },
     { once: true }

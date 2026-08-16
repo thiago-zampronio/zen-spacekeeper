@@ -9,12 +9,17 @@ silent vanishing.
 
 The system SHALL animate the hiding and showing of a system group's tabs on
 collapse and expand according to a user-selectable motion preset, offered as one
-choice among at least three motions plus an instant option; SHALL make every
-preset's collapse faster than its expand, since the collapse is system-fired and
-frequent; SHALL NOT let any preset gate reaching a tab mid-animation; SHALL fall
+choice among at least three motions plus an instant option; SHALL, for a preset
+whose promise is a single reversible gesture (Fold), play collapse and expand as
+the same motion mirrored — identical durations, identical easing, no directional
+delays — while presets telling a directional story (Swift's blink, Cascade's
+deal-and-gather) MAY time each direction independently, no direction of any
+preset exceeding the frequent-action collapse budget; SHALL NOT let any preset
+gate reaching a tab mid-animation; SHALL fall
 back to instant when the operating system asks for reduced motion or when the
-instant option is chosen; SHALL start the animated height at the measured height
-of a real tab row, so no dead headroom eats the visible motion; SHALL show, in
+instant option is chosen; SHALL start every animated height at a measured height
+— a real tab row for per-row presets, the real sheet for a container-level
+preset — so no dead headroom eats the visible motion; SHALL show, in
 the panel, one animated preview of the selected preset that plays once per
 selection change and then rests; SHALL scale every preset's timing — and the
 preview's — by a user-set speed percentage, where 100 is the designed timing and
@@ -32,15 +37,16 @@ motion tells, and the frequency rule bounds every option.
 - **GIVEN** a motion preset is selected and the OS does not ask for reduced motion
 - **WHEN** a system group collapses
 - **THEN** its tabs animate closed with that preset's motion
-- **AND** the collapse is faster than the same preset's expand
+- **AND** a mirrored preset's collapse retraces its expand exactly, and no
+  preset's collapse exceeds the frequent-action budget
 
 #### Scenario: The whole duration is visible motion
 
 - **GIVEN** any motion preset
 - **WHEN** a group collapses or expands
-- **THEN** the animated height starts at a measured tab row's height, not a loose
-  cap, so the motion spans the preset's full duration instead of a dead beat
-  followed by a crammed vanish
+- **THEN** the animated height starts at a measured height — a real row, or the
+  real sheet for a container-level preset — not a loose cap, so the motion spans
+  the preset's full duration instead of a dead beat followed by a crammed vanish
 
 #### Scenario: The panel previews the chosen motion
 

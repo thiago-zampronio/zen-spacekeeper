@@ -45,7 +45,10 @@ tab-group[zstg-key] > .tab-group-container > .tabbrowser-tab {
   min-height: 0;
 }
 
-tab-group[zstg-key][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
+/* Fold is excluded ON PURPOSE: it hides at the container (a closing window
+   over a rigid sheet), never per row — this rule zeroing its rows would leave
+   the sheet empty the instant [collapsed] lands. */
+tab-group[zstg-key][collapsed]:not([zstg-motion="fold"]) > .tab-group-container > .tabbrowser-tab:not([selected]) {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
@@ -55,12 +58,15 @@ tab-group[zstg-key][collapsed] > .tab-group-container > .tabbrowser-tab:not([sel
 
 /*
  * Motion presets, chosen in the panel (zen.stg.collapseMotion, stamped on the
- * group as zstg-motion by the script). Settled by a designer-vs-product review
- * under the HIG frequency rule: the collapse repeats constantly in focus mode,
- * so EVERY preset's collapse is faster than its expand, and no preset may gate
- * reaching a tab mid-animation. Expand timing lives on the resting rule and
- * collapse timing on the collapsed rule — CSS runs the destination state's
- * transition.
+ * group as zstg-motion by the script). No preset may gate reaching a tab
+ * mid-animation, and no direction may exceed the frequent-action budget (the
+ * collapse repeats constantly in focus mode). A preset whose promise is a
+ * single reversible gesture (Fold) plays collapse and expand as the same
+ * motion mirrored — the owner retired the old collapse-must-be-faster rule in
+ * favor of a visual pattern; presets telling a directional story (Swift's
+ * blink, Cascade's deal-and-gather) may time each direction independently.
+ * Expand timing lives on the resting rule and collapse timing on the collapsed
+ * rule — CSS runs the destination state's transition.
  */
 
 /* Swift — a blink with a trace: the cheapest motion that still reads as caused.
@@ -79,27 +85,87 @@ tab-group[zstg-key][zstg-motion="swift"][collapsed] > .tab-group-container > .ta
     opacity calc(80ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.4, 0, 1, 1) !important;
 }
 
-/* Fold — the group closes as one sheet and discloses open, native-sidebar
-   vocabulary. The deliberate direction (expand) gets the fuller motion.
-   Field-tested at 150/200 the presets blurred together: a 40-60ms gap between
-   presets sits under the noticing threshold, so Fold now carries the slow end
-   of the spread — expand at 300ms, more than double Swift's — while the
-   collapse stays inside the frequent-action budget.
-   Both directions glide on ease-in-out, ON PURPOSE: a decelerate curve dumps
-   nearly all its movement into the opening instants, which in slow motion
-   revealed Fold's expand reading exactly like Swift's pop. The sheet must
-   never pop — slow in, slow out, in both directions. */
+/* Fold — one rigid sheet behind one closing window; occlusion, never fading.
+   Settled by a designer-vs-frontend adversarial review after the owner's
+   slow-motion verdict: per-row shrinking makes N rows deform in place — N
+   separate events with nothing to be behind. Here the rows keep full height,
+   opacity and margins in EVERY state; the container is the only
+   layout-animating box (max-height between the sheet height and 0) and all
+   rows share ONE translateY. Geometry does the sequencing: with the window at
+   H(1-p) and the sheet at -H*p, row k's top crosses the clip edge under the
+   chip at p = k/N — each row follows the one before it through the same slot,
+   zero stagger, zero fade.
+   Mirror symmetry is by construction, not tuning: ONE duration, ONE
+   point-symmetric curve (P2 = 1-P1, the curve played backwards is itself),
+   ZERO delays, declared once on the resting rules — which keep matching in
+   the collapsed state, so the destination-state mechanic resolves both
+   directions to the same list and open/close cannot drift apart.
+   No pointer-events choreography: overflow clip excludes the hidden region
+   from hit-testing, so clickable === visible mid-flight. */
+tab-group[zstg-key][zstg-motion="fold"] {
+  /* Sheet height: measured by the script (--zstg-sheet-measured = the expanded
+     container's content height, republished by the same handlers that maintain
+     the hidden count). The calc fallback covers only the instant before the
+     first measurement and is deliberately generous: under a permanent clip an
+     undershoot hides real rows at rest, an overshoot costs one dead beat. */
+  --zstg-sheet: var(--zstg-sheet-measured,
+                calc(var(--zstg-rows, 20) * (var(--zstg-row-cap, 4em) + 8px)));
+}
+
+/* The window. overflow-y only, and permanent: the clip must survive expand,
+   when [collapsed] is already gone. margin-block-start rides the same clock so
+   the 2px expanded gap never snaps. */
+tab-group[zstg-key][zstg-motion="fold"] > .tab-group-container {
+  overflow-y: clip;
+  max-height: var(--zstg-sheet);
+  transition:
+    max-height calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.7, 0, 0.3, 1),
+    margin-block-start calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.7, 0, 0.3, 1) !important;
+}
+tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container {
+  max-height: 0;
+  /* No transition here ON PURPOSE: the resting rule above still matches in
+     this state, so its list governs both directions — no second copy to drift. */
+}
+
+/* The sheet. The transform VALUE is never !important — Zen's tab-drag
+   transform must keep winning — while the transition declaration is. The list
+   also covers max-height and margin so the selected-tab branch below, and any
+   mid-flight selection change, retargets smoothly instead of snapping. */
 tab-group[zstg-key][zstg-motion="fold"] > .tab-group-container > .tabbrowser-tab {
   transition:
-    max-height calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
-    margin calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
-    opacity calc(200ms * var(--zstg-motion-scale, 1)) cubic-bezier(0, 0, 0.2, 1) calc(60ms * var(--zstg-motion-scale, 1)) !important;
+    transform calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.7, 0, 0.3, 1),
+    max-height calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.7, 0, 0.3, 1),
+    margin calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.7, 0, 0.3, 1) !important;
+  transform: translateY(0);
 }
-tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
-  transition:
-    max-height calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
-    margin calc(180ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1),
-    opacity calc(130ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.45, 0, 0.55, 1) !important;
+tab-group[zstg-key][zstg-motion="fold"][collapsed]:not(:has(> .tab-group-container > .tabbrowser-tab[selected])) > .tab-group-container > .tabbrowser-tab {
+  transform: translateY(calc(-1 * var(--zstg-sheet)));
+}
+
+/* Collapsing the group that holds the ACTIVE tab: the sheet story cannot
+   survive a 0-height window, so the window floors at one row, the sheet-slide
+   is gated off above, rows PRECEDING the selected one compress on the same
+   clock — no opacity, never the rejected per-row fade — rows after it are
+   clipped by the descending edge, and the selected row rides up into the
+   one-row window in lockstep. Expand mirrors because the transitions live on
+   the ungated resting rules. */
+tab-group[zstg-key][zstg-motion="fold"][collapsed]:has(> .tab-group-container > .tabbrowser-tab[selected]) > .tab-group-container {
+  max-height: var(--zstg-row-cap, 4em);
+}
+tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]):has(~ .tabbrowser-tab[selected]) {
+  max-height: 0;
+  margin-block: 0;
+  overflow: hidden;
+}
+tab-group[zstg-key][zstg-motion="fold"][collapsed] > .tab-group-container > .tabbrowser-tab[selected] {
+  /* the one visible row owns the whole one-row window */
+  margin-block: 0;
+}
+
+/* The chip's collapsed ghost tint dyes on the same clock instead of snapping. */
+tab-group[zstg-key][zstg-motion="fold"] .tab-group-label {
+  transition: background-color calc(300ms * var(--zstg-motion-scale, 1)) cubic-bezier(0.7, 0, 0.3, 1) !important;
 }
 
 /* Cascade — rows tuck up into the colored chip and deal back out from it: the
@@ -150,6 +216,11 @@ tab-group[zstg-key][zstg-motion="cascade"][collapsed] > .tab-group-container > .
   tab-group[zstg-key][zstg-motion][collapsed] > .tab-group-container > .tabbrowser-tab:not([selected]) {
     transition: none !important;
     transform: none !important;
+  }
+  /* Fold animates the container too; instant means the window as well. */
+  tab-group[zstg-key][zstg-motion] > .tab-group-container,
+  tab-group[zstg-key][zstg-motion] .tab-group-label {
+    transition: none !important;
   }
 }
 
