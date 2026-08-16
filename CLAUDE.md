@@ -109,6 +109,13 @@ and only then push. Publish the release (`gh release create vX.Y.Z`) with the
 changelog entry as its notes: the panel shows those notes next to "update
 available", so they are user-facing copy, not an afterthought.
 
+**How release notes are written.** The reader is standing inside the panel,
+one click from updating: write for that person. Plain language, the benefit
+first, no internal jargon (nothing about anchors, specs, verify, selectors),
+and NEVER a how-to-update section — the reader is already in the place where
+updates happen. Sell the change the way the README sells the product; the
+technical detail belongs in the commit message, not in the notes.
+
 `verify.ps1` catches a requirement with no implementation, a pref with no
 documentation, a README citing a function that no longer exists, and a stale file in
 the profile. It does **not** catch an implementation that is present and wrong. For

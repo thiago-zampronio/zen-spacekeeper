@@ -5,6 +5,13 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.43.0 — updates that speak your language
+
+- The notes you are reading right now — before clicking Update — are written
+  for you from here on: what changed and why you would care, in plain words.
+  The "how to update" instructions are gone, because you are already in the
+  exact place where updates happen.
+
 ## 0.42.0 — the pill becomes impossible to hide
 
 - **Fixed: the update alert existed and nobody could see it.** It was anchored

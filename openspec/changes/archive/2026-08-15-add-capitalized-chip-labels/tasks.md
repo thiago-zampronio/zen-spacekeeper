@@ -18,5 +18,7 @@
 
 ## 2. In a running Zen (user confirms)
 
-- [ ] 2.1 New groups come capitalized; existing derived-label groups recase on
-      reclaim; a renamed group keeps its exact text
+- [x] 2.1 New groups come capitalized; existing derived-label groups recase on
+      reclaim; a renamed group keeps its exact text — confirmed by the owner's
+      screenshot on 0.40 ("Youtube" recased from the pre-existing lowercase
+      group, "Figma" born capitalized)
