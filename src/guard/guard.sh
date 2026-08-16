@@ -24,14 +24,16 @@ log() {
 }
 
 notify() {
-    # Native notification with a log-line fallback: the message must land
-    # somewhere, but a broken notifier must not break the restore.
+    # ALWAYS logged, and additionally shown. The log used to be a fallback for a
+    # failing notifier, which covered the wrong failure: a notifier that returns
+    # success and displays nothing - Do Not Disturb, notifications turned off for
+    # the terminal, a headless session - left the user unaware AND left no trace to
+    # find later. The log is the record; the notification is the courtesy.
+    log "$1"
     if [ "$OS" = Darwin ]; then
-        osascript -e "display notification \"$1\" with title \"Spacekeeper\"" 2>/dev/null || log "$1"
+        osascript -e "display notification \"$1\" with title \"Spacekeeper\"" 2>/dev/null || :
     elif command -v notify-send >/dev/null 2>&1; then
-        notify-send "Spacekeeper" "$1" 2>/dev/null || log "$1"
-    else
-        log "$1"
+        notify-send "Spacekeeper" "$1" 2>/dev/null || :
     fi
 }
 

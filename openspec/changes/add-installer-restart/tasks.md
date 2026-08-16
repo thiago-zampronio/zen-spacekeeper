@@ -48,6 +48,11 @@ only when the user confirms them.
 - [x] 5.4 macOS: with an unsaved-changes dialog open, the bounded wait expires and
       nothing is killed or deleted
 - [ ] 5.5 Windows: the same four checks with install.ps1
+      Only the third is done: repeated non-interactive runs skipped the restart
+      cleanly — Zen stayed up across every install, and the startup cache kept its
+      earlier timestamps, so nothing was closed and nothing deleted. Accepting the
+      prompt, declining it, and the bounded wait against an unsaved-changes dialog
+      all need a terminal and a browser someone is willing to have closed.
 - [ ] 5.6 Linux: the same four checks, plus the flatpak cache location or a clear
       refusal
 - [x] 5.7 Any platform: Zen not running — cache cleared, launch offered

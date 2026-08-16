@@ -21,8 +21,12 @@ function Write-GuardLog($text) {
 }
 
 function Show-GuardNotification($text) {
-    # A toast with a log-line fallback: the message must land somewhere, but a
-    # broken notifier must not break the restore.
+    # ALWAYS logged, and additionally shown. The log used to be a fallback for a
+    # failing toast, which covered the wrong failure: CreateToastNotifier with an
+    # AppID Windows does not know returns success and displays nothing, so the user
+    # stayed unaware AND no trace was left to find later. The log is the record;
+    # the toast is the courtesy.
+    Write-GuardLog $text
     try {
         $null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
         $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent(
@@ -34,7 +38,8 @@ function Show-GuardNotification($text) {
         [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Spacekeeper").Show($toast)
     }
     catch {
-        Write-GuardLog $text
+        # Already logged above; a toast that cannot be shown is not worth a second
+        # line saying the same thing.
     }
 }
 

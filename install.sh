@@ -110,7 +110,14 @@ esac
 # possibly with sudo.
 
 find_zen_dir() {
-    [ -n "$ZEN_DIR" ] && { printf '%s' "$ZEN_DIR"; return; }
+    # An override is trusted for its layout but not for its existence: a typo used
+    # to be accepted silently and the loader written into a directory it created.
+    # Existence is all that is checked - anything stricter would risk rejecting a
+    # legitimate layout that has not been seen.
+    if [ -n "$ZEN_DIR" ]; then
+        [ -d "$ZEN_DIR" ] && printf '%s' "$ZEN_DIR"
+        return
+    fi
 
     if [ "$OS" = macos ]; then
         for bundle in \
@@ -178,7 +185,10 @@ profile_root() {
 }
 
 find_profile_dir() {
-    [ -n "$PROFILE_DIR" ] && { printf '%s' "$PROFILE_DIR"; return; }
+    if [ -n "$PROFILE_DIR" ]; then
+        [ -d "$PROFILE_DIR" ] && printf '%s' "$PROFILE_DIR"
+        return
+    fi
 
     root=$(profile_root)
     ini="$root/profiles.ini"

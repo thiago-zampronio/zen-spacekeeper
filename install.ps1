@@ -72,7 +72,17 @@ function Warn($text) { Write-Host "  [!!] $text" -ForegroundColor Yellow }
 # Where Zen is
 
 function Find-ZenDir {
-    if ($ZenDir) { return $ZenDir }
+    # An override is trusted for its layout but not for its existence: a typo used to
+    # be accepted silently, print the invented path, and go on to write the loader
+    # into a directory it created. Existence is all that is checked - anything
+    # stricter would risk rejecting a legitimate layout that has not been seen.
+    if ($ZenDir) {
+        if (-not (Test-Path -LiteralPath $ZenDir -PathType Container)) {
+            Warn "The -ZenDir path does not exist: $ZenDir"
+            return
+        }
+        return $ZenDir
+    }
 
     # The registry entry is the only source that knows about a non-default
     # install path; the fixed paths are the fallback for when it is absent.
@@ -101,7 +111,13 @@ function Find-ZenDir {
 # Which profile
 
 function Find-ProfileDir {
-    if ($ProfileDir) { return $ProfileDir }
+    if ($ProfileDir) {
+        if (-not (Test-Path -LiteralPath $ProfileDir -PathType Container)) {
+            Warn "The -ProfileDir path does not exist: $ProfileDir"
+            return
+        }
+        return $ProfileDir
+    }
 
     $root = Join-Path $env:APPDATA "zen"
     $ini = Join-Path $root "profiles.ini"
@@ -289,11 +305,36 @@ function Install-Guard {
 
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
         -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$guardDir\guard.ps1`""
+    # -AtLogOn WITHOUT -User means "at logon of any user", which is an all-users
+    # task and needs administrator - it failed with access denied while the
+    # installer still reported success. Scoped to this account it registers with
+    # the privilege the user already has, which is also the right scope: the guard
+    # watches one profile, not the machine.
+    $me = "$env:USERDOMAIN\$env:USERNAME"
     $triggers = @(
-        (New-ScheduledTaskTrigger -AtLogOn),
+        (New-ScheduledTaskTrigger -AtLogOn -User $me),
         (New-ScheduledTaskTrigger -Daily -At "12:00")
     )
-    Register-ScheduledTask -TaskName $GuardTaskName -Action $action -Trigger $triggers -Force | Out-Null
+    $principal = New-ScheduledTaskPrincipal -UserId $me -LogonType Interactive -RunLevel Limited
+
+    try {
+        Register-ScheduledTask -TaskName $GuardTaskName -Action $action -Trigger $triggers `
+            -Principal $principal -Force -ErrorAction Stop | Out-Null
+    }
+    catch {
+        # Reported, never swallowed. The cache and the script are on disk, so the
+        # panel and the installer can still restore by hand - but nothing is
+        # watching, and claiming otherwise is worse than not offering the guard.
+        Warn "the watcher could not be registered: $($_.Exception.Message)"
+        Warn "the loader cache is in place, but nothing will restore it automatically."
+        Warn "re-run with -Guard from an elevated PowerShell, or restore with install.ps1 after an update."
+        return
+    }
+
+    if (-not (Test-GuardWatcherInstalled)) {
+        Warn "the watcher did not register, and no error was raised. Nothing is watching."
+        return
+    }
     Ok "guard installed"
 }
 
@@ -430,10 +471,20 @@ if (-not $loaderPresent -and -not $isAdmin) {
     Say "The fx-autoconfig loader has to be written into the Zen program folder,"
     Say "which requires administrator. Windows will ask for confirmation."
     Say ""
-    $answer = Read-Host "Continue? [Y/n]"
-    if ($answer -and $answer -notmatch '^[YySs]') {
-        Say "Stopped. Nothing was changed."
-        exit 1
+    # Same reasoning as the restart prompt: a host with no one behind it throws
+    # here. This one defaults to proceeding, where that one defaults to skipping,
+    # and the asymmetry is deliberate — declining the restart still leaves a
+    # working install, while declining the elevation leaves nothing installed at
+    # all. The UAC dialog asks again anyway, and that one cannot be bypassed.
+    try {
+        $answer = Read-Host "Continue? [Y/n]"
+        if ($answer -and $answer -notmatch '^[YySs]') {
+            Say "Stopped. Nothing was changed."
+            exit 1
+        }
+    }
+    catch {
+        Say "(no terminal to ask; continuing - Windows will still ask for confirmation)"
     }
 
     # Piped from the web there is no file to re-launch, so it is written out first.

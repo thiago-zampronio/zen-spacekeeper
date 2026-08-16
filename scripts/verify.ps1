@@ -568,7 +568,14 @@ else {
 # A typo'd identifier in privileged chrome code only surfaces after
 # install + restart + cache clear; no-undef removes that loop. The binary comes
 # from `npm install` in the repo (or a global eslint).
-$eslint = Join-Path $root "node_modules/.bin/eslint"
+# npm writes two launchers side by side: an extensionless shell script for POSIX
+# and a .cmd for Windows. PowerShell refuses the extensionless one inside a
+# pipeline ("cannot run a document"), so the .cmd is preferred where it exists —
+# the check ran fine on macOS and failed here for that reason alone.
+$eslint = Join-Path $root "node_modules/.bin/eslint.cmd"
+if (-not (Test-Path $eslint)) {
+    $eslint = Join-Path $root "node_modules/.bin/eslint"
+}
 if (-not (Test-Path $eslint)) {
     $eslint = (Get-Command eslint -ErrorAction SilentlyContinue).Source
 }

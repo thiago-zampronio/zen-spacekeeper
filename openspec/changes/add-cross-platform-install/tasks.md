@@ -91,14 +91,39 @@ or Linux machine in the development environment.
 - [ ] 7.8 Linux: check and uninstall behave as on the other platforms
 - [ ] 7.9 Linux: a flatpak install either works or refuses with a clear reason
 - [x] 7.10 Windows: the aligned installer still installs, checks and uninstalls
-- [ ] 7.11 Any platform: failed detection prints a message that actually resolves the
+- [x] 7.11 Any platform: failed detection prints a message that actually resolves the
       problem when followed
-- [ ] 7.12 Windows (moved from add-loader-guard): logon-triggered guard restore and
+- [x] 7.12 Windows (moved from add-loader-guard): logon-triggered guard restore and
       notification; uninstall clean
 - [ ] 7.13 Linux (moved from add-loader-guard): path-unit-triggered guard restore and
       notification; uninstall clean; non-systemd refusal message
 - [ ] 7.14 Any platform (moved from add-loader-guard): a real Zen update with the
       guard installed - the scenario that motivated it
+
+The Windows run of 7.11 and 7.12 surfaced four defects, all fixed rather than noted.
+
+Two were Windows-only and had passed on macOS for environmental reasons, which is
+the argument for running the suite on every platform rather than trusting one:
+`verify.ps1` invoked `node_modules/.bin/eslint`, the extensionless POSIX launcher,
+which PowerShell refuses inside a pipeline; and eslint's verdict depended on
+untracked files in the working tree, so a leftover backup present only on this
+machine failed the gate here and passed everywhere else.
+
+Two were real product defects. `-Guard` printed `[ok] guard installed` while
+`Register-ScheduledTask` had failed with access denied — `-AtLogOn` without `-User`
+registers an all-users task, which needs administrator. The user would have had the
+cache, the script and the success message, and no watcher at all. Registration is
+now scoped to the account, and the result is checked instead of assumed.
+
+And the guard notified *or* logged, never both. A toast whose AppID Windows does not
+know returns success and displays nothing, so a Zen update could delete the loader,
+the guard could notice, and no trace would exist anywhere. The same hole exists on
+macOS under Do Not Disturb. Both guards now always log and additionally notify.
+
+Overrides were also accepted without checking they exist: `-ZenDir C:\nao\existe`
+printed the invented path and proceeded toward writing the loader into a directory
+it would have created. Both installers now require an explicit override to exist —
+existence only, since anything stricter risks rejecting a layout never seen.
 
 The macOS run (Sequoia 15.x, Zen 1.21.14b, admin user) surfaced two facts worth
 recording. A staged Zen update applied itself on the first restart after install,
