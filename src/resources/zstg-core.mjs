@@ -117,6 +117,16 @@ export function colorName(h) {
  *   about:blank out of the System group.
  * @returns {{key: string, label: string}|null} null when not groupable.
  */
+/*
+ * One casing pattern on the strip: every label the system derives starts with
+ * a capital letter ("Youtube", "Mail.google"). Display only — keys never
+ * change case, so no stored identity moves. User renames are handled by the
+ * caller and never pass through here.
+ */
+export function capLabel(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 export function keyFromParts(scheme, host, c, etld, path = "") {
   // Internal pages first: they have no host, so the host gate below would drop
   // them. The English label is the pure default; the chrome-side caller swaps it
@@ -146,7 +156,7 @@ export function keyFromParts(scheme, host, c, etld, path = "") {
   for (const rule of c.rules) {
     for (const d of rule.domains) {
       if (withoutWww === d || withoutWww.endsWith("." + d)) {
-        return { key: `rule:${rule.name}`, label: rule.name };
+        return { key: `rule:${rule.name}`, label: capLabel(rule.name) };
       }
     }
   }
@@ -160,7 +170,7 @@ export function keyFromParts(scheme, host, c, etld, path = "") {
     suffix = etld.getPublicSuffixFromHost(withoutWww);
   } catch {
     // Host with no known suffix (IP, intranet): use the whole host
-    return { key: `host:${withoutWww}`, label: withoutWww };
+    return { key: `host:${withoutWww}`, label: capLabel(withoutWww) };
   }
 
   const withoutSuffix = t =>
@@ -186,10 +196,10 @@ export function keyFromParts(scheme, host, c, etld, path = "") {
     } else {
       label = withoutSuffix(withoutWww) || withoutWww;
     }
-    return { key: `host:${withoutWww}`, label };
+    return { key: `host:${withoutWww}`, label: capLabel(label) };
   }
 
-  return { key: `domain:${domain}`, label: domain };
+  return { key: `domain:${domain}`, label: capLabel(domain) };
 }
 
 /**
@@ -246,7 +256,8 @@ export function runDerivationTests(keyFromText) {
   // Domain derivation
   check("strips www", k("https://www.github.com/x"), "domain:github");
   check("ignores path", k("https://github.com/org/repo?tab=issues"), "domain:github");
-  check("label without suffix", lbl("https://www.youtube.com/watch?v=1"), "youtube");
+  check("label without suffix", lbl("https://www.youtube.com/watch?v=1"), "Youtube");
+  check("labels are capitalized", lbl("https://www.reddit.com/r/x"), "Reddit");
 
   // Compound suffix via the injected Public Suffix source
   check("compound suffix", k("https://shop.example.com.br/p"), "domain:example");
@@ -294,16 +305,16 @@ export function runDerivationTests(keyFromText) {
     k("https://a.example.com", googleOnly) === k("https://b.example.com", googleOnly),
     true
   );
-  check("host label style", lbl("https://mail.google.com", googleOnly), "mail.google");
+  check("host label style", lbl("https://mail.google.com", googleOnly), "Mail.google");
   check(
     "subdomain label style",
     lbl("https://mail.google.com", { ...googleOnly, subdomainLabel: "sub" }),
-    "mail"
+    "Mail"
   );
   check(
     "host without subdomain uses short label",
     lbl("https://google.com", { ...googleOnly, subdomainLabel: "sub" }),
-    "google"
+    "Google"
   );
   check(
     "label style does not change the key",

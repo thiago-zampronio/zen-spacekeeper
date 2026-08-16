@@ -5,6 +5,15 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.40.0 — the two judges agree on capital letters
+
+- **Fixed: the panel self-test failed 4 label checks after 0.39.** The
+  capitalization lived in the browser-side wrapper, so the shared derivation
+  tests passed under node and failed in the browser — exactly the asymmetry
+  the two-judges harness exists to catch. `capLabel` now lives in the core,
+  where the labels are born: both judges see "Youtube", and a new case asserts
+  the pattern itself.
+
 ## 0.39.0 — an update announces itself
 
 - **New: update alert by the tabs.** Once per session Spacekeeper checks

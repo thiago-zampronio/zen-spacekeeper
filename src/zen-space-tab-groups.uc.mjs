@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.39.0
+// @version        0.40.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.39.0";
+const VERSION = "0.40.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -396,20 +396,7 @@ function keyFromURI(uri, over) {
   if (info && info.key === "system:") {
     return { key: info.key, label: t("group.system") };
   }
-  if (info) {
-    return { key: info.key, label: capLabel(info.label) };
-  }
   return info;
-}
-
-/*
- * One casing pattern on the strip: every label the system derives starts with
- * a capital letter ("Youtube", "Mail.google"). Display only — the KEY stays
- * lowercase, so no stored identity moves. Applied at the derivation boundary,
- * never to text the user typed.
- */
-function capLabel(s) {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 function keyFromTab(tab) {
