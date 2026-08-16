@@ -51,11 +51,11 @@ line that matters stays absolute: nothing is ever installed without a click.
 ### Requirement: An available update announces itself
 
 The system SHALL, when the automatic check finds a newer release, show a small
-alert at the end of the tab strip naming the available version; clicking it
-SHALL open the panel's update section with the check already performed — the
-version message and the Update action visible; the alert SHALL appear only
-when a newer release exists and SHALL NOT appear when the strip's anchor
-element cannot be found (the panel path keeps working regardless).
+floating alert over the sidebar's lower corner naming the available version —
+anchored to the window itself, so no browser-layout internals can hide it;
+clicking it SHALL open the panel's update section with the check already
+performed — the version message and the Update action visible; and the alert
+SHALL appear only when a newer release exists.
 
 #### Scenario: The alert appears and leads to one-click distance
 

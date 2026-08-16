@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.41.0
+// @version        0.42.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.41.0";
+const VERSION = "0.42.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1664,12 +1664,14 @@ function isNewerVersion(latest, current) {
 }
 
 /*
- * The update pill: a quiet toolbarbutton at the end of the tab strip, shown
- * only when the background check found a newer release. Anchored at the
- * strip's periphery (where the new-tab button lives); if Zen renames that
- * element the pill simply does not appear — the panel path never depends on
- * it. Clicking lands one click from done: the panel's update section with the
- * check already performed.
+ * The update pill: a quiet floating badge over the sidebar's lower corner,
+ * shown only when the background check found a newer release. Anchored to the
+ * WINDOW itself, on purpose: the first cut lived in the tab strip's periphery
+ * — an element Zen keeps in the DOM but never renders in its vertical layout,
+ * so the pill existed and nobody ever saw it (found in the field, log said
+ * updatePill, screenshot said nothing). Fixed positioning over the chrome
+ * window cannot be hidden by strip internals. Clicking lands one click from
+ * done: the panel's update section with the check already performed.
  */
 const UPDATE_PILL_ID = "zstg-update-pill";
 
@@ -1677,11 +1679,7 @@ function showUpdatePill(version) {
   if (window.document.getElementById(UPDATE_PILL_ID)) {
     return;
   }
-  const host = window.document.getElementById("tabbrowser-arrowscrollbox-periphery");
-  if (!host) {
-    dbg("updatePillNoAnchor", { version });
-    return;
-  }
+  const host = window.document.documentElement;
   const pill = window.document.createXULElement("toolbarbutton");
   pill.id = UPDATE_PILL_ID;
   pill.setAttribute("label", t("update.pill", { version }));

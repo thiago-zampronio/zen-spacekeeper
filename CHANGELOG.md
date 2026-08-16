@@ -5,6 +5,14 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.42.0 — the pill becomes impossible to hide
+
+- **Fixed: the update alert existed and nobody could see it.** It was anchored
+  in the tab strip's periphery — an element Zen keeps in the DOM but never
+  renders in its vertical layout. The pill is now a floating blue badge over
+  the sidebar's lower corner, anchored to the window itself, readable over any
+  wallpaper.
+
 ## 0.41.0 — Mail.Google, and the pill's field day
 
 - **Changed: dotted labels capitalize both parts.** Host-style chips now read

@@ -341,12 +341,24 @@ tab-group[zstg-key] .tab-group-label[zstg-hidden-count]::after {
  * --------------------------------------------------------------------------*/
 #zstg-update-pill {
   appearance: none;
-  margin: 6px 8px;
-  padding: 4px 10px;
+  position: fixed;
+  left: 12px;
+  bottom: 52px;
+  z-index: 99999;
+  margin: 0;
+  padding: 5px 12px;
   border-radius: 999px;
-  background-color: color-mix(in srgb, #007aff 18%, transparent);
-  font-size: 0.85em;
+  /* Solid, not tinted: the pill floats over the user's wallpaper, and a
+     translucent chip is unreadable over a gradient. */
+  background-color: #007aff;
+  color: #ffffff;
+  font-size: 11px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+#zstg-update-pill .toolbarbutton-text {
+  color: #ffffff;
 }
 #zstg-update-pill:hover {
-  background-color: color-mix(in srgb, #007aff 30%, transparent);
+  filter: brightness(1.12);
 }

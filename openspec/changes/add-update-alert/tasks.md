@@ -8,9 +8,12 @@
 - [x] 1.2 `backgroundUpdateCheck` 45s after init, once per window session,
       gated on the pref, failures logged and swallowed; pill shown only when
       newer
-- [x] 1.3 The pill: toolbarbutton in `#tabbrowser-arrowscrollbox-periphery`
-      (skip-and-log when absent), label with the version, click opens
-      `about:spacekeeper#update`, removed on unload
+- [x] 1.3 The pill: a floating toolbarbutton fixed over the sidebar's lower
+      corner, anchored to the window document — the first cut used the tab
+      strip's periphery, an element Zen keeps in the DOM but never renders in
+      vertical layout (field finding: log said updatePill, screenshot said
+      nothing); solid blue so it reads over any wallpaper; label with the
+      version, click opens `about:spacekeeper#update`, removed on unload
 
 ## 2. Panel, styles and strings
 
