@@ -99,22 +99,11 @@ npm install
 
 ## Releasing
 
-A release is a version bump plus a push to `main` — the piped installers serve
-whatever `main` holds. The version lives in three places that `verify.ps1` keeps
-honest: the `@version` header and the `VERSION` constant in the script, and the
-`[ZSTG] x.y.z ready` literal in the docs (docs/MANUAL.md). Bump all three, write the
-version's entry in `CHANGELOG.md` — verify.ps1 fails without it, so a release
-cannot ship silent — run the installer to refresh your profile, run `verify.ps1`,
-and only then push. Publish the release (`gh release create vX.Y.Z`) with the
-changelog entry as its notes: the panel shows those notes next to "update
-available", so they are user-facing copy, not an afterthought.
-
-**How release notes are written.** The reader is standing inside the panel,
-one click from updating: write for that person. Plain language, the benefit
-first, no internal jargon (nothing about anchors, specs, verify, selectors),
-and NEVER a how-to-update section — the reader is already in the place where
-updates happen. Sell the change the way the README sells the product; the
-technical detail belongs in the commit message, not in the notes.
+The full checklist lives in the `release` skill (`.claude/skills/release/`) —
+invoke it whenever publishing. The non-negotiables it encodes: the version in
+three places, a `CHANGELOG.md` entry (verify.ps1 fails without it, so a
+release cannot ship silent), and release notes written for the person inside
+the panel — plain language, no jargon, never a how-to-update section.
 
 `verify.ps1` catches a requirement with no implementation, a pref with no
 documentation, a README citing a function that no longer exists, and a stale file in
