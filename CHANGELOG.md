@@ -5,6 +5,12 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.46.0 — the pill never overstays
+
+- If the little update alert ever outlives its reason — you already updated,
+  or a release was withdrawn — it now clears itself the moment any check finds
+  you current, instead of waiting for a restart.
+
 ## 0.45.0 — the update check signs its work
 
 - For the curious with the diagnostic log on: every update check now records

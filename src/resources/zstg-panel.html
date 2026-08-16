@@ -1433,6 +1433,9 @@
           if (!r.version || !isNewer(r.version, ZSTG.version)) {
             btnUpdate.hidden = true;
             maintOutput.textContent = t("update.upToDate", { version: ZSTG.version });
+            // Being current retires the alert: a lingering pill next to an
+            // up-to-date message would be the panel disagreeing with itself.
+            ZSTG.removeUpdatePill?.();
           } else {
             updateTag = r.tag;
             btnUpdate.hidden = false;

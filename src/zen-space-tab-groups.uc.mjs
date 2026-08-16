@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.45.0
+// @version        0.46.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.45.0";
+const VERSION = "0.46.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1712,6 +1712,10 @@ async function backgroundUpdateCheck(via) {
     const r = await checkForUpdate(via);
     if (r.version && isNewerVersion(r.version, VERSION)) {
       showUpdatePill(r.version);
+    } else {
+      // A pill that outlived its reason (the release was yanked, or the user
+      // updated elsewhere) clears itself on the next tick.
+      removeUpdatePill();
     }
   } catch (e) {
     // An offline start must not surface an error for a feature nobody asked
@@ -2685,6 +2689,7 @@ if (core) {
     dumpStrip: () => dumpStrip("manual"),
     checkForUpdate,
     applyUpdate,
+    removeUpdatePill,
     uninstallSelf,
     resetAndRestart,
     reloadConfig: () => {
