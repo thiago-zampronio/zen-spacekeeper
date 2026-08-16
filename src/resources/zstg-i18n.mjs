@@ -195,7 +195,7 @@ const en = {
     "Updated. This release also changed the loader, which the panel cannot update by itself — run the installer once to finish.",
   "update.failed": "It did not work: {error}. Nothing was changed.",
   "update.disclosure":
-    "Checking and updating contact the project's repository. Once per session the mod also asks it whether a newer release exists — metadata only, never a download; a small alert appears by the tabs when there is one. Turn zen.stg.updateCheck off to silence that. Nothing else here ever touches the network.",
+    "Checking and updating contact the project's repository. Every few hours the mod also asks it whether a newer release exists — metadata only, never a download; a small alert appears by the tabs when there is one. Turn zen.stg.updateCheck off to silence that. Nothing else here ever touches the network.",
   "update.pill": "Update {version} available",
   "update.pillTip": "Open Spacekeeper to see what changed and update",
   "update.notes": "What changed:",
@@ -396,7 +396,7 @@ const pt = {
     "Atualizado. Esta versão também mudou o loader, que o painel não consegue atualizar sozinho — rode o instalador uma vez para concluir.",
   "update.failed": "Não deu certo: {error}. Nada foi alterado.",
   "update.disclosure":
-    "Verificar e atualizar consultam o repositório do projeto. Uma vez por sessão o mod também pergunta se existe uma versão mais nova — só metadados, nunca um download; um pequeno aviso aparece junto às abas quando existe. Desligue zen.stg.updateCheck para silenciar isso. Nada mais aqui acessa a rede.",
+    "Verificar e atualizar consultam o repositório do projeto. De tempos em tempos o mod também pergunta se existe uma versão mais nova — só metadados, nunca um download; um pequeno aviso aparece junto às abas quando existe. Desligue zen.stg.updateCheck para silenciar isso. Nada mais aqui acessa a rede.",
   "update.pill": "Atualização {version} disponível",
   "update.pillTip": "Abra o Spacekeeper para ver o que mudou e atualizar",
   "update.notes": "O que mudou:",
@@ -597,7 +597,7 @@ const es = {
     "Actualizado. Esta versión también cambió el loader, que el panel no puede actualizar por sí solo — ejecuta el instalador una vez para terminar.",
   "update.failed": "No funcionó: {error}. Nada fue modificado.",
   "update.disclosure":
-    "Verificar y actualizar consultan el repositorio del proyecto. Una vez por sesión el mod también pregunta si existe una versión más nueva — solo metadatos, nunca una descarga; un pequeño aviso aparece junto a las pestañas cuando la hay. Desactiva zen.stg.updateCheck para silenciarlo. Nada más aquí accede a la red.",
+    "Verificar y actualizar consultan el repositorio del proyecto. De vez en cuando el mod también pregunta si existe una versión más nueva — solo metadatos, nunca una descarga; un pequeño aviso aparece junto a las pestañas cuando la hay. Desactiva zen.stg.updateCheck para silenciarlo. Nada más aquí accede a la red.",
   "update.pill": "Actualización {version} disponible",
   "update.pillTip": "Abre Spacekeeper para ver qué cambió y actualizar",
   "update.notes": "Qué cambió:",

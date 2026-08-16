@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.43.0 ready — active Space …`.
+`[ZSTG] 0.44.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -188,7 +188,7 @@ restarting.
 | `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
 | `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |
 | `zen.stg.motionSpeed` | int | `100` | speed of the motion presets, in percent (25-400); lower is slower, handy for comparing them |
-| `zen.stg.updateCheck` | bool | `true` | once per session, checks GitHub for a newer release (metadata only) and shows the update pill by the tabs |
+| `zen.stg.updateCheck` | bool | `true` | shortly after a window opens, and every few hours, checks GitHub for a newer release (metadata only) and shows the update pill over the sidebar |
 | `zen.stg.faviconColors` | bool | `true` | derives the group color from the site's favicon |
 | `zen.stg.spaceScopedTabSwitch` | bool | `true` | prevents "switch to tab" from taking you out of the current Space |
 | `zen.stg.systemGroup` | bool | `true` | `about:` and `chrome:` pages share one System group per Space |

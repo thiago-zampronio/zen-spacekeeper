@@ -5,9 +5,10 @@
 - [x] 1.1 `zen.stg.updateCheck` (bool, default true) in DEFAULTS/cfg;
       `checkForUpdate` returns the release `notes`; `isNewerVersion` semver
       compare in the script
-- [x] 1.2 `backgroundUpdateCheck` 45s after init, once per window session,
-      gated on the pref, failures logged and swallowed; pill shown only when
-      newer
+- [x] 1.2 `backgroundUpdateCheck` 45s after init and then every 4 hours per
+      window (field finding: windows outlive releases — once per session never
+      fired again in a long-lived window), gated on the pref, failures logged
+      and swallowed; pill shown only when newer, deduped on repeats
 - [x] 1.3 The pill: a floating toolbarbutton fixed over the sidebar's lower
       corner, anchored to the window document — the first cut used the tab
       strip's periphery, an element Zen keeps in the DOM but never renders in

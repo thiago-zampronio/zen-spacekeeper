@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.43.0
+// @version        0.44.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.43.0";
+const VERSION = "0.44.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -2607,8 +2607,15 @@ async function start() {
   // window, and the sweep is a Map scan — it exits in two reads when the idle
   // strategy is not the one running.
   const idleSweepTimer = window.setInterval(() => guarded(sweepIdleGroups), 30000);
-  // One shot per window session, far from the startup path. Metadata only.
+  // First shot far from the startup path, then a slow heartbeat: a window
+  // that lives for days must still notice a release without a restart (field
+  // finding — the owner's windows outlive releases). Metadata only, and
+  // showUpdatePill dedupes, so repeats cost one request and nothing visual.
   const updateCheckTimer = window.setTimeout(() => backgroundUpdateCheck(), 45000);
+  const updateRecheckTimer = window.setInterval(
+    () => backgroundUpdateCheck(),
+    4 * 3600000
+  );
   checkZenContract();
 
   window.addEventListener(
@@ -2629,6 +2636,7 @@ async function start() {
       clearFocusTimers();
       window.clearInterval(idleSweepTimer);
       window.clearTimeout(updateCheckTimer);
+      window.clearInterval(updateRecheckTimer);
       removeUpdatePill();
       groupLastTouch.clear();
       unregisterPanel();

@@ -5,6 +5,13 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.44.0 — the pill no longer needs a restart
+
+- Keep your browser open for days? Spacekeeper now notices new releases
+  anyway: the quiet check repeats every few hours, so the update pill shows
+  up in the corner on its own. (Opening a new tab was never the trigger —
+  time is, and now it actually passes.)
+
 ## 0.43.0 — updates that speak your language
 
 - The notes you are reading right now — before clicking Update — are written

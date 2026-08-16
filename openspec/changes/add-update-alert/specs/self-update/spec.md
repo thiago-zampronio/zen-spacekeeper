@@ -10,7 +10,7 @@ close that gap without widening what gets installed silently.
 ### Requirement: Nothing happens without a click
 
 The system SHALL contact the network for update purposes only in two shapes: a
-metadata-only check — at most once per session, shortly after startup,
+metadata-only check — shortly after a window opens and then every few hours,
 disclosed in the panel and the manual, disabled by a preference — and the
 user-initiated check and download from the panel; SHALL NOT download or write
 any file except in direct response to the user's click on Update; and SHALL
@@ -20,6 +20,8 @@ The no-network claim is the product's privacy posture. Its exception grows
 from "one click-shaped hole" to "one click-shaped hole plus one disclosed,
 disableable heartbeat that reads a single release-metadata endpoint" — and the
 line that matters stays absolute: nothing is ever installed without a click.
+The heartbeat exists because windows outlive releases: a browser that stays
+open for days must still learn about an update without a restart.
 
 #### Scenario: The automatic check is metadata-only
 
