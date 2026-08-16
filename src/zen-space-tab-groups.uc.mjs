@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.44.0
+// @version        0.45.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.44.0";
+const VERSION = "0.45.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1631,7 +1631,14 @@ function profilePath(relative) {
  * in direct response to the user's click in the panel, for the latest RELEASE —
  * never a moving branch. A check downloads nothing but the version.
  */
-async function checkForUpdate() {
+/*
+ * `via` names what woke the check — "panel" (the user, or the #update hash),
+ * "boot" (the 45s one-shot) or "heartbeat" (the 4h tick). It exists for the
+ * diagnostic log: a check with no visible effect is unexplainable without
+ * knowing which clock fired it, and that exact confusion happened in the
+ * field on the pill's debut morning.
+ */
+async function checkForUpdate(via = "panel") {
   const r = await window.fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
     headers: { Accept: "application/vnd.github+json" },
   });
@@ -1640,7 +1647,7 @@ async function checkForUpdate() {
   }
   const release = await r.json();
   const tag = String(release.tag_name ?? "");
-  dbg("updateCheck", { tag });
+  dbg("updateCheck", { tag, via, installed: VERSION });
   return {
     tag,
     version: tag.replace(/^v/, ""),
@@ -1697,12 +1704,12 @@ function removeUpdatePill() {
   window.document.getElementById(UPDATE_PILL_ID)?.remove();
 }
 
-async function backgroundUpdateCheck() {
+async function backgroundUpdateCheck(via) {
   if (!cfg().updateCheck) {
     return;
   }
   try {
-    const r = await checkForUpdate();
+    const r = await checkForUpdate(via);
     if (r.version && isNewerVersion(r.version, VERSION)) {
       showUpdatePill(r.version);
     }
@@ -2611,9 +2618,9 @@ async function start() {
   // that lives for days must still notice a release without a restart (field
   // finding — the owner's windows outlive releases). Metadata only, and
   // showUpdatePill dedupes, so repeats cost one request and nothing visual.
-  const updateCheckTimer = window.setTimeout(() => backgroundUpdateCheck(), 45000);
+  const updateCheckTimer = window.setTimeout(() => backgroundUpdateCheck("boot"), 45000);
   const updateRecheckTimer = window.setInterval(
-    () => backgroundUpdateCheck(),
+    () => backgroundUpdateCheck("heartbeat"),
     4 * 3600000
   );
   checkZenContract();

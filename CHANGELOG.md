@@ -5,6 +5,12 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.45.0 — the update check signs its work
+
+- For the curious with the diagnostic log on: every update check now records
+  what woke it — opening the panel, a window starting, or the every-few-hours
+  heartbeat. When something looks quiet, the log now tells the whole story.
+
 ## 0.44.0 — the pill no longer needs a restart
 
 - Keep your browser open for days? Spacekeeper now notices new releases
