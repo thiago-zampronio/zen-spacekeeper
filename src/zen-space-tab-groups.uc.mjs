@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.37.0
+// @version        0.38.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.37.0";
+const VERSION = "0.38.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -1296,37 +1296,64 @@ function sweepIdleGroups() {
 }
 
 /*
- * The reorder option: the activated group floats above its Space's first group,
- * so the working set reads top-down. Native move only and cosmetic by contract —
- * on any failure it logs and leaves the strip alone (the TabMove debounce
- * already runs the nest corrector, which covers the one bad outcome a move can
- * have). Never called from TabMove: activation moments only, so it cannot fight
- * a drag in progress.
+ * The reorder option: open groups sit above collapsed ones. The event is the
+ * group CLOSING or OPENING — not tab focus: a group that collapses sinks below
+ * the open cluster, a group that expands rises above the collapsed cluster.
+ * Minimal moves only, so the order inside each cluster stays the user's.
+ * Native move only and cosmetic by contract — on any failure it logs and
+ * leaves the strip alone (the TabMove debounce already runs the nest
+ * corrector, which covers the one bad outcome a move can have). Triggered by
+ * collapse/expand events only, never from TabMove, so it cannot fight a drag.
  */
-function maybeLiftGroup(group, activeTab) {
-  if (!cfg().focusReorder) {
+function resettleGroupOrder(group) {
+  const c = cfg();
+  if (!c.focusMode || !c.focusReorder || !isOurGroup(group) || !group.isConnected) {
     return;
   }
-  const spaceId = spaceOfTab(activeTab);
-  const first = [...window.gBrowser.tabGroups].find(
-    g => isOurGroup(g) && g.getAttribute(SPACE_ATTR) === spaceId
-  );
-  if (!first || first === group) {
-    return;
-  }
-  const target = first.tabs?.[0];
-  if (!target) {
-    return;
-  }
+  const spaceId = group.getAttribute(SPACE_ATTR);
+  const pos = g => g.tabs?.[0]?._tPos ?? Number.MAX_SAFE_INTEGER;
+  const others = [...window.gBrowser.tabGroups]
+    .filter(
+      g => g !== group && isOurGroup(g) && g.getAttribute(SPACE_ATTR) === spaceId
+    )
+    .sort((a, b) => pos(a) - pos(b));
   try {
-    dbg("focusLift", {
-      key: group.getAttribute(KEY_ATTR),
-      above: first.getAttribute(KEY_ATTR),
-      to: target._tPos,
-    });
-    window.gBrowser.moveTabTo(group, { tabIndex: target._tPos });
+    if (group.collapsed) {
+      // Sink: below the last open group — the top of the collapsed cluster,
+      // so the most recently closed group sits nearest the open ones.
+      const lastExpanded = [...others].reverse().find(g => !g.collapsed);
+      if (!lastExpanded || pos(lastExpanded) < pos(group)) {
+        return;
+      }
+      const target = lastExpanded.tabs[lastExpanded.tabs.length - 1];
+      if (!target) {
+        return;
+      }
+      dbg("focusSink", {
+        key: group.getAttribute(KEY_ATTR),
+        below: lastExpanded.getAttribute(KEY_ATTR),
+        to: target._tPos,
+      });
+      window.gBrowser.moveTabTo(group, { tabIndex: target._tPos });
+    } else {
+      // Rise: above the first collapsed group — the bottom of the open cluster.
+      const firstCollapsed = others.find(g => g.collapsed);
+      if (!firstCollapsed || pos(firstCollapsed) > pos(group)) {
+        return;
+      }
+      const target = firstCollapsed.tabs[0];
+      if (!target) {
+        return;
+      }
+      dbg("focusRise", {
+        key: group.getAttribute(KEY_ATTR),
+        above: firstCollapsed.getAttribute(KEY_ATTR),
+        to: target._tPos,
+      });
+      window.gBrowser.moveTabTo(group, { tabIndex: target._tPos });
+    }
   } catch (e) {
-    dbg("focusLiftFailed", { error: String(e) });
+    dbg("focusResettleFailed", { error: String(e) });
   }
 }
 
@@ -1344,7 +1371,6 @@ function applyFocusMode() {
   }
 
   touchGroup(activeGroup);
-  maybeLiftGroup(activeGroup, activeTab);
 
   // The idle strategy has no keep-set: the sweep does the collapsing on its own
   // clock. Focus still guarantees the active group is open, with either strategy.
@@ -1911,6 +1937,9 @@ function onGroupCollapseChanged(e) {
   if (e.type === "TabGroupExpand") {
     guarded(() => touchGroup(g));
   }
+  // Open-groups-on-top rides exactly this moment: the partition changes when a
+  // group closes or opens, not when a tab gains focus.
+  window.setTimeout(() => guarded(() => resettleGroupOrder(g)), 0);
   window.setTimeout(() => guarded(() => updateHiddenCount(g)), 0);
 }
 

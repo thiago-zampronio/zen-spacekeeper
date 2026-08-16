@@ -16,10 +16,13 @@
 - [x] 1.3 Groups strategy keeps today's mechanics untouched (`recentGroups`,
       `focusKeep`, cancellable `focusDelay` timers), now gated on the strategy
       choice
-- [x] 1.4 Reorder: on TabSelect into one of our groups with focus mode on and
-      `focusReorder` on, lift the group above its Space's first zstg group —
-      native move only, skip-and-log on failure, never from TabMove, debug
-      log `focusLift` with from/to indices
+- [x] 1.4 Reorder (owner-corrected semantics: the event is collapse/expand,
+      never tab focus): `resettleGroupOrder` from the group collapse/expand
+      listener keeps open groups above collapsed ones — a closing group sinks
+      below the last open group, an opening group rises above the first
+      collapsed one; minimal moves preserving in-cluster order, native move
+      only, skip-and-log on failure, never from TabMove; debug logs
+      `focusSink`/`focusRise`
 
 ## 2. Panel and strings
 
@@ -40,5 +43,7 @@
       `openspec validate --all`; EVERYTHING IN SYNC
 - [ ] 3.2 In a running Zen (user confirms): the three-way choice switches
       behavior live; idle window collapses an untouched group and a touch
-      resets it; the active group never retires; reorder lifts the activated
-      group and never fights a drag; upgrade from focus-on lands on Max groups
+      resets it; the active group never retires; with reorder on, closing a
+      group sinks it below the open ones and opening lifts it back, tab focus
+      alone never reorders, drags are never fought; upgrade from focus-on
+      lands on Max groups

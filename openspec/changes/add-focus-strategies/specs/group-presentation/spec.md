@@ -95,33 +95,48 @@ idle strategy retires it without the user having to decide anything.
 - **WHEN** the user expands it by clicking its chip
 - **THEN** the group's clock restarts, and it stays open for a fresh window
 
-### Requirement: Active groups float to the top
+### Requirement: Open groups sit above collapsed ones
 
 The system SHALL, when focus mode is active with either strategy and the
-reorder option is enabled, move a group to the top of its Space's strip when
-it becomes active, so recently used groups read top-down and inactive ones
-sink; the option SHALL be off by default, SHALL move groups only at activation
-moments — never during a drag — and SHALL leave loose tabs at the bottom as
-specified elsewhere.
+reorder option is enabled, keep a Space's expanded groups above its collapsed
+groups by moving a group at the moment it closes or opens — a group that
+collapses sinks below the open cluster, a group that expands rises above the
+collapsed cluster; the move SHALL be minimal, preserving the user's order
+inside each cluster; the option SHALL be off by default, SHALL react to
+collapse and expand only — never to tab focus, never during a drag — and SHALL
+leave loose tabs at the bottom as specified elsewhere.
 
-The ordering makes the focus visible without reading a single label: the
-working set is simply what is on top.
+The ordering makes the focus visible without reading a single label: what is
+open is simply what is on top, and closing something files it away downward.
 
-#### Scenario: Activating a group lifts it
+#### Scenario: A closing group sinks
 
 - **GIVEN** focus mode is on with reorder enabled
-- **AND** the `figma` group sits below `github` and `youtube`
-- **WHEN** the user selects a tab of the `figma` group
-- **THEN** the `figma` group moves above the other groups of its Space
+- **AND** the `github` group sits open above the open `youtube` group
+- **WHEN** the `github` group collapses — by hand or by the focus strategy
+- **THEN** `github` moves below `youtube`, to the top of the collapsed cluster
+
+#### Scenario: An opening group rises
+
+- **GIVEN** focus mode is on with reorder enabled
+- **AND** the collapsed `figma` group sits above the open `github` group
+- **WHEN** the `figma` group expands
+- **THEN** `figma` moves above the collapsed groups, into the open cluster
+
+#### Scenario: Tab focus alone moves nothing
+
+- **GIVEN** focus mode is on with reorder enabled
+- **WHEN** the user switches tabs without any group opening or closing
+- **THEN** the strip order does not change
 
 #### Scenario: Reorder off means order untouched
 
 - **GIVEN** focus mode is on with reorder disabled
-- **WHEN** the user activates any group
+- **WHEN** groups open and close
 - **THEN** the strip order does not change
 
 #### Scenario: Other Spaces are never touched
 
 - **GIVEN** reorder enabled and two Spaces with groups
-- **WHEN** a group of the active Space is lifted
+- **WHEN** a group of the active Space sinks or rises
 - **THEN** the groups of the other Space keep their order

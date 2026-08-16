@@ -69,6 +69,12 @@
 - [x] 3.6 Number fields clamp on read, and cfg clamps focusKeep to 1-10: an
       out-of-range pref (800 typed into the wrong field) was displayed verbatim
       and silently neutered focus mode
+- [x] 3.7 Panel controls are immune to session-restored form values: Firefox
+      repopulates a restored tab's fields BY POSITION, so after an update
+      changed the field order the old page's values painted into the wrong
+      inputs (the "800 groups kept open" mystery — the pref was never wrong,
+      only the display); every control now carries autocomplete="off" and a
+      resync pass re-reads the prefs after any restore
 
 ## 4. Verification
 

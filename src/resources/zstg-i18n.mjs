@@ -83,10 +83,10 @@ const en = {
   "focusIdle.short": "How long a group can sit untouched before it collapses.",
   "focusIdle.help":
     "Applies to the time strategy. Touching any tab of the group — selecting, opening or closing one, or expanding the group — resets its clock, and the active tab's group never collapses. The default is 60 minutes.",
-  "focusReorder.title": "Active groups on top",
-  "focusReorder.short": "The group you activate floats to the top; inactive ones sink.",
+  "focusReorder.title": "Open groups on top",
+  "focusReorder.short": "A group that closes sinks below the open ones; opening lifts it back.",
   "focusReorder.help":
-    "With focus mode on, activating a group moves it above the other groups of its Space, so the working set always reads top-down. It only reorders at the moment of activation, never during a drag.",
+    "With focus mode on, the strip keeps expanded groups above collapsed ones. The move happens when a group opens or closes — never on tab focus, never during a drag — and the order inside each cluster stays yours.",
   "system.title": "Group system pages",
   "system.short": "about:config and other internal pages share one System group.",
   "system.help":
@@ -281,10 +281,10 @@ const pt = {
   "focusIdle.short": "Quanto tempo um grupo pode ficar sem toque antes de recolher.",
   "focusIdle.help":
     "Vale para a estratégia de tempo. Tocar qualquer aba do grupo — selecionar, abrir ou fechar uma, ou expandir o grupo — zera o relógio, e o grupo da aba ativa nunca recolhe. O padrão é 60 minutos.",
-  "focusReorder.title": "Grupos ativos no topo",
-  "focusReorder.short": "O grupo que você ativa sobe para o topo; os inativos descem.",
+  "focusReorder.title": "Grupos abertos no topo",
+  "focusReorder.short": "Um grupo que fecha desce para baixo dos abertos; abrir o traz de volta.",
   "focusReorder.help":
-    "Com o modo foco ligado, ativar um grupo o move para cima dos outros grupos do Space — o conjunto de trabalho fica sempre no topo. Só reordena no momento da ativação, nunca durante um arrasto.",
+    "Com o modo foco ligado, a barra mantém os grupos expandidos acima dos recolhidos. O movimento acontece quando um grupo abre ou fecha — nunca no foco da aba, nunca durante um arrasto — e a ordem dentro de cada bloco continua sendo a sua.",
   "system.title": "Agrupar páginas do sistema",
   "system.short": "about:config e outras páginas internas dividem um grupo Sistema.",
   "system.help":
@@ -479,10 +479,10 @@ const es = {
   "focusIdle.short": "Cuánto tiempo puede quedar un grupo sin tocarse antes de plegarse.",
   "focusIdle.help":
     "Aplica a la estrategia de tiempo. Tocar cualquier pestaña del grupo — seleccionar, abrir o cerrar una, o expandir el grupo — reinicia su reloj, y el grupo de la pestaña activa nunca se pliega. El valor por defecto es 60 minutos.",
-  "focusReorder.title": "Grupos activos arriba",
-  "focusReorder.short": "El grupo que activas sube arriba; los inactivos bajan.",
+  "focusReorder.title": "Grupos abiertos arriba",
+  "focusReorder.short": "Un grupo que se cierra baja debajo de los abiertos; abrirlo lo sube de vuelta.",
   "focusReorder.help":
-    "Con el modo foco activo, activar un grupo lo mueve por encima de los otros grupos de su Space — el conjunto de trabajo queda siempre arriba. Solo reordena al momento de activar, nunca durante un arrastre.",
+    "Con el modo foco activo, la barra mantiene los grupos expandidos por encima de los plegados. El movimiento ocurre cuando un grupo se abre o se cierra — nunca al enfocar una pestaña, nunca durante un arrastre — y el orden dentro de cada bloque sigue siendo el tuyo.",
   "system.title": "Agrupar páginas del sistema",
   "system.short": "about:config y otras páginas internas comparten un grupo Sistema.",
   "system.help":

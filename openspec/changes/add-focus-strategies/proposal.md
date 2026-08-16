@@ -23,10 +23,11 @@ the motion presets):
   group (selecting, opening, closing) resets its clock; the active tab's group
   never collapses.
 
-**Active groups can float to the top** (opt-in toggle, available with either
-strategy): when focus mode is active and the option is on, the group that
-becomes active moves to the top of its Space's strip, so the working set reads
-top-down and the collapsed leftovers sink. Loose tabs stay at the bottom, as
+**Open groups sit above collapsed ones** (opt-in toggle, available with either
+strategy): when focus mode is active and the option is on, the strip keeps the
+Space's expanded groups above its collapsed groups — a group that closes sinks
+below the open cluster, a group that opens rises back up. The event is the
+group closing or opening, never tab focus. Loose tabs stay at the bottom, as
 specified elsewhere.
 
 **Stored identity is preserved** (CLAUDE.md rule: pref names are never

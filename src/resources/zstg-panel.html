@@ -746,8 +746,11 @@
 
       function toggle(pref, onChange) {
         const wrap = el("label", { class: "switch" });
-        const input = el("input", { type: "checkbox" });
+        const input = el("input", { type: "checkbox", autocomplete: "off" });
         input.checked = readBool(pref, false);
+        restorables.push(() => {
+          input.checked = readBool(pref, false);
+        });
         input.addEventListener("change", () => {
           writeBool(pref, input.checked);
           onChange?.(input.checked);
@@ -756,11 +759,33 @@
         return wrap;
       }
 
+      /*
+       * Every control's displayed value comes from the prefs, ALWAYS. Firefox's
+       * session restore repopulates form fields of a restored tab by position —
+       * so after a panel update changed the field order, the old page's typed
+       * values landed in the wrong inputs (a focus delay of 800 painted into
+       * "Groups kept open") while the prefs stayed correct. Two defenses:
+       * autocomplete="off" on every control (the session store skips those),
+       * and a resync pass that re-reads the prefs after any restore anyway.
+       */
+      const restorables = [];
+      const resyncFromPrefs = () => {
+        for (const r of restorables) {
+          r();
+        }
+      };
+      window.addEventListener("pageshow", () => setTimeout(resyncFromPrefs, 100));
+      setTimeout(resyncFromPrefs, 400);
+      setTimeout(resyncFromPrefs, 1500);
+
       function number(pref, min, max) {
-        const input = el("input", { type: "number", min, max });
+        const input = el("input", { type: "number", min, max, autocomplete: "off" });
         // Clamped on read too: a pref poked out of range in about:config was
         // displayed verbatim, and 800 groups kept open reads as a broken panel.
         input.value = Math.min(max, Math.max(min, readInt(pref, min)));
+        restorables.push(() => {
+          input.value = Math.min(max, Math.max(min, readInt(pref, min)));
+        });
         input.addEventListener("change", () => {
           const v = Math.min(max, Math.max(min, Number(input.value) || min));
           input.value = v;
@@ -770,8 +795,11 @@
       }
 
       function listField(pref, placeholder) {
-        const field = el("textarea", { placeholder });
+        const field = el("textarea", { placeholder, autocomplete: "off" });
         field.value = readStr(pref, "");
+        restorables.push(() => {
+          field.value = readStr(pref, "");
+        });
         field.addEventListener("change", () => writeStr(pref, field.value.trim()));
         return field;
       }
@@ -1048,7 +1076,7 @@
 
       // Changing the language does not re-render what is already on screen, and a
       // half-translated panel reads as a bug. Reloading is the honest move.
-      const languageSelect = el("select");
+      const languageSelect = el("select", { autocomplete: "off" });
       languageSelect.append(el("option", { value: "auto", text: t("language.auto") }));
       // Without the catalog there is no list of languages to offer, and the only
       // honest option left is the automatic one.
@@ -1056,6 +1084,9 @@
         languageSelect.append(el("option", { value: code, text: i18n.LANGUAGE_NAMES[code] ?? code }));
       }
       languageSelect.value = readStr("locale", "auto");
+      restorables.push(() => {
+        languageSelect.value = readStr("locale", "auto");
+      });
       languageSelect.addEventListener("change", () => {
         writeStr("locale", languageSelect.value);
         window.location.reload();
@@ -1114,8 +1145,11 @@
       };
       for (const [value, name, desc] of motionOptions) {
         const op = el("label", { class: "option" });
-        const radio = el("input", { type: "radio", name: "collapseMotion" });
+        const radio = el("input", { type: "radio", name: "collapseMotion", autocomplete: "off" });
         radio.checked = currentMotion === value;
+        restorables.push(() => {
+          radio.checked = readStr("collapseMotion", "swift") === value;
+        });
         radio.addEventListener("change", () => {
           writeStr("collapseMotion", value);
           playMotionPreview(value);
@@ -1171,8 +1205,15 @@
         : "off";
       for (const [value, name, desc] of focusOptions) {
         const op = el("label", { class: "option" });
-        const radio = el("input", { type: "radio", name: "focusStrategy" });
+        const radio = el("input", { type: "radio", name: "focusStrategy", autocomplete: "off" });
         radio.checked = currentFocus === value;
+        restorables.push(() => {
+          const now = readBool("focusMode", false)
+            ? (readStr("focusStrategy", "groups") === "idle" ? "idle" : "groups")
+            : "off";
+          radio.checked = now === value;
+          syncFocus(now);
+        });
         radio.addEventListener("change", () => {
           if (value === "off") {
             writeBool("focusMode", false);

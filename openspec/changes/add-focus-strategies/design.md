@@ -41,16 +41,18 @@ Groups with no entry (created before the strategy turned on, restored at
 startup) are seeded with "now" at first sight: never collapse something on a
 clock that never started.
 
-**Reorder rides the activation moment.** When focus mode is on, reorder is on,
-and TabSelect lands in one of our groups that is not already the top group of
-its Space, move it above the first of its Space's groups — native
-`gBrowser.moveTabGroup`-equivalent first (the same object-signature
-`moveTabTo` used by `fixNestedGroups`), rebuild fallback never (a failed lift
-is logged and skipped; reordering is cosmetic and must never risk a group).
-Never during a drag: the move runs from TabSelect only, not from TabMove.
-Debug-logged per lift (`focusLift from/to`). The lift respects pinned/essential
-regions by moving relative to the Space's first zstg group, not to index 0 of
-the strip.
+**Reorder rides the collapse/expand moment — never tab focus.** The owner's
+correction: the partition is open-above-collapsed, and the event that changes
+it is a group closing or opening. `resettleGroupOrder` runs from the
+TabGroupCollapse/TabGroupExpand listener (deferred a tick): a collapsing group
+moves below the last open group of its Space (top of the collapsed cluster,
+most recently closed nearest the open ones), an expanding group moves above
+the first collapsed group (bottom of the open cluster). Moves are minimal and
+skip when the partition already holds, so the user's order inside each cluster
+survives. Native object-signature `moveTabTo` only (the `fixNestedGroups`
+path), rebuild fallback never — a failed move is logged and skipped;
+reordering is cosmetic and must never risk a group. Never from TabMove, so it
+cannot fight a drag. Debug-logged per move (`focusSink`/`focusRise`).
 
 **The panel Focus card becomes a radio choice plus fields.** Off / Max groups
 at once / Max idle time (radio, like the motion presets); "Groups kept open"
