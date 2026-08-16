@@ -41,9 +41,10 @@
 
 - [x] 3.1 verify.ps1 anchors: strategy pref, idle sweep, reorder guard;
       `openspec validate --all`; EVERYTHING IN SYNC
-- [ ] 3.2 In a running Zen (user confirms): the three-way choice switches
+- [x] 3.2 In a running Zen (user confirms): the three-way choice switches
       behavior live; idle window collapses an untouched group and a touch
       resets it; the active group never retires; with reorder on, closing a
       group sinks it below the open ones and opening lifts it back, tab focus
       alone never reorders, drags are never fought; upgrade from focus-on
-      lands on Max groups
+      lands on Max groups — user confirmed on 0.38 ("perfeito, acho que
+      fechamos tudo")
