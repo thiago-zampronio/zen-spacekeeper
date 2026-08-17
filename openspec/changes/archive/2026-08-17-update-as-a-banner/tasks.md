@@ -84,6 +84,8 @@ for both deliberately compared and that did not happen.
 - [x] 8.6 After restarting, the update banner appears — the remedy restart landed
       on the 0.53.9-labeled build and the panel showed the update banner unasked
       (missed:2), owner confirmed
-- [ ] 8.7 The pill still lands on the filled-in banner
+- [x] 8.7 The pill still lands on the filled-in banner — retested on the 0.56
+      landing fix with the 0.57 pill: click at 11:19:05, banner at the top of
+      the view (owner: "foi para o lugar correto"), updated 13 seconds later
 - [x] 8.8 Both banners in the dark theme — the owner's theme is dark and both the
       stale and the update banner were exercised in it during the same test
