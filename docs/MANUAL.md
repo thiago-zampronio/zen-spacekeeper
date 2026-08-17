@@ -492,6 +492,7 @@ real tabs and must be checked by hand.
 
 ```
 CHANGELOG.md             one entry per released version; the release notes source
+NEXT-SESSION.md          scratch handoff: what is open and what to run next
 install.ps1              Windows installer: loader + mod, detects Zen and the profile
 install.sh               the same installer for macOS and Linux
 eslint.config.mjs        two rules: no-undef and no-unused-vars, nothing of style

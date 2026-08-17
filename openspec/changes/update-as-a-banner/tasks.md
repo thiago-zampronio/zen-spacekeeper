@@ -53,7 +53,20 @@
 
 Needs a running browser and a real release newer than the installed one.
 
-- [ ] 8.1 With an update available, opening the panel shows the banner unasked
+Set up for real on Windows rather than simulated: v0.49.0 through v0.52.0 were
+published as GitHub releases from their changelog entries, and the profile was held
+one version behind so the check had something true to find.
+
+8.1 is confirmed — the banner was on screen without being asked for, on a real
+0.51.0 → 0.51.1 gap. The rest are NOT: the notes were never expanded, Update was
+never clicked, the preference was never turned off, and neither the pill nor the
+precedence case was exercised. What the owner reviewed was the banner's arrival and
+its wording.
+
+The dark theme is what the owner uses and both banners were seen in it, but 8.8 asks
+for both deliberately compared and that did not happen.
+
+- [x] 8.1 With an update available, opening the panel shows the banner unasked
 - [ ] 8.2 Release notes expand and read correctly, including a multi-release backlog
 - [ ] 8.3 Update from the banner completes as before
 - [ ] 8.4 With `zen.stg.updateCheck` off, opening the panel makes no request and the

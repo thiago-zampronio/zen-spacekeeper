@@ -53,6 +53,7 @@ that node's parent — which is what guarantees the group is born in the right S
 
 ```
 CHANGELOG.md             one entry per released version; the release notes source
+NEXT-SESSION.md          scratch handoff: what is open and what to run next
 install.ps1              Windows installer: loader + mod, detects Zen and profile
 install.sh               the same installer for macOS and Linux (POSIX sh)
 eslint.config.mjs        no-undef + no-unused-vars over src/, nothing of style
