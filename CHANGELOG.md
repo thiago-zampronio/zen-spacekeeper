@@ -5,6 +5,18 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.52.3 — the guard stops panicking mid-update
+
+- A Zen update replaces the whole application directory, so for a few seconds it
+  does not exist — and that is precisely when the guard wakes up. It used to
+  decide on the first look and tell you, four times over, that Zen was gone and
+  you should re-run the installer. Wrong advice, at the worst possible moment.
+- It now waits a missing Zen out before believing it. An update takes seconds; a
+  browser you actually removed stays gone, and that message still appears — once,
+  and only when it is true.
+- Tested against a real update on Linux: the loader came back in three seconds,
+  and the four spurious warnings became none.
+
 ## 0.52.2 — the guard, verified on Linux, and two more silent successes
 
 - The guard now works end to end on Linux: deleting the loader has it restored

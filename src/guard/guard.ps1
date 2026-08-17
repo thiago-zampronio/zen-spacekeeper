@@ -70,6 +70,25 @@ if (-not $cacheDate) { $cacheDate = "an unknown date" }
 
 # The recorded target must still look like a Zen installation: restoring into an
 # arbitrary directory is how a stale path would turn into damage.
+#
+# But "not there right now" and "not there any more" are different things, and this
+# used to treat them the same. An update REPLACES the directory, so for a few
+# seconds it does not exist - and that is exactly when this fires. Observed on
+# Linux: four notifications telling the user to re-run the installer while the
+# update was still unpacking, which is both wrong and the worst possible moment to
+# be told anything.
+#
+# So a missing target is waited out before it is believed. An update takes seconds;
+# an uninstalled browser stays gone, and after the wait the message is right.
+if ($zen -and -not (Test-Path (Join-Path $zen "application.ini"))) {
+    $waited = 0
+    while ($waited -lt 30) {
+        Start-Sleep -Seconds 2
+        $waited += 2
+        if (Test-Path (Join-Path $zen "application.ini")) { break }
+    }
+}
+
 if (-not $zen -or -not (Test-Path (Join-Path $zen "application.ini"))) {
     Show-GuardNotification "Zen is not where it was installed. Re-run the Spacekeeper installer."
     exit 0

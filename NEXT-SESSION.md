@@ -14,10 +14,35 @@ work**. Nothing is waiting on a decision except the one question at the bottom.
 
 | Change | Left | Needs |
 | --- | --- | --- |
-| `add-cross-platform-install` | 7.6–7.9, 7.13, 7.14 | Linux |
+| `add-cross-platform-install` | 7.9 | a flatpak Zen |
 | `add-installer-restart` | 5.5, 5.6 | Windows (interactive), Linux |
-| `add-stale-version-detection` | 6.8 | macOS, Linux |
-| `update-as-a-banner` | 8.2–8.8 | any browser, mostly macOS tomorrow |
+| `add-stale-version-detection` | 6.8 | macOS |
+| `update-as-a-banner` | 8.2–8.8 | any browser, mostly macOS |
+
+## Linux is done, on WSL
+
+Ubuntu 26.04 under WSL turned out to be a better test bed than the Docker plan:
+systemd runs as PID 1, `/bin/sh` is `dash`, and WSLg renders windows onto the
+Windows desktop. Zen 1.21.14b installs from its own tarball into
+`~/.local/share/zen`, which needs no root, and the only missing library was
+`libasound2t64`.
+
+Everything in section 7 passed except the flatpak case, and the run found **nine
+real defects** — five of them impossible to see anywhere but Linux. They are
+written up in that change's `tasks.md`.
+
+Two limits worth knowing before repeating it: WSLg renders Zen in software
+(`[WARN:COPY MODE]` in the title) so the window paints blank, which makes it
+useless for judging appearance; and the taskbar shows a generic Linux icon because
+a tarball install registers no `.desktop` entry. Neither is a product problem.
+
+To bring the WSL side back up:
+
+```sh
+wsl -d Ubuntu
+curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh -s -- --guard
+~/.local/share/zen/zen --profile ~/.config/zen/*.default about:spacekeeper &
+```
 
 ## On the Mac
 

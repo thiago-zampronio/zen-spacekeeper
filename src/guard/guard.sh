@@ -74,6 +74,25 @@ CACHE_DATE=$(cat "$HERE/cache-date" 2>/dev/null || printf 'an unknown date')
 
 # The recorded target must still look like a Zen installation: restoring into an
 # arbitrary directory is how a stale path would turn into damage.
+#
+# But "not there right now" and "not there any more" are different things, and the
+# guard used to treat them the same. An update REPLACES the directory, so for a few
+# seconds it does not exist - and that is exactly when this fires. Concluding on the
+# first look produced four notifications telling the user to re-run the installer
+# while the update was still unpacking, which is both wrong and the worst possible
+# moment to be told anything.
+#
+# So a missing target is waited out before it is believed. An update takes seconds;
+# an uninstalled browser stays gone, and after the wait the message is right.
+if [ -n "$ZEN" ] && [ ! -f "$ZEN/application.ini" ]; then
+    waited=0
+    while [ "$waited" -lt 30 ]; do
+        sleep 2
+        waited=$((waited + 2))
+        [ -f "$ZEN/application.ini" ] && break
+    done
+fi
+
 if [ -z "$ZEN" ] || [ ! -f "$ZEN/application.ini" ]; then
     notify "Zen is not where it was installed. Re-run the Spacekeeper installer."
     exit 0

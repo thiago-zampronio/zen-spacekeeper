@@ -86,8 +86,8 @@ or Linux machine in the development environment.
 - [x] 7.3 macOS: the check option reports the truth before and after installing
 - [x] 7.4 macOS: uninstall removes the mod and keeps the loader
 - [x] 7.5 macOS: the detected profile is the one Zen actually opens
-- [ ] 7.6 Linux: fresh install works, and the mod loads after restarting Zen
-- [ ] 7.7 Linux: the panel opens at `about:spacekeeper`
+- [x] 7.6 Linux: fresh install works, and the mod loads after restarting Zen
+- [x] 7.7 Linux: the panel opens at `about:spacekeeper`
 - [x] 7.8 Linux: check and uninstall behave as on the other platforms
 - [ ] 7.9 Linux: a flatpak install either works or refuses with a clear reason
 - [x] 7.10 Windows: the aligned installer still installs, checks and uninstalls
@@ -97,7 +97,7 @@ or Linux machine in the development environment.
       notification; uninstall clean
 - [x] 7.13 Linux (moved from add-loader-guard): path-unit-triggered guard restore and
       notification; uninstall clean; non-systemd refusal message
-- [ ] 7.14 Any platform (moved from add-loader-guard): a real Zen update with the
+- [x] 7.14 Any platform (moved from add-loader-guard): a real Zen update with the
       guard installed - the scenario that motivated it
 
 The Linux run happened on WSL Ubuntu 26.04 — systemd as PID 1, `dash` as `/bin/sh`,
