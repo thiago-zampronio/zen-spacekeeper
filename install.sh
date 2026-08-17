@@ -430,14 +430,28 @@ guard_watcher_installed() {
     if [ "$OS" = macos ]; then
         [ -f "$AGENT_PLIST" ]
     else
-        [ -f "$UNIT_DIR/spacekeeper-guard.path" ]
+        # The unit file existing proves only that a write succeeded, and writing
+        # into ~/.config is never the step that fails. systemd accepting it is the
+        # question, so the answer comes from systemd.
+        [ -f "$UNIT_DIR/spacekeeper-guard.path" ] || return 1
+        command -v systemctl >/dev/null 2>&1 || return 1
+        case "$(systemctl --user is-enabled spacekeeper-guard.path 2>/dev/null)" in
+            enabled|enabled-runtime|static|indirect) return 0 ;;
+            *) return 1 ;;
+        esac
     fi
 }
 
 install_guard() {
+    # A missing watcher is not a failed install. This used to `die`, which aborted
+    # the whole run over an OPTIONAL extra: the mod itself installs and works
+    # perfectly on a system without systemd, and asking for a watcher that cannot
+    # exist should cost a warning, not the thing you actually came for. install.ps1
+    # already behaved this way; the two now agree.
     if [ "$OS" = linux ] && ! command -v systemctl >/dev/null 2>&1; then
-        die "The guard needs systemd on Linux (a user path unit is the watcher).
-Without it, re-run the installer after Zen updates, as before."
+        guard_unavailable "the guard needs systemd on Linux (a user path unit is
+the watcher), and this system has no systemctl."
+        return
     fi
 
     say "Guard: a watcher will be created to restore the loader after Zen updates."
@@ -512,7 +526,25 @@ UNIT
         systemctl --user enable --now spacekeeper-guard.path 2>/dev/null || true
         systemctl --user enable spacekeeper-guard.service 2>/dev/null || true
     fi
+
+    # Verified, never assumed. The Windows installer printed "[ok] guard installed"
+    # while the registration had failed with access denied, leaving the cache, the
+    # script, the success message - and nothing watching. That is the exact failure
+    # the guard exists to prevent, wearing a green check, and the same shape of bug
+    # lived here: every systemctl call above swallows its error.
+    if ! guard_watcher_installed; then
+        guard_unavailable "the watcher could not be registered."
+        return
+    fi
     ok "guard installed"
+}
+
+# The cache and the script are on disk either way, so the installer and the panel
+# can still restore by hand. What must not happen is claiming a watcher exists.
+guard_unavailable() {
+    warn "$1"
+    warn "The loader cache is in place, but nothing will restore it automatically."
+    warn "After a Zen update, run this installer again to put the loader back."
 }
 
 # ---------------------------------------------------------------------------

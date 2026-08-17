@@ -5,6 +5,21 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.52.2 — the guard, verified on Linux, and two more silent successes
+
+- The guard now works end to end on Linux: deleting the loader has it restored
+  **within a second** by a systemd path unit, with the restore recorded even where
+  no desktop notifier exists. Uninstalling leaves no unit, no directory and no
+  marker, and keeps the loader.
+- **Asking for the guard no longer aborts the install.** On a system without
+  systemd it used to stop everything — over an optional extra, when the mod itself
+  installs and works perfectly without a watcher. Now it says the watcher is
+  unavailable, tells you to re-run the installer after a Zen update, and finishes.
+- **And it no longer claims a watcher it does not have.** Every registration
+  command hid its errors, so the success line was printed either way; the check
+  that decides now asks systemd whether the unit is enabled, not whether a file
+  got written into your home directory.
+
 ## 0.52.1 — three Linux bugs, found by actually running it on Linux
 
 - **The installer looked for your profile in the wrong place.** Zen keeps profiles

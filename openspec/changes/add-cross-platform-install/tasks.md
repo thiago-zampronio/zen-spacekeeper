@@ -88,17 +88,46 @@ or Linux machine in the development environment.
 - [x] 7.5 macOS: the detected profile is the one Zen actually opens
 - [ ] 7.6 Linux: fresh install works, and the mod loads after restarting Zen
 - [ ] 7.7 Linux: the panel opens at `about:spacekeeper`
-- [ ] 7.8 Linux: check and uninstall behave as on the other platforms
+- [x] 7.8 Linux: check and uninstall behave as on the other platforms
 - [ ] 7.9 Linux: a flatpak install either works or refuses with a clear reason
 - [x] 7.10 Windows: the aligned installer still installs, checks and uninstalls
 - [x] 7.11 Any platform: failed detection prints a message that actually resolves the
       problem when followed
 - [x] 7.12 Windows (moved from add-loader-guard): logon-triggered guard restore and
       notification; uninstall clean
-- [ ] 7.13 Linux (moved from add-loader-guard): path-unit-triggered guard restore and
+- [x] 7.13 Linux (moved from add-loader-guard): path-unit-triggered guard restore and
       notification; uninstall clean; non-systemd refusal message
 - [ ] 7.14 Any platform (moved from add-loader-guard): a real Zen update with the
       guard installed - the scenario that motivated it
+
+The Linux run happened on WSL Ubuntu 26.04 — systemd as PID 1, `dash` as `/bin/sh`,
+and a real Zen 1.21.14b tarball under `~/.local/share/zen`. It surfaced five
+defects, all fixed, and not one of them would have appeared on macOS:
+
+- The profile was searched for in `~/.zen`, which a real Zen install never creates:
+  it uses `~/.config/zen`. The installer would have failed to find the profile on
+  every Linux machine and told the user to pass `--profile-dir`.
+- `ask_tty` asked whether `/dev/tty` opens, which is not whether anyone will
+  answer. Under `wsl -- bash -lc` a terminal exists and nobody types, so the
+  restart prompt blocked for 337 seconds before being killed. Cron and CI reach
+  the same state.
+- `warn` wrote to stderr while the headings wrote to stdout, so anything capturing
+  both interleaved them — a missing LOADER file appeared under the MOD's heading.
+- The elevation notice was printed before working out whether elevation was needed.
+  A per-user install under the home directory is writable, so it announced
+  "administrator rights" and then asked for nothing.
+- `--guard` on a system without systemd called `die`, aborting the whole install
+  over an optional extra. The mod works perfectly without a watcher.
+
+Verified after the fixes: `curl … | sh` from the published `main` installs from
+nothing (7.6 in part, and 7.8), the guard registers and systemd reports it
+`enabled`, deleting the loader has it restored **within one second** by the path
+unit with both events logged, a system without `systemctl` warns and keeps the
+install, and `--uninstall` leaves no unit, no directory and no marker while
+preserving the loader (7.13).
+
+Still open on Linux: 7.6's browser half and 7.7 need Zen running with a GUI, which
+needs the GTK libraries WSL does not ship by default.
 
 The Windows run of 7.11 and 7.12 surfaced four defects, all fixed rather than noted.
 
