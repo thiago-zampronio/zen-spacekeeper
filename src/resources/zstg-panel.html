@@ -414,29 +414,54 @@
       .rule input.name { width: 150px; flex: none; }
       .rule input.doms { flex: 1; }
 
-      /* The stale-version banner. A card like the sections, not a .warning strip:
-         .warning lives inside a card and reads as a note about one setting, while
-         this is about the whole page. Deliberately NOT dismissible — the condition
-         lasts until Zen restarts, and a warning that can be closed while the
-         problem remains teaches that it was decoration. */
-      #stale {
-        background: color-mix(in srgb, #ff9f0a 20%, var(--card));
-        border: 1px solid color-mix(in srgb, #ff9f0a 45%, transparent);
+      /* Banners. A card like the sections, not a .warning strip: .warning lives
+         inside a card and reads as a note about one setting, while these are about
+         the whole page. Deliberately NOT dismissible — each lasts exactly as long
+         as its condition, and one that can be closed while the condition remains
+         teaches that it was decoration.
+
+         One shape, two meanings, and the colour is what separates them: same
+         position and geometry so it is recognized, different hue so a fault is
+         never mistaken for an opportunity. The tint is mixed into --card, so both
+         follow the light and dark themes without a second rule. */
+      .banner {
         border-radius: var(--radius);
         margin-bottom: 24px;
         padding: 14px 18px;
         font-size: 13px;
         line-height: 1.55;
       }
-      #stale b { display: block; font-weight: 600; margin-bottom: 4px; }
-      .stale-actions {
+      .banner.fault {
+        background: color-mix(in srgb, #ff9f0a 20%, var(--card));
+        border: 1px solid color-mix(in srgb, #ff9f0a 45%, transparent);
+      }
+      .banner.update {
+        background: color-mix(in srgb, #3b82f6 16%, var(--card));
+        border: 1px solid color-mix(in srgb, #3b82f6 42%, transparent);
+      }
+      .banner b { display: block; font-weight: 600; margin-bottom: 4px; }
+      .banner-actions {
         display: flex;
         align-items: center;
         gap: 12px;
         flex-wrap: wrap;
         margin-top: 12px;
       }
-      .stale-note { color: var(--secondary); font-size: 12.5px; }
+      .banner-note { color: var(--secondary); font-size: 12.5px; }
+      /* Release notes: hidden until asked for, and scrolling rather than stretching
+         the page when someone is several releases behind. */
+      .banner-notes {
+        margin: 12px 0 0;
+        padding: 12px 14px;
+        max-height: 260px;
+        overflow: auto;
+        background: color-mix(in srgb, var(--card) 70%, transparent);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 12.5px;
+        white-space: pre-wrap;
+        -moz-user-select: text;
+      }
     </style>
   </head>
   <body>
@@ -444,10 +469,11 @@
       <h1>Spacekeeper <span class="version" id="version"></span></h1>
       <p class="sub" id="subtitle"></p>
 
-      <!-- Filled only when the running version differs from the installed one.
-           Above everything on purpose: it explains why the rest of the page may
-           not behave as its own documentation says. -->
-      <div id="stale" hidden></div>
+      <!-- One position for anything that has to be said before the settings are
+           read: a fault to fix, an update to take. Above everything on purpose —
+           these explain why the rest of the page may not behave as it describes,
+           or offer something the rest of the page cannot. -->
+      <div id="banners"></div>
 
       <section id="grouping"></section>
       <section id="subdomains"></section>
@@ -526,68 +552,6 @@
       }
       document.getElementById("subtitle").textContent = t("app.subtitle");
 
-      // ---- Running version versus installed version --------------------
-      // The script compares them at startup; the panel only reports. The read is
-      // asynchronous, so a panel opened early can arrive before the answer —
-      // hence the re-ask rather than trusting the first look.
-      {
-        const box = document.getElementById("stale");
-        const show = s => {
-          if (!s || s.state !== "mismatch") {
-            box.hidden = true;
-            return;
-          }
-          box.textContent = "";
-          box.append(
-            Object.assign(document.createElement("b"), { textContent: t("stale.title") }),
-            document.createTextNode(
-              t("stale.body", { running: s.running, installed: s.installed })
-            )
-          );
-
-          // The product knows how to restart with the cache cleared, so asking the
-          // user to walk through about:support is asking them to finish a chore it
-          // could finish itself. The manual steps stay as the fallback for when the
-          // browser does not expose the utility.
-          if (typeof ZSTG?.restartToApply === "function") {
-            const act = document.createElement("div");
-            act.className = "stale-actions";
-            const btn = document.createElement("button");
-            btn.className = "primary";
-            btn.textContent = t("stale.restart", { installed: s.installed });
-            btn.addEventListener("click", () => {
-              btn.disabled = true;
-              // false means nothing happened: fall back to the manual steps rather
-              // than leave a dead button and a user who thinks they acted.
-              if (ZSTG.restartToApply() === false) {
-                btn.remove();
-                box.append(document.createTextNode(" " + t("stale.manual")));
-              }
-            });
-            const note = document.createElement("span");
-            note.className = "stale-note";
-            note.textContent = t("stale.restartNote");
-            act.append(btn, note);
-            box.append(act);
-          }
-          else {
-            box.append(document.createTextNode(" " + t("stale.manual")));
-          }
-          box.hidden = false;
-        };
-
-        if (ZSTG) {
-          // The startup result is only a first paint: it was computed when the
-          // script had just been read from the file, so it almost always says
-          // "match". The window this exists for opens LATER — an install lands
-          // while the browser keeps running the code it already had — and in that
-          // window the startup answer is stale itself. Re-reading on every open is
-          // one file read, and it is the only way this page can be right.
-          show(ZSTG.staleness);
-          ZSTG.checkStaleness?.().then(show).catch(() => {});
-        }
-      }
-
       const el = (tag, attrs = {}, ...children) => {
         const e = document.createElement(tag);
         for (const [k, v] of Object.entries(attrs)) {
@@ -598,6 +562,133 @@
         for (const c of children) e.append(c);
         return e;
       };
+
+      // ---- Banners -----------------------------------------------------
+      //
+      // Two conditions want the same place at the top of the page: the running
+      // version differing from the installed one, and a newer release existing.
+      // They are rendered by ONE function so the precedence between them is a
+      // rule in one spot rather than two components racing to fill a box — and
+      // so a third condition does not become a third implementation.
+
+      const bannersBox = document.getElementById("banners");
+      let staleInfo = null;
+      let updateInfo = null;
+
+      /** A banner of `kind` ("fault" or "update"). Returns it; caller appends. */
+      function makeBanner(kind, title, body) {
+        const box = el("div", { class: `banner ${kind}` });
+        box.append(el("b", { text: title }), document.createTextNode(body));
+        box.actions = el("div", { class: "banner-actions" });
+        box.append(box.actions);
+        return box;
+      }
+
+      function staleBanner(s) {
+        const box = makeBanner(
+          "fault",
+          t("stale.title"),
+          t("stale.body", { running: s.running, installed: s.installed })
+        );
+        // The product knows how to restart with the cache cleared, so asking the
+        // user to walk through about:support is asking them to finish a chore it
+        // could finish itself. The manual steps stay as the fallback for when the
+        // browser does not expose the utility.
+        if (typeof ZSTG?.restartToApply === "function") {
+          const btn = el("button", {
+            class: "primary",
+            text: t("stale.restart", { installed: s.installed }),
+          });
+          btn.addEventListener("click", () => {
+            btn.disabled = true;
+            // false means nothing happened: fall back to the manual steps rather
+            // than leave a dead button and a user who thinks they acted.
+            if (ZSTG.restartToApply() === false) {
+              btn.remove();
+              box.append(document.createTextNode(" " + t("stale.manual")));
+            }
+          });
+          box.actions.append(btn, el("span", { class: "banner-note", text: t("stale.restartNote") }));
+        }
+        else {
+          box.actions.remove();
+          box.append(document.createTextNode(" " + t("stale.manual")));
+        }
+        return box;
+      }
+
+      function updateBanner(u) {
+        const box = makeBanner(
+          "update",
+          t("update.title", { version: u.version }),
+          t("update.bannerBody", { current: ZSTG.version, latest: u.version })
+        );
+
+        const btn = el("button", { class: "primary", text: t("update.apply") });
+        box.actions.append(btn);
+
+        // Notes are for the curious, never a consent step: hidden until asked
+        // for, and updating never requires opening them.
+        if (u.notes) {
+          const notes = el("pre", { class: "banner-notes", text: flattenNotes(u.notes) });
+          notes.hidden = true;
+          const toggle = el("button", { text: t("update.notesShow") });
+          toggle.addEventListener("click", () => {
+            notes.hidden = !notes.hidden;
+            toggle.textContent = notes.hidden ? t("update.notesShow") : t("update.notesHide");
+          });
+          box.actions.append(toggle);
+          box.append(notes);
+        }
+
+        const status = el("span", { class: "banner-note" });
+        box.actions.append(status);
+
+        btn.addEventListener("click", async () => {
+          if (!ZSTG?.applyUpdate) {
+            return;
+          }
+          btn.disabled = true;
+          status.textContent = t("update.applying");
+          try {
+            const r = await ZSTG.applyUpdate(u.tag);
+            btn.remove();
+            status.textContent = r.loaderChanged
+              ? t("update.doneLoaderChanged")
+              : t("update.done");
+            // The dialog is kept: this change declared it out of scope, and the
+            // two are not the same offer. It is immediate and modal, at the moment
+            // the user acted; the banner below is what remains if they answer
+            // "later" and come back tomorrow.
+            offerRestart(r.loaderChanged);
+            // Applying makes the running version differ from the installed one,
+            // which is exactly the fault banner's condition. Re-asking lets it
+            // take over with its restart button, instead of this banner growing a
+            // second, near-identical one.
+            ZSTG.checkStaleness?.().then(s => { staleInfo = s; renderBanners(); }).catch(() => {});
+          } catch (ex) {
+            // A failed update restarts nothing: the files were left untouched.
+            btn.disabled = false;
+            status.textContent = t("update.failed", { error: String(ex) });
+          }
+        });
+        return box;
+      }
+
+      function renderBanners() {
+        bannersBox.textContent = "";
+        // Precedence: a stale version is settled first. Both conditions end in a
+        // restart, and updating while the browser runs older code writes files
+        // that will not take effect either — two stacked warnings that both say
+        // "restart" is worse than one that says it once.
+        if (staleInfo && staleInfo.state === "mismatch") {
+          bannersBox.append(staleBanner(staleInfo));
+          return;
+        }
+        if (updateInfo) {
+          bannersBox.append(updateBanner(updateInfo));
+        }
+      }
 
       /** Section header, built from the catalog and given its own (i). */
       function heading(sectionId, key, help) {
@@ -1452,11 +1543,13 @@
       const sMaintenance = document.getElementById("maintenance");
       heading("maintenance", "sec.maintenance", t("maintenance.help"));
       const maintOutput = el("pre", { class: "maint-out", text: "—" });
-      let updateTag = null;
 
+      // Kept only while automatic checking is off. With it on, the check already
+      // ran when this page opened and the answer is in the banner; a button asking
+      // for it again would be a control that does nothing new. With it off, this
+      // is the only way to look — and removing it would turn a preference the user
+      // set into a dead end, which is not the same as respecting it.
       const btnCheck = el("button", { class: "accented", text: t("update.check") });
-      const btnUpdate = el("button", { class: "primary", text: t("update.apply") });
-      btnUpdate.hidden = true;
 
       // Real dialogs, not window.confirm: confirmEx gives the buttons their own
       // labels (the native OK/Cancel never said "Uninstall" or "Restart"), and a
@@ -1517,55 +1610,41 @@
       const flattenNotes = md =>
         md.replace(/^#+\s*/gm, "").replace(/\*\*/g, "").trim();
 
-      const runUpdateCheck = async () => {
+      /**
+       * `announce` false is the check nobody asked for — the one that runs when
+       * the panel opens. It fills the banner when there is news and says nothing
+       * at all otherwise, including when it fails: reporting a network error to
+       * someone who did not ask about the network is noise about a thing they
+       * were not doing.
+       */
+      const runUpdateCheck = async (announce = true) => {
         if (!ZSTG?.checkForUpdate) {
-          maintOutput.textContent = t("noWindow");
+          if (announce) { maintOutput.textContent = t("noWindow"); }
           return;
         }
-        maintOutput.textContent = t("update.checking");
+        if (announce) { maintOutput.textContent = t("update.checking"); }
         try {
           const r = await ZSTG.checkForUpdate();
           if (!r.version || !isNewer(r.version, ZSTG.version)) {
-            btnUpdate.hidden = true;
-            maintOutput.textContent = t("update.upToDate", { version: ZSTG.version });
+            updateInfo = null;
+            if (announce) {
+              maintOutput.textContent = t("update.upToDate", { version: ZSTG.version });
+            }
             // Being current retires the alert: a lingering pill next to an
-            // up-to-date message would be the panel disagreeing with itself.
+            // up-to-date panel would be the product disagreeing with itself.
             ZSTG.removeUpdatePill?.();
           } else {
-            updateTag = r.tag;
-            btnUpdate.hidden = false;
-            maintOutput.textContent = t("update.available", {
-              current: ZSTG.version,
-              latest: r.version,
-            });
-            if (r.notes) {
-              maintOutput.textContent +=
-                "\n\n" + t("update.notes") + "\n\n" + flattenNotes(r.notes);
-            }
+            updateInfo = { tag: r.tag, version: r.version, notes: r.notes };
+            if (announce) { maintOutput.textContent = "—"; }
           }
+          renderBanners();
         } catch (ex) {
-          maintOutput.textContent = t("update.failed", { error: String(ex) });
+          if (announce) {
+            maintOutput.textContent = t("update.failed", { error: String(ex) });
+          }
         }
       };
-      btnCheck.addEventListener("click", runUpdateCheck);
-
-      btnUpdate.addEventListener("click", async () => {
-        if (!updateTag || !ZSTG?.applyUpdate) {
-          return;
-        }
-        maintOutput.textContent = t("update.applying");
-        try {
-          const r = await ZSTG.applyUpdate(updateTag);
-          btnUpdate.hidden = true;
-          maintOutput.textContent = r.loaderChanged
-            ? t("update.doneLoaderChanged")
-            : t("update.done");
-          offerRestart(r.loaderChanged);
-        } catch (ex) {
-          // A failed update restarts nothing: the files were left untouched.
-          maintOutput.textContent = t("update.failed", { error: String(ex) });
-        }
-      });
+      btnCheck.addEventListener("click", () => runUpdateCheck(true));
 
       const btnUninstall = el("button", { class: "destructive", text: t("uninstall.button") });
       btnUninstall.addEventListener("click", async () => {
@@ -1615,22 +1694,43 @@
       });
 
       const disclosure = el("p", { class: "note", text: t("update.disclosure") });
-      // Uninstall gets a row of its own, under a divider: when the Update button
-      // appears after a check, it must never materialize NEXT TO the destructive
-      // button — adjacent targets that change is how misclicks happen.
+      const autoCheck = readBool("updateCheck", true);
+      sMaintenance.append(disclosure);
+      if (!autoCheck) {
+        sMaintenance.append(el("div", { class: "actions" }, btnCheck));
+      }
+      // Uninstall keeps a row of its own, under a divider: the destructive button
+      // must never share a row with something that appears and disappears —
+      // adjacent targets that change is how misclicks happen.
       sMaintenance.append(
-        disclosure,
-        el("div", { class: "actions" }, btnCheck, btnUpdate),
         maintOutput,
         el("div", { class: "actions danger" }, btnUninstall)
       );
 
-      // The update pill in the tab strip links here with #update: land with
-      // the check already performed — versions and the Update button on
-      // screen, one click from done.
+      // ---- What the banners report -------------------------------------
+      if (ZSTG) {
+        // The startup comparison is only a first paint: it ran when the script had
+        // just been read from the file it compares against, so it almost always
+        // says "match". The window this exists for opens LATER — an install lands
+        // while the browser keeps running the code it already had — and in that
+        // window the startup answer is stale itself.
+        staleInfo = ZSTG.staleness;
+        renderBanners();
+        ZSTG.checkStaleness?.()
+          .then(s => { staleInfo = s; renderBanners(); })
+          .catch(() => {});
+
+        // Under the same preference that governs the heartbeat: with checking off
+        // this page makes no request, exactly as it makes none today.
+        if (autoCheck) {
+          runUpdateCheck(false);
+        }
+      }
+
+      // The pill in the tab strip links here with #update. The check above already
+      // runs, so this only makes sure the banner is what the eye lands on.
       if (window.location.hash === "#update") {
-        sMaintenance.scrollIntoView({ block: "start" });
-        runUpdateCheck();
+        document.getElementById("banners").scrollIntoView({ block: "start" });
       }
 
       // Fields commit on `change`, which needs a blur. Closing the tab or quitting

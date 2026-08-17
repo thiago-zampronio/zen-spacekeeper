@@ -1,51 +1,51 @@
 ## 1. A banner shape both conditions share
 
-- [ ] 1.1 Extract the banner into one component taking a kind, a title, a body and
+- [x] 1.1 Extract the banner into one component taking a kind, a title, a body and
       actions, so a third condition does not mean a third implementation
-- [ ] 1.2 Give the update kind its own color, distinct from the fault kind, in both
+- [x] 1.2 Give the update kind its own color, distinct from the fault kind, in both
       the light and the dark theme
-- [ ] 1.3 Keep position and shape identical between kinds
+- [x] 1.3 Keep position and shape identical between kinds
 
 ## 2. The update banner
 
-- [ ] 2.1 Check when the panel opens, only when automatic checking is enabled
-- [ ] 2.2 Show the banner when a newer release exists, naming both versions
-- [ ] 2.3 Show nothing when there is no newer release
-- [ ] 2.4 The Update action performs today's update flow unchanged
-- [ ] 2.5 Landing from the pill shows the banner already filled in
-- [ ] 2.6 A failed check leaves no banner and does not report a fault to the user
+- [x] 2.1 Check when the panel opens, only when automatic checking is enabled
+- [x] 2.2 Show the banner when a newer release exists, naming both versions
+- [x] 2.3 Show nothing when there is no newer release
+- [x] 2.4 The Update action performs today's update flow unchanged
+- [x] 2.5 Landing from the pill shows the banner already filled in
+- [x] 2.6 A failed check leaves no banner and does not report a fault to the user
       who did not ask for a check
 
 ## 3. Release notes
 
-- [ ] 3.1 A control on the banner that expands the notes in place
-- [ ] 3.2 Notes for every release newer than the one in use, newest first
-- [ ] 3.3 Long notes scroll inside the banner instead of stretching the page
-- [ ] 3.4 The control is absent, or says so, when a release published no notes
-- [ ] 3.5 Updating never requires expanding them
+- [x] 3.1 A control on the banner that expands the notes in place
+- [x] 3.2 Notes for every release newer than the one in use, newest first
+- [x] 3.3 Long notes scroll inside the banner instead of stretching the page
+- [x] 3.4 The control is absent, or says so, when a release published no notes
+- [x] 3.5 Updating never requires expanding them
 
 ## 4. Precedence
 
-- [ ] 4.1 With a stale version, the update banner is not shown
-- [ ] 4.2 Once the versions agree, the update banner appears normally
+- [x] 4.1 With a stale version, the update banner is not shown
+- [x] 4.2 Once the versions agree, the update banner appears normally
 
 ## 5. The maintenance section
 
-- [ ] 5.1 Remove the update controls from maintenance
-- [ ] 5.2 Keep a manual check there only while automatic checking is off
-- [ ] 5.3 Uninstall stays as it is
-- [ ] 5.4 The output area no longer carries update text
+- [x] 5.1 Remove the update controls from maintenance
+- [x] 5.2 Keep a manual check there only while automatic checking is off
+- [x] 5.3 Uninstall stays as it is
+- [x] 5.4 The output area no longer carries update text
 
 ## 6. Texts
 
-- [ ] 6.1 New texts in English, Brazilian Portuguese and Spanish
-- [ ] 6.2 Retire the update texts that no longer have a place
-- [ ] 6.3 Catalog parity still passes
+- [x] 6.1 New texts in English, Brazilian Portuguese and Spanish
+- [x] 6.2 Retire the update texts that no longer have a place
+- [x] 6.3 Catalog parity still passes
 
 ## 7. Verification tooling and docs
 
-- [ ] 7.1 Anchors in `verify.ps1` for the new requirements
-- [ ] 7.2 `verify.ps1` still passes with the maintenance section reduced
+- [x] 7.1 Anchors in `verify.ps1` for the new requirements
+- [x] 7.2 `verify.ps1` still passes with the maintenance section reduced
 - [ ] 7.3 The manual describes the banner, the precedence, and the request on open
 - [ ] 7.4 The manual's disclosure of when the product uses the network is updated
 

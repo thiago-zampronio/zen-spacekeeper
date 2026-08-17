@@ -199,7 +199,11 @@ const en = {
   "update.apply": "Update",
   "update.checking": "Checking…",
   "update.upToDate": "You are on {version}, the latest release.",
-  "update.available": "Update available: {current} → {latest}.",
+  "update.title": "Version {version} is available",
+  "update.bannerBody":
+    "You are on {current}. Nothing is downloaded until you choose to update, and updating never touches your groups or settings.",
+  "update.notesShow": "Release notes",
+  "update.notesHide": "Hide notes",
   "update.applying": "Updating…",
   "update.done": "Updated. The new version takes effect when Zen restarts.",
   "update.doneLoaderChanged":
@@ -209,7 +213,6 @@ const en = {
     "Checking and updating contact the project's repository. Every few hours the mod also asks it whether a newer release exists — metadata only, never a download; a small alert appears by the tabs when there is one. Turn zen.stg.updateCheck off to silence that. Nothing else here ever touches the network.",
   "update.pill": "Update {version} available",
   "update.pillTip": "Open Spacekeeper to see what changed and update",
-  "update.notes": "What changed:",
   "update.dismiss": "Not now — hidden until the next restart",
   "uninstall.button": "Uninstall Spacekeeper",
   "uninstall.title": "Uninstall Spacekeeper?",
@@ -412,7 +415,11 @@ const pt = {
   "update.apply": "Atualizar",
   "update.checking": "Verificando…",
   "update.upToDate": "Você está na {version}, a versão mais recente.",
-  "update.available": "Atualização disponível: {current} → {latest}.",
+  "update.title": "A versão {version} está disponível",
+  "update.bannerBody":
+    "Você está na {current}. Nada é baixado até você escolher atualizar, e atualizar nunca mexe nos seus grupos ou ajustes.",
+  "update.notesShow": "Novidades da versão",
+  "update.notesHide": "Esconder novidades",
   "update.applying": "Atualizando…",
   "update.done": "Atualizado. A nova versão passa a valer quando o Zen reiniciar.",
   "update.doneLoaderChanged":
@@ -422,7 +429,6 @@ const pt = {
     "Verificar e atualizar consultam o repositório do projeto. De tempos em tempos o mod também pergunta se existe uma versão mais nova — só metadados, nunca um download; um pequeno aviso aparece junto às abas quando existe. Desligue zen.stg.updateCheck para silenciar isso. Nada mais aqui acessa a rede.",
   "update.pill": "Atualização {version} disponível",
   "update.pillTip": "Abra o Spacekeeper para ver o que mudou e atualizar",
-  "update.notes": "O que mudou:",
   "update.dismiss": "Agora não — escondido até o próximo restart",
   "uninstall.button": "Desinstalar o Spacekeeper",
   "uninstall.title": "Desinstalar o Spacekeeper?",
@@ -625,7 +631,11 @@ const es = {
   "update.apply": "Actualizar",
   "update.checking": "Verificando…",
   "update.upToDate": "Estás en la {version}, la versión más reciente.",
-  "update.available": "Actualización disponible: {current} → {latest}.",
+  "update.title": "La versión {version} está disponible",
+  "update.bannerBody":
+    "Estás en la {current}. No se descarga nada hasta que elijas actualizar, y actualizar nunca toca tus grupos ni tus ajustes.",
+  "update.notesShow": "Novedades de la versión",
+  "update.notesHide": "Ocultar novedades",
   "update.applying": "Actualizando…",
   "update.done": "Actualizado. La nueva versión se activa cuando Zen se reinicie.",
   "update.doneLoaderChanged":
@@ -635,7 +645,6 @@ const es = {
     "Verificar y actualizar consultan el repositorio del proyecto. De vez en cuando el mod también pregunta si existe una versión más nueva — solo metadatos, nunca una descarga; un pequeño aviso aparece junto a las pestañas cuando la hay. Desactiva zen.stg.updateCheck para silenciarlo. Nada más aquí accede a la red.",
   "update.pill": "Actualización {version} disponible",
   "update.pillTip": "Abre Spacekeeper para ver qué cambió y actualizar",
-  "update.notes": "Qué cambió:",
   "update.dismiss": "Ahora no — oculto hasta el próximo reinicio",
   "uninstall.button": "Desinstalar Spacekeeper",
   "uninstall.title": "¿Desinstalar Spacekeeper?",

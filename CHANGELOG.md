@@ -5,6 +5,25 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.51.0 — the update announces itself, like a problem would
+
+- The panel had two ways of saying "what you are running is not what you should be
+  running", and they looked nothing alike: a banner at the top for a fault, and a
+  Check button at the bottom reporting into a monospaced box for an update. The
+  update now gets the banner too, in blue — a fault is orange, an opportunity is
+  not.
+- It checks when the panel opens, so an update finds you instead of the other way
+  around. Same endpoint and same preference as the check that already ran on its
+  own; with update checking off, this page makes no request at all.
+- Release notes stopped being a text dump inside a diagnostic box. They sit behind
+  a **Release notes** button on the banner, expand where they are, and scroll when
+  you are several releases behind. Updating never requires opening them.
+- A stale version is settled first: when Zen is running older code than what is
+  installed, that banner shows and the update one waits. Both end in the same
+  restart, and two stacked warnings saying "restart" is worse than one.
+- Maintenance is down to uninstalling. The manual Check button stays only when
+  automatic checking is off — where it is the only way to look.
+
 ## 0.50.0 — the stale-version banner does the restart for you
 
 - The banner used to end with instructions: close Zen, go to about:support, clear
