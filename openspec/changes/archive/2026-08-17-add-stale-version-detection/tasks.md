@@ -67,4 +67,6 @@ exactly that.
 - [x] 6.6 `--check` stays quiet with Zen closed
 - [x] 6.7 The two "cannot reach the mod" messages are distinct texts, and neither is
       used for the other condition (checked by verify.ps1, not on screen — see below)
-- [ ] 6.8 Windows, macOS and Linux: the installer half behaves the same
+- [x] 6.8 Windows, macOS and Linux: the installer half behaves the same — owner
+      confirmed after running the installers across all three platforms
+      (Windows/Linux on 2026-08-16, macOS throughout)
