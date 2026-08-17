@@ -41,7 +41,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.55.0 ready — active Space …`.
+`[ZSTG] 0.56.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -348,7 +348,9 @@ switch with the Space before and after.
 
 It exists because the hardest moments to diagnose — session restore and group
 recognition — happen before any console is open. The file is truncated once it
-passes 1 MB, so leaving it on does not grow a file forever, and write failures show
+passes 1 MB, and entries older than a week are pruned at each startup, so leaving
+it on does not grow a file forever nor hoard stale history; the guard's own
+`guard.log` rotates past ~400 lines for the same reason. Write failures show
 up in the console instead of being swallowed.
 
 It ships **off**, and that is deliberate: every line records the site of the tab

@@ -20,6 +20,12 @@ AGENT_PLIST="$HOME/Library/LaunchAgents/org.spacekeeper.guard.plist"
 UNIT_DIR="$HOME/.config/systemd/user"
 
 log() {
+    # Rotated, not eternal: past ~400 lines the oldest half goes. A watcher's
+    # log on a machine nobody checks must never be the thing filling the disk.
+    if [ -f "$HERE/guard.log" ] && [ "$(wc -l < "$HERE/guard.log" 2>/dev/null || printf 0)" -gt 400 ]; then
+        tail -n 200 "$HERE/guard.log" > "$HERE/guard.log.tmp" 2>/dev/null \
+            && mv "$HERE/guard.log.tmp" "$HERE/guard.log" 2>/dev/null || :
+    fi
     printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >> "$HERE/guard.log" 2>/dev/null || :
 }
 

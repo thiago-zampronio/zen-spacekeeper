@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.55.0
+// @version        0.56.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.55.0";
+const VERSION = "0.56.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -106,6 +106,7 @@ const DEFAULTS = {
 // ---------------------------------------------------------------------------
 
 const LOG_MAX_BYTES = 1_000_000;
+const LOG_TTL_MS = 7 * 24 * 3600 * 1000;
 
 let logSequence = 0;
 let logPath;
@@ -133,6 +134,32 @@ function logPathFor() {
  * groups — happen before anyone opens the console.
  * Can be turned off with `zen.stg.debugLog`.
  */
+/*
+ * One prune per session: entries older than a week go. The size cap protects
+ * the machine from a runaway file; the TTL keeps it from holding months of
+ * stale history — a diagnostic log is about what happened recently.
+ */
+async function pruneDebugLog() {
+  try {
+    const path = logPathFor();
+    if (!path || !(await IOUtils.exists(path))) {
+      return;
+    }
+    const floor = Date.now() - LOG_TTL_MS;
+    const lines = (await IOUtils.readUTF8(path)).split("\n").filter(Boolean);
+    const kept = lines.filter(line => {
+      const t = /"t":"([^"]+)"/.exec(line)?.[1];
+      return t ? Date.parse(t) >= floor : false;
+    });
+    if (kept.length < lines.length) {
+      await IOUtils.writeUTF8(path, kept.join("\n") + (kept.length ? "\n" : ""));
+      dbg("logPruned", { entries: lines.length - kept.length, ttlDays: 7 });
+    }
+  } catch {
+    // pruning is hygiene; a failure must never cost the session its log
+  }
+}
+
 function dbg(event, data) {
   try {
     if (logUnavailable || !prefBool("debugLog")) {
@@ -2846,6 +2873,7 @@ async function start() {
   installSpaceScopedSwitch();
   registerPanel();
   applyMotionSpeed();
+  pruneDebugLog();
   // The idle sweep runs on its own cadence: 30s is far below any sensible idle
   // window, and the sweep is a Map scan — it exits in two reads when the idle
   // strategy is not the one running.

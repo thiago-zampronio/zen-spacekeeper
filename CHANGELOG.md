@@ -5,6 +5,15 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.56.0 — the alert lands you on the banner, and logs clean up after themselves
+
+- **Fixed:** clicking the update alert opened the panel scrolled below the
+  banner it was pointing at. It now lands with the banner at the top of the
+  view.
+- **Improved:** the diagnostic log keeps one week of history and never passes
+  1 MB; the guard's own log rotates too. Leaving diagnostics on can no longer
+  slowly fill a disk.
+
 ## 0.55.0 — nothing new, on purpose
 
 - Nothing user-visible changed in this one: it exists so the update flow

@@ -17,7 +17,12 @@ $profileDir = Split-Path -Parent $here
 $taskName = "Spacekeeper Guard"
 
 function Write-GuardLog($text) {
-    Add-Content -Path (Join-Path $here "guard.log") -Value ("{0:u} {1}" -f (Get-Date).ToUniversalTime(), $text)
+    $logFile = Join-Path $here "guard.log"
+    # Rotated, not eternal: past ~400 lines the oldest half goes.
+    if ((Test-Path $logFile) -and ((Get-Content $logFile).Count -gt 400)) {
+        Get-Content $logFile -Tail 200 | Set-Content $logFile
+    }
+    Add-Content -Path $logFile -Value ("{0:u} {1}" -f (Get-Date).ToUniversalTime(), $text)
 }
 
 function Show-GuardNotification($text) {

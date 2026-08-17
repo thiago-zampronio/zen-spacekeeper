@@ -1768,10 +1768,21 @@
         }
       }
 
-      // The pill in the tab strip links here with #update. The check above already
-      // runs, so this only makes sure the banner is what the eye lands on.
+      // The pill in the tab strip links here with #update. The check above
+      // already runs; the landing WAITS for the banner to exist — scrolling at
+      // load time aimed at an empty box, and as the banner rendered above, the
+      // view stayed anchored below it (the owner's report: the panel opened
+      // focused under the popup).
       if (window.location.hash === "#update") {
-        document.getElementById("banners").scrollIntoView({ block: "start" });
+        let landTries = 0;
+        const land = () => {
+          if (bannersBox.firstElementChild || landTries++ > 50) {
+            bannersBox.scrollIntoView({ block: "start" });
+          } else {
+            setTimeout(land, 100);
+          }
+        };
+        land();
       }
 
       // Fields commit on `change`, which needs a blur. Closing the tab or quitting
