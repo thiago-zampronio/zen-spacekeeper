@@ -46,8 +46,8 @@
 
 - [x] 7.1 Anchors in `verify.ps1` for the new requirements
 - [x] 7.2 `verify.ps1` still passes with the maintenance section reduced
-- [ ] 7.3 The manual describes the banner, the precedence, and the request on open
-- [ ] 7.4 The manual's disclosure of when the product uses the network is updated
+- [x] 7.3 The manual describes the banner, the precedence, and the request on open
+- [x] 7.4 The manual's disclosure of when the product uses the network is updated
 
 ## 8. Verification on a real machine
 

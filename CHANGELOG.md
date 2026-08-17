@@ -5,6 +5,16 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.51.1 — the manual catches up with the banner
+
+- Documentation only; nothing in the product changed.
+- The manual now has an Updating section: what the blue banner is, that the notes
+  expand in place, that nothing downloads until you click, and that the check on
+  panel open is the same disclosed request the heartbeat already makes — off with
+  the same preference.
+- It also explains the two banners sharing one position, why the orange one wins
+  when both apply, and that restarting alone does not apply an update.
+
 ## 0.51.0 — the update announces itself, like a problem would
 
 - The panel had two ways of saying "what you are running is not what you should be

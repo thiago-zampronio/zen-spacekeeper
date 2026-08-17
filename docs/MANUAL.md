@@ -39,7 +39,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.51.0 ready — active Space …`.
+`[ZSTG] 0.51.1 ready — active Space …`.
 
 ### When detection needs help
 
@@ -218,7 +218,7 @@ restarting.
 | `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
 | `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |
 | `zen.stg.motionSpeed` | int | `100` | speed of the motion presets, in percent (25-400); lower is slower, handy for comparing them |
-| `zen.stg.updateCheck` | bool | `true` | shortly after a window opens, and every few hours, checks GitHub for a newer release (metadata only) and shows the update pill over the sidebar |
+| `zen.stg.updateCheck` | bool | `true` | shortly after a window opens, every few hours, and when the panel is opened, checks GitHub for a newer release (metadata only), shows the update pill over the sidebar and fills the update banner. Off means no request at all |
 | `zen.stg.faviconColors` | bool | `true` | derives the group color from the site's favicon |
 | `zen.stg.spaceScopedTabSwitch` | bool | `true` | prevents "switch to tab" from taking you out of the current Space |
 | `zen.stg.systemGroup` | bool | `true` | `about:` and `chrome:` pages share one System group per Space |
@@ -393,6 +393,37 @@ Classification is by hue rather than by distance to fixed values: the native col
 resolve differently under the light and dark themes, so a fixed table would be right
 in one and wrong in the other, and a group would change color when you switched
 themes.
+
+## Updating
+
+Open `about:spacekeeper`. If a newer release exists, a blue banner is already at
+the top of the page naming the version you have and the one available, with
+**Release notes** — which expand in place, for every release newer than yours —
+and **Update**. Nothing is downloaded until you click Update, and updating never
+touches your groups or your settings.
+
+The check runs when the panel opens. That is one request to GitHub's release
+endpoint, metadata only, and it is the same request the browser already makes on
+its own a few seconds after a window opens and every few hours after that. Turning
+`zen.stg.updateCheck` off stops all of it: the heartbeat, the pill, and the check
+on open. With it off, the panel offers a manual **Check for updates** button
+instead — the only case where that button appears, because with checking on the
+answer is already on screen.
+
+The alert over the sidebar opens the panel with the banner already filled in.
+
+### Two banners, one place
+
+The same position also carries the fault banner, in orange: **Zen is running an
+older version than the one installed**. That happens when files are installed while
+Zen is open — the browser keeps running what it loaded at startup. Its button
+restarts with the startup cache cleared, which is what actually applies the new
+version; restarting alone is not enough.
+
+When both conditions hold, only the orange one is shown. Both end in a restart, and
+updating while the browser runs older code writes files that will not take effect
+either — so the restart comes first, and the update banner appears by itself
+afterwards. The alert over the sidebar is unaffected either way.
 
 ## What the script never touches
 
