@@ -5,6 +5,17 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.53.0 — installing is now a specified, three-platform capability
+
+- Cross-platform installation is finished and archived. Windows, macOS and Linux
+  are each verified on a real machine, and the specification now carries nine
+  requirements about installing that used to live only in a script.
+- A flatpak Zen is handled honestly: it refuses before writing anything, and says
+  why — the application files live in a read-only image, so the loader cannot go
+  in. Nothing is left half-installed.
+- Nothing changed in how tabs are grouped. This release is the installer and the
+  specification catching up with each other.
+
 ## 0.52.3 — the guard stops panicking mid-update
 
 - A Zen update replaces the whole application directory, so for a few seconds it

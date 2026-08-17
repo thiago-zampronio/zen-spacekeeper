@@ -14,10 +14,18 @@ work**. Nothing is waiting on a decision except the one question at the bottom.
 
 | Change | Left | Needs |
 | --- | --- | --- |
-| `add-cross-platform-install` | 7.9 | a flatpak Zen |
+| ~~`add-cross-platform-install`~~ | **archived** | — |
 | `add-installer-restart` | 5.5, 5.6 | Windows (interactive), Linux |
 | `add-stale-version-detection` | 6.8 | macOS |
 | `update-as-a-banner` | 8.2–8.8 | any browser, mostly macOS |
+
+`installation` is now a real capability in the living spec, with nine requirements
+verified on all three systems. Archiving it immediately caught a conflict worth
+knowing about: `add-installer-restart` modifies one of those requirements, and its
+delta had renamed a scenario the main spec now carries — so archive refused it. A
+MODIFIED block replaces the whole requirement, so every existing scenario name has
+to survive in it. Fixed by keeping the original name on the branch that is still
+the original behavior.
 
 ## Linux is done, on WSL
 

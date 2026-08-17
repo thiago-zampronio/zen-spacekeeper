@@ -89,7 +89,7 @@ or Linux machine in the development environment.
 - [x] 7.6 Linux: fresh install works, and the mod loads after restarting Zen
 - [x] 7.7 Linux: the panel opens at `about:spacekeeper`
 - [x] 7.8 Linux: check and uninstall behave as on the other platforms
-- [ ] 7.9 Linux: a flatpak install either works or refuses with a clear reason
+- [x] 7.9 Linux: a flatpak install either works or refuses with a clear reason
 - [x] 7.10 Windows: the aligned installer still installs, checks and uninstalls
 - [x] 7.11 Any platform: failed detection prints a message that actually resolves the
       problem when followed

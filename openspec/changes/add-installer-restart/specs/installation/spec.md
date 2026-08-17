@@ -107,7 +107,10 @@ performed those steps, in which case it SHALL state what was done instead.
 A stale startup cache makes a correct installation look like a failed one: the
 browser starts normally and the mod simply does not exist.
 
-#### Scenario: After a successful install without the restart
+#### Scenario: After a successful install
+
+The unqualified name is kept from the pre-restart spec on purpose: this branch IS
+the original behavior, and the restart is what added a second case beside it.
 
 - **GIVEN** the restart was declined, skipped or not completed
 - **WHEN** the installation finishes
