@@ -5,6 +5,12 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.55.0 — nothing new, on purpose
+
+- Nothing user-visible changed in this one: it exists so the update flow
+  shipped in the previous release could be proven on a real version gap. If
+  the alert brought you here, it is doing its job.
+
 ## 0.54.0 — focus mode respects each Space again
 
 - **Fixed:** entering a Space could collapse the groups you were just using
