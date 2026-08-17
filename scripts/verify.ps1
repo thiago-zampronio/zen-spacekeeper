@@ -546,6 +546,34 @@ else {
 }
 
 # ---------------------------------------------------------------------------
+Section "Distinct causes, distinct messages"
+
+# "Not connected to the browser window" once covered two unrelated conditions, and
+# the shared sentence is what sent a version-mismatch diagnosis after browsing
+# contexts for half an hour. Neither condition can be produced on demand, so this is
+# the check that keeps them apart - the screen cannot be the test here.
+if ((Test-Path $i18nPath) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    $uri = "file:///" + ($i18nPath -replace '\\', '/')
+    $code = @"
+import { LANGUAGES, CATALOG } from '$uri';
+const bad = [];
+for (const l of LANGUAGES) {
+  const a = CATALOG[l]['noWindow'];
+  const b = CATALOG[l]['notLoaded'];
+  if (!a || !b) bad.push(l + ': missing');
+  else if (a.trim() === b.trim()) bad.push(l + ': identical');
+}
+console.log(bad.length ? bad.join(' ; ') : 'ok');
+"@
+    $out = (node --input-type=module -e $code 2>&1 | Out-String).Trim()
+    Check ($out -eq "ok") "the two unreachable-mod messages are distinct in every language"
+    if ($out -ne "ok") { Write-Output "       $out" }
+}
+else {
+    $warnings += "text catalog or Node not found; skipping the distinct-message check"
+}
+
+# ---------------------------------------------------------------------------
 Section "Language of the source"
 
 # The project publishes its code and specification in English. A file that goes back

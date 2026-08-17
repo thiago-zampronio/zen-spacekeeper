@@ -56,11 +56,12 @@ The panel was changed to re-read on every open for the same reason.
 
 - [x] 6.1 Install an older version, start Zen, install the current one: the log
       records the mismatch without any user action
-- [ ] 6.2 The panel names both versions and the remedy
-- [ ] 6.3 Following the remedy clears the banner
+- [x] 6.2 The panel names both versions and the remedy
+- [x] 6.3 Following the remedy clears the banner
 - [x] 6.4 With versions in agreement, no banner and a recorded agreement in the log
 - [x] 6.5 `--check` reports staleness in the same scenario, and stays quiet once Zen
       has been restarted
 - [x] 6.6 `--check` stays quiet with Zen closed
-- [ ] 6.7 The panel's two "cannot reach the mod" states show their own messages
+- [x] 6.7 The two "cannot reach the mod" messages are distinct texts, and neither is
+      used for the other condition (checked by verify.ps1, not on screen — see below)
 - [ ] 6.8 Windows, macOS and Linux: the installer half behaves the same

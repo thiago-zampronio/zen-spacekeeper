@@ -11,10 +11,23 @@ case was a version mismatch, and the panel reported a browsing-context problem â
 which is a different subsystem, and the half hour spent on it went entirely into
 hypotheses the message had invited.
 
-#### Scenario: No browser window is reachable
+Both conditions are rare, and neither can be produced on demand: the address is
+registered once per process, while the mod is loaded once per window, so reaching
+the second state means one window loaded the mod and another did not. That happens
+when the mod fails in a single window â€” the address stays registered by the window
+where it succeeded. Private windows do **not** produce it; the mod loads there like
+anywhere else.
 
-- **WHEN** the panel cannot reach a browser window at all
-- **THEN** it states that it is not connected to a browser window
+Being unreproducible on demand is the reason the requirement is written as a
+contract about the message rather than about the screen: what must hold is that the
+two conditions never share one sentence.
+
+#### Scenario: The messages are distinct
+
+- **WHEN** the panel reports that it cannot reach the mod
+- **THEN** the message for an unreachable browser window and the message for a
+  window without the mod are different texts
+- **AND** neither is used for the other condition
 
 #### Scenario: The window is reachable but the mod is not loaded
 
@@ -23,6 +36,11 @@ hypotheses the message had invited.
 - **WHEN** the user opens the panel
 - **THEN** the panel states that the mod is not loaded in this window
 - **AND** the message SHALL NOT attribute it to the page's connection
+
+#### Scenario: No browser window is reachable
+
+- **WHEN** the panel cannot reach a browser window at all
+- **THEN** it states that it is not connected to a browser window
 
 ### Requirement: The panel remains usable while a mismatch is reported
 
