@@ -192,9 +192,15 @@ const en = {
 
   "a11y.moreDetails": "More details",
 
-  "sec.maintenance": "Updates and removal",
+  "sec.updates": "Updates",
+  "updates.title": "Look for new versions",
+  "updates.short": "A banner appears at the top of this page when one exists.",
+  "updates.help":
+    "Spacekeeper asks the project's repository whether a newer release exists — when this page opens, shortly after a window opens, and every few hours. It is metadata only, never a download: nothing is installed until you click Update, and a release you ignore stays ignored. Turn this off and none of it happens — no request, no banner, no alert beside the tabs — and a button appears here to look manually whenever you want. This is the only thing in the whole product that touches the network.",
+
+  "sec.maintenance": "Removal",
   "maintenance.help":
-    "Spacekeeper updates and removes itself from here — no installer needed. Checking and updating are the only actions in the whole product that contact the network: one request to the project's repository, only when you click, never on their own.",
+    "Spacekeeper removes itself from here, with no installer needed. Your preferences are kept, so reinstalling finds your configuration where you left it.",
   "update.check": "Check for updates",
   "update.apply": "Update",
   "update.checking": "Checking…",
@@ -209,8 +215,6 @@ const en = {
   "update.doneLoaderChanged":
     "Updated. This release also changed the loader, which the panel cannot update by itself — run the installer once to finish.",
   "update.failed": "It did not work: {error}. Nothing was changed.",
-  "update.disclosure":
-    "Checking and updating contact the project's repository. Every few hours the mod also asks it whether a newer release exists — metadata only, never a download; a small alert appears by the tabs when there is one. Turn zen.stg.updateCheck off to silence that. Nothing else here ever touches the network.",
   "update.pill": "Update {version} available",
   "update.pillTip": "Open Spacekeeper to see what changed and update",
   "update.dismiss": "Not now — hidden until the next restart",
@@ -408,9 +412,15 @@ const pt = {
 
   "a11y.moreDetails": "Mais detalhes",
 
-  "sec.maintenance": "Atualização e remoção",
+  "sec.updates": "Atualizações",
+  "updates.title": "Procurar versões novas",
+  "updates.short": "Um aviso aparece no topo desta página quando existir uma.",
+  "updates.help":
+    "O Spacekeeper pergunta ao repositório do projeto se existe uma versão mais nova — quando esta página abre, pouco depois de uma janela abrir, e a cada algumas horas. É só metadado, nunca um download: nada é instalado até você clicar em Atualizar, e uma versão que você ignorar continua ignorada. Desligue e nada disso acontece — sem consulta, sem aviso, sem o alerta ao lado das abas — e aparece aqui um botão para procurar na mão quando quiser. Isto é a única coisa no produto inteiro que acessa a rede.",
+
+  "sec.maintenance": "Remoção",
   "maintenance.help":
-    "O Spacekeeper se atualiza e se remove por aqui — sem precisar do instalador. Verificar e atualizar são as únicas ações do produto inteiro que acessam a rede: uma consulta ao repositório do projeto, só quando você clica, nunca sozinhas.",
+    "O Spacekeeper se remove por aqui, sem precisar do instalador. Suas preferências são mantidas, então reinstalar encontra sua configuração onde você deixou.",
   "update.check": "Verificar atualização",
   "update.apply": "Atualizar",
   "update.checking": "Verificando…",
@@ -425,8 +435,6 @@ const pt = {
   "update.doneLoaderChanged":
     "Atualizado. Esta versão também mudou o loader, que o painel não consegue atualizar sozinho — rode o instalador uma vez para concluir.",
   "update.failed": "Não deu certo: {error}. Nada foi alterado.",
-  "update.disclosure":
-    "Verificar e atualizar consultam o repositório do projeto. De tempos em tempos o mod também pergunta se existe uma versão mais nova — só metadados, nunca um download; um pequeno aviso aparece junto às abas quando existe. Desligue zen.stg.updateCheck para silenciar isso. Nada mais aqui acessa a rede.",
   "update.pill": "Atualização {version} disponível",
   "update.pillTip": "Abra o Spacekeeper para ver o que mudou e atualizar",
   "update.dismiss": "Agora não — escondido até o próximo restart",
@@ -624,9 +632,15 @@ const es = {
 
   "a11y.moreDetails": "Más detalles",
 
-  "sec.maintenance": "Actualización y eliminación",
+  "sec.updates": "Actualizaciones",
+  "updates.title": "Buscar versiones nuevas",
+  "updates.short": "Aparece un aviso arriba en esta página cuando exista una.",
+  "updates.help":
+    "Spacekeeper le pregunta al repositorio del proyecto si existe una versión más nueva — al abrir esta página, poco después de abrir una ventana, y cada pocas horas. Son solo metadatos, nunca una descarga: no se instala nada hasta que pulses Actualizar, y una versión que ignores sigue ignorada. Desactívalo y nada de eso ocurre — sin consulta, sin aviso, sin la alerta junto a las pestañas — y aquí aparece un botón para buscar a mano cuando quieras. Esto es lo único en todo el producto que accede a la red.",
+
+  "sec.maintenance": "Eliminación",
   "maintenance.help":
-    "Spacekeeper se actualiza y se elimina desde aquí, sin necesidad del instalador. Verificar y actualizar son las únicas acciones de todo el producto que acceden a la red: una consulta al repositorio del proyecto, solo cuando haces clic, nunca por su cuenta.",
+    "Spacekeeper se elimina desde aquí, sin necesidad del instalador. Tus preferencias se conservan, así que reinstalar encuentra tu configuración donde la dejaste.",
   "update.check": "Buscar actualizaciones",
   "update.apply": "Actualizar",
   "update.checking": "Verificando…",
@@ -641,8 +655,6 @@ const es = {
   "update.doneLoaderChanged":
     "Actualizado. Esta versión también cambió el loader, que el panel no puede actualizar por sí solo — ejecuta el instalador una vez para terminar.",
   "update.failed": "No funcionó: {error}. Nada fue modificado.",
-  "update.disclosure":
-    "Verificar y actualizar consultan el repositorio del proyecto. De vez en cuando el mod también pregunta si existe una versión más nueva — solo metadatos, nunca una descarga; un pequeño aviso aparece junto a las pestañas cuando la hay. Desactiva zen.stg.updateCheck para silenciarlo. Nada más aquí accede a la red.",
   "update.pill": "Actualización {version} disponible",
   "update.pillTip": "Abre Spacekeeper para ver qué cambió y actualizar",
   "update.dismiss": "Ahora no — oculto hasta el próximo reinicio",

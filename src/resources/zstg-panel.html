@@ -484,6 +484,7 @@
       <section id="focus"></section>
       <section id="actions"></section>
       <section id="diagnostics"></section>
+      <section id="updates"></section>
       <section id="maintenance"></section>
     </main>
 
@@ -660,7 +661,7 @@
             // two are not the same offer. It is immediate and modal, at the moment
             // the user acted; the banner below is what remains if they answer
             // "later" and come back tomorrow.
-            offerRestart(r.loaderChanged);
+            offerRestart(r.loaderChanged, msg => { status.textContent += " " + msg; });
             // Applying makes the running version differ from the installed one,
             // which is exactly the fault banner's condition. Re-asking lets it
             // take over with its restart button, instead of this banner growing a
@@ -1542,7 +1543,19 @@
       // the whole product that contacts the network, and only when clicked.
       const sMaintenance = document.getElementById("maintenance");
       heading("maintenance", "sec.maintenance", t("maintenance.help"));
-      const maintOutput = el("pre", { class: "maint-out", text: "—" });
+      // Both outputs start hidden and appear only when they have something to
+      // say. A permanently visible empty box reads as a layout bug, and this one
+      // sat under a section that no longer had any output to produce.
+      const say = (node, text) => {
+        node.textContent = text;
+        node.hidden = !text;
+      };
+      const maintOutput = el("pre", { class: "maint-out" });
+      maintOutput.hidden = true;
+      // The manual check lives in Updates now, so its answer belongs there too —
+      // writing it into the Removal section would answer in the wrong place.
+      const updateOutput = el("pre", { class: "maint-out" });
+      updateOutput.hidden = true;
 
       // Kept only while automatic checking is off. With it on, the check already
       // ran when this page opened and the answer is in the banner; a button asking
@@ -1566,7 +1579,11 @@
       // and an Enter in flight must not restart the browser. The loader reminder
       // rides in the dialog body because the output area under the buttons does
       // not survive the restart the dialog invites.
-      function offerRestart(loaderChanged) {
+      // `report` is where "you will have to restart yourself" is said. It used to
+      // be the maintenance output unconditionally; that box now starts hidden and
+      // the update lives in the banner, so an unconditional write would have put
+      // the message somewhere nobody can see it.
+      function offerRestart(loaderChanged, report) {
         const body =
           t("restart.body") + (loaderChanged ? "\n\n" + t("restart.loaderNote") : "");
         const ret = PR.confirmEx(
@@ -1580,14 +1597,10 @@
           null,
           { value: false }
         );
-        if (ret === 0) {
-          const restarted = ZSTG?.resetAndRestart?.();
-          if (!restarted) {
-            maintOutput.textContent += "\n" + t("reset.manual");
-          }
-        } else {
-          maintOutput.textContent += "\n" + t("reset.manual");
+        if (ret === 0 && ZSTG?.resetAndRestart?.()) {
+          return;
         }
+        report(t("reset.manual"));
       }
 
       // Numeric, per segment: the spec offers an update only when the release is
@@ -1619,28 +1632,28 @@
        */
       const runUpdateCheck = async (announce = true) => {
         if (!ZSTG?.checkForUpdate) {
-          if (announce) { maintOutput.textContent = t("noWindow"); }
+          if (announce) { say(updateOutput, t("noWindow")); }
           return;
         }
-        if (announce) { maintOutput.textContent = t("update.checking"); }
+        if (announce) { say(updateOutput, t("update.checking")); }
         try {
           const r = await ZSTG.checkForUpdate();
           if (!r.version || !isNewer(r.version, ZSTG.version)) {
             updateInfo = null;
             if (announce) {
-              maintOutput.textContent = t("update.upToDate", { version: ZSTG.version });
+              say(updateOutput, t("update.upToDate", { version: ZSTG.version }));
             }
             // Being current retires the alert: a lingering pill next to an
             // up-to-date panel would be the product disagreeing with itself.
             ZSTG.removeUpdatePill?.();
           } else {
             updateInfo = { tag: r.tag, version: r.version, notes: r.notes };
-            if (announce) { maintOutput.textContent = "—"; }
+            if (announce) { say(updateOutput, ""); }
           }
           renderBanners();
         } catch (ex) {
           if (announce) {
-            maintOutput.textContent = t("update.failed", { error: String(ex) });
+            say(updateOutput, t("update.failed", { error: String(ex) }));
           }
         }
       };
@@ -1649,7 +1662,7 @@
       const btnUninstall = el("button", { class: "destructive", text: t("uninstall.button") });
       btnUninstall.addEventListener("click", async () => {
         if (!ZSTG?.uninstallSelf) {
-          maintOutput.textContent = t("noWindow");
+          say(maintOutput, t("noWindow"));
           return;
         }
         // ONE dialog for both decisions: remove, and whether to restart now. The
@@ -1677,7 +1690,7 @@
         }
         try {
           await ZSTG.uninstallSelf();
-          maintOutput.textContent = t("uninstall.done");
+          say(maintOutput, t("uninstall.done"));
           if (check.value) {
             const restarted = ZSTG?.resetAndRestart?.();
             if (!restarted) {
@@ -1689,16 +1702,41 @@
         } catch (ex) {
           // A failed removal discards the checkbox answer: nothing was removed,
           // so there is nothing to finish with a restart.
-          maintOutput.textContent = t("uninstall.failed", { error: String(ex) });
+          say(maintOutput, t("uninstall.failed", { error: String(ex) }));
         }
       });
 
-      const disclosure = el("p", { class: "note", text: t("update.disclosure") });
+      // ---- Updates ------------------------------------------------------
+      // The preference had no row anywhere: it existed only in about:config,
+      // which contradicts the panel being a view over the preferences. It gets
+      // one here, and the network disclosure becomes its help — the promise now
+      // sits on the setting it describes instead of floating in a section that
+      // no longer does any updating.
+      const sUpdates = document.getElementById("updates");
+      heading("updates", "sec.updates");
       const autoCheck = readBool("updateCheck", true);
-      sMaintenance.append(disclosure);
-      if (!autoCheck) {
-        sMaintenance.append(el("div", { class: "actions" }, btnCheck));
-      }
+
+      const manualRow = el("div", { class: "actions" }, btnCheck);
+      manualRow.hidden = autoCheck;
+
+      sUpdates.append(
+        row(
+          t("updates.title"),
+          t("updates.short"),
+          toggle("updateCheck", on => {
+            // The manual button is the answer to "then how do I look?", so it
+            // appears the moment automatic looking is switched off — waiting for
+            // a reload would leave the question unanswered on screen.
+            manualRow.hidden = on;
+          }),
+          null,
+          t("updates.help")
+        ),
+        manualRow,
+        updateOutput
+      );
+
+      // ---- Removal ------------------------------------------------------
       // Uninstall keeps a row of its own, under a divider: the destructive button
       // must never share a row with something that appears and disappears —
       // adjacent targets that change is how misclicks happen.

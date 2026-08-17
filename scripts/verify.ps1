@@ -203,7 +203,7 @@ $anchors = [ordered]@{
     "control-panel/one banner shape"               = 'function makeBanner'
     "control-panel/banner precedence"              = 'function renderBanners'
     "control-panel/notes on request"               = 'update\.notesShow'
-    "control-panel/manual check when auto is off"  = 'if \(!autoCheck\)'
+    "control-panel/manual check when auto is off"  = 'manualRow\.hidden = autoCheck'
     "self-update/check on panel open"              = 'runUpdateCheck\(false\)'
     "diagnostics/restart offered from the report"  = 'function restartToApply'
     "diagnostics/restart is not destructive"       = 'Deliberately NOT resetAndRestart'

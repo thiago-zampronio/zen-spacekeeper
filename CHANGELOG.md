@@ -5,6 +5,21 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.52.0 — the section that lost its updates got its shape back
+
+- "Updates and removal" kept its name and its network paragraph after the updates
+  moved to the banner, leaving a heading about something that no longer happened,
+  a promise floating with nothing to attach to, and an empty black box under both.
+  It reads as a layout bug because it was one.
+- Updates now have a section of their own, with the preference that governs them —
+  which until now existed only in about:config, though the panel is supposed to be
+  a view over the preferences. The network promise became its explanation, sitting
+  on the setting it describes.
+- Turning it off reveals the manual **Check for updates** button right there, and
+  its answer appears in that section instead of in the removal one.
+- Removal is now just that: a heading, a sentence, and the button. Both output
+  boxes stay hidden until they have something to say.
+
 ## 0.51.1 — the manual catches up with the banner
 
 - Documentation only; nothing in the product changed.
