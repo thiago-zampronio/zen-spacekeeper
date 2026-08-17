@@ -5,6 +5,13 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.57.0 — a stage for one last click
+
+- No behavior changes in here. The previous release fixed where the update
+  alert lands, and proving a landing needs something to land from — this
+  release is that something. Click the blue badge and you should arrive with
+  the banner right at the top.
+
 ## 0.56.0 — the alert lands you on the banner, and logs clean up after themselves
 
 - **Fixed:** clicking the update alert opened the panel scrolled below the
