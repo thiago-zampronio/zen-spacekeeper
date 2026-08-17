@@ -55,14 +55,13 @@ run because they close the browser: accept the restart prompt, decline it, and
 leave an unsaved-changes dialog open so the bounded wait expires. The non-
 interactive case is done.
 
-## The one open question
+## Settled: the two restarts stay different
 
-After a successful update, the panel's restart dialog calls `resetAndRestart`,
-which **dissolves every group** before restarting. That predates all of this work.
-`restartToApply` now exists and restarts with the cache cleared without touching
-anything — it is what the orange banner uses.
+Raised and decided. After a successful update the panel's dialog calls
+`resetAndRestart`, which dissolves every group; the stale banner calls
+`restartToApply`, which touches nothing. That asymmetry is intentional — a version
+change can alter the group marking and leave the old groups unrecognized, so an
+update rebuilds them, while applying code already sitting on disk has no reason to.
 
-So "Restart now" currently does two different things depending on which one you
-clicked. Unifying on the non-destructive one is a small change; the argument for
-leaving it is that a version change can alter the group marking, which the known
-limitations already mention. Not decided.
+Written into the source above `restartToApply` so the next person to notice it
+finds the answer instead of the question. Nothing to do here.

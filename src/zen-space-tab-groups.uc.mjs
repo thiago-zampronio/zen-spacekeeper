@@ -1975,6 +1975,12 @@ function ungroupAllOurs() {
  * right when handing the browser back on uninstall and wrong here — trading a stale
  * version for lost organization is a worse outcome than the problem being fixed.
  *
+ * The two are meant to stay different, confirmed by the owner when the asymmetry
+ * was raised: "Restart now" after an update dissolves the groups on purpose,
+ * because a version change can alter the group marking and leave the old ones
+ * unrecognized; "Restart now" from the stale banner only applies code that is
+ * already on disk, and has no reason to touch anything. Do not unify them.
+ *
  * Returns false when the utility is unavailable, and the panel falls back to the
  * manual steps. False always means nothing happened.
  */
