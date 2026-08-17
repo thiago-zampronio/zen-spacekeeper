@@ -34,11 +34,14 @@ if ($onWindows) {
 # Detection mirrors the installers: profiles.ini's install section first, then the
 # Default flag; the application directory from the platform's usual places.
 function Detect-ProfileDir {
-    $profileRoot = if ($onWindows) { Join-Path $env:APPDATA "zen" }
-        elseif ($IsMacOS) { Join-Path $HOME "Library/Application Support/zen" }
-        else { Join-Path $HOME ".zen" }
+    # Linux carries the same correction as install.sh: a real Zen tarball install
+    # creates ~/.config/zen/profiles.ini and no ~/.zen. Existence decides.
+    $roots = if ($onWindows) { @(Join-Path $env:APPDATA "zen") }
+        elseif ($IsMacOS) { @(Join-Path $HOME "Library/Application Support/zen") }
+        else { @((Join-Path $HOME ".config/zen"), (Join-Path $HOME ".zen")) }
+    $profileRoot = $roots | Where-Object { Test-Path (Join-Path $_ "profiles.ini") } | Select-Object -First 1
+    if (-not $profileRoot) { return $null }
     $ini = Join-Path $profileRoot "profiles.ini"
-    if (-not (Test-Path $ini)) { return $null }
     $sections = @{}
     $current = $null
     foreach ($line in (Get-Content $ini)) {

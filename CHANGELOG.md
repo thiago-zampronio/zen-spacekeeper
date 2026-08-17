@@ -5,6 +5,23 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.52.1 — three Linux bugs, found by actually running it on Linux
+
+- **The installer looked for your profile in the wrong place.** Zen keeps profiles
+  in `~/.config/zen` on Linux; this looked only in `~/.zen`, which a real Zen
+  install never creates. It now searches both, and the flatpak equivalents, and
+  picks whichever actually holds `profiles.ini`.
+- **The installer could hang forever.** It asked "is there a terminal?" by opening
+  `/dev/tty`, which succeeds in automation where nobody is going to type — so the
+  restart prompt waited for an answer that never came. It now asks whether stdout
+  is a terminal, which still lets `curl … | sh` prompt a real person.
+- **The report printed lines under the wrong heading.** Warnings went to stderr
+  while the headings went to stdout, so anything capturing both interleaved them —
+  a missing loader file was shown under the mod's section.
+- It also announced "needs administrator rights" before checking whether it did.
+  A per-user install under your home never needs them, and it asked for nothing
+  after saying so.
+
 ## 0.52.0 — the section that lost its updates got its shape back
 
 - "Updates and removal" kept its name and its network paragraph after the updates

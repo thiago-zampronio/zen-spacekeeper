@@ -54,7 +54,13 @@ UTILS="boot.sys.mjs chrome.manifest fs.sys.mjs module_loader.mjs uc_api.sys.mjs 
 
 say() { printf '%s\n' "$*"; }
 ok() { printf '  [ok] %s\n' "$*"; }
-warn() { printf '  [!!] %s\n' "$*" >&2; }
+# `warn` is report content, not error output, so it shares stdout with the lines it
+# belongs under. On stderr the two streams interleave the moment anything captures
+# them together, and a "MISSING" that lands beneath the wrong heading is worse than
+# useless in a diagnostic - it was observed printing a loader problem under the mod
+# section. install.ps1 never had this because Write-Host keeps one ordered stream.
+# `die` stays on stderr: that one really is an error, and it ends the run.
+warn() { printf '  [!!] %s\n' "$*"; }
 die() { printf '\n%s\n' "$*" >&2; exit 1; }
 
 usage() {
@@ -170,18 +176,31 @@ find_zen_dir() {
 profile_root() {
     if [ "$OS" = macos ]; then
         printf '%s' "$HOME/Library/Application Support/zen"
-    else
-        # A flatpak install keeps its own home; prefer it when the plain path is absent.
-        if [ -d "$HOME/.zen" ]; then
-            printf '%s' "$HOME/.zen"
-        elif [ -d "$HOME/.var/app/app.zen_browser.zen/.zen" ]; then
-            printf '%s' "$HOME/.var/app/app.zen_browser.zen/.zen"
-        elif [ -d "$HOME/.var/app/io.github.zen_browser.zen/.zen" ]; then
-            printf '%s' "$HOME/.var/app/io.github.zen_browser.zen/.zen"
-        else
-            printf '%s' "$HOME/.zen"
-        fi
+        return
     fi
+
+    # Linux. `~/.config/zen` is where Zen actually puts profiles - verified against
+    # a real 1.21.14b tarball install, which created `~/.config/zen/profiles.ini`
+    # and no `~/.zen` at all. `~/.zen` was this installer's only guess for months
+    # and it was wrong; it stays in the list because it costs nothing and other
+    # layouts may still use it, but it no longer comes first.
+    #
+    # Existence decides, never a fixed preference: a machine may carry more than
+    # one of these, and the one holding profiles.ini is the answer.
+    for d in \
+        "$HOME/.config/zen" \
+        "$HOME/.zen" \
+        "$HOME/.var/app/app.zen_browser.zen/.config/zen" \
+        "$HOME/.var/app/app.zen_browser.zen/.zen" \
+        "$HOME/.var/app/io.github.zen_browser.zen/.config/zen" \
+        "$HOME/.var/app/io.github.zen_browser.zen/.zen"
+    do
+        [ -f "$d/profiles.ini" ] && { printf '%s' "$d"; return; }
+    done
+
+    # Nothing found: name the conventional path so the failure message points
+    # somewhere real rather than at an empty string.
+    printf '%s' "$HOME/.config/zen"
 }
 
 # ---------------------------------------------------------------------------
@@ -319,10 +338,24 @@ startup_cache_dir() {
     fi
 }
 
-ask_tty() {
-    # Piped into sh, stdin is the script itself, so the prompt talks to the
-    # controlling terminal. No terminal means no one to ask: the caller skips.
+# Is there a human who will actually answer?
+#
+# `/dev/tty` opening is NOT that question, and answering the wrong one hung this
+# installer forever under `wsl -- bash -lc`: a controlling terminal existed, so the
+# prompt was printed and the read blocked on input nobody was going to type. Cron
+# and CI reach the same state.
+#
+# stdout being a terminal is the honest discriminator, and it keeps the case the
+# /dev/tty trick was written for: under `curl … | sh` a person's stdin is the
+# script, but their stdout is still their terminal. Automation captures stdout, so
+# it skips - which is the behavior it wanted anyway.
+someone_is_there() {
+    [ -t 1 ] || return 1
     ( : </dev/tty ) 2>/dev/null || return 1
+}
+
+ask_tty() {
+    someone_is_there || return 1
     printf '%s [y/N] ' "$1" >/dev/tty
     IFS= read -r answer </dev/tty || return 1
     case "$answer" in
@@ -686,17 +719,11 @@ EOF
 [ -f "$PROF/chrome/utils/boot.sys.mjs" ] || loader_present=0
 
 if [ "$loader_present" = 0 ]; then
-    say "The fx-autoconfig loader has to be written into the Zen application"
-    say "directory, which needs administrator rights:"
-    say ""
-    while IFS=: read -r _ dest; do
-        [ -n "$dest" ] || continue
-        say "  $ZEN/$dest"
-    done <<EOF
-$LOADER
-EOF
-    say ""
-
+    # Whether elevation is needed is decided BEFORE announcing it. Announcing
+    # first meant a per-user install - one under $HOME, which this installer
+    # explicitly supports - was told it needed administrator rights and then
+    # proceeded to ask for nothing. Claiming a permission you do not use teaches
+    # the user to disbelieve the next claim.
     SUDO=""
     if [ -w "$ZEN" ]; then
         : # writable as this user; no elevation needed
@@ -708,10 +735,25 @@ If this is a flatpak install, the application files are read-only and the loader
 cannot be installed this way."
     fi
 
+    say "The fx-autoconfig loader has to be written into the Zen application"
+    if [ -n "$SUDO" ]; then
+        say "directory, which needs administrator rights:"
+    else
+        say "directory:"
+    fi
+    say ""
+    while IFS=: read -r _ dest; do
+        [ -n "$dest" ] || continue
+        say "  $ZEN/$dest"
+    done <<EOF
+$LOADER
+EOF
+    say ""
+
     # The Windows installer confirms before elevating; with a cached sudo
     # credential this one would elevate with zero interaction. Same wording, same
     # default. No terminal to answer keeps today's behavior for piped runs.
-    if [ -n "$SUDO" ] && ( : </dev/tty ) 2>/dev/null; then
+    if [ -n "$SUDO" ] && someone_is_there; then
         printf 'Continue? [Y/n] ' >/dev/tty
         IFS= read -r answer </dev/tty || answer=""
         case "$answer" in
