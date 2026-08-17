@@ -14,6 +14,15 @@ behavior without touching the spec leaves the spec lying.
 Wording fixes, translations, tooling and installer plumbing do not need a proposal.
 Anything a user could notice as different behavior does.
 
+Two sync rules the cross-machine audit paid for: **deltas follow the
+implementation** — when testing or implementation diverges from what a change's
+delta specifies, edit the DELTA in the same commit (tasks.md alone is the diary,
+not the record; verify.ps1 also fails a MODIFIED/REMOVED delta whose requirement
+does not exist in the main spec). And **cross-capability ripples ship deltas
+too** — a change that falsifies a promise another capability makes (a
+disclosure, a "nothing else does X" claim) must carry a delta for that
+capability, or the main specs end up contradicting each other.
+
 **2. Everything in English.** Specification, proposals, code, identifiers, comments,
 commit messages, user-visible text. `verify.ps1` fails if a source file contains
 Portuguese accented characters, so this does not regress quietly.

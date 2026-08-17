@@ -5,6 +5,21 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.54.0 — focus mode respects each Space again
+
+- **Fixed:** entering a Space could collapse the groups you were just using
+  there — focus mode counted recent groups across all Spaces. Each Space now
+  keeps its own list, and closed groups no longer use up "Groups kept open"
+  slots.
+- **Fixed:** on laptops that sleep, the update alert could stay silent for
+  days. The check now also runs when your computer wakes.
+- **Fixed:** "Not now" on the update alert now silences every window until the
+  next restart, and turning the update check off removes a visible alert.
+- **Improved:** sturdier housekeeping — a tab whose grouping once failed is
+  retried, an interrupted update rolls itself back, and a color you pick while
+  a group is still loading is kept. The update banner and the manual now tell
+  the exact truth about restarts, checks and the guard's timing on Windows.
+
 ## 0.53.0 — installing is now a specified, three-platform capability
 
 - Cross-platform installation is finished and archived. Windows, macOS and Linux

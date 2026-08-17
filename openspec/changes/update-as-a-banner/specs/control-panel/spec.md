@@ -1,3 +1,32 @@
+## MODIFIED Requirements
+
+### Requirement: Update controls report honestly
+
+The system SHALL report the update check's outcome truthfully in the panel — up
+to date, update available, or the exact failure — and SHALL disclose, next to
+where updates are managed, the product's full network behavior: the click-driven
+check and download, and the automatic metadata-only check (shortly after a
+window opens, every few hours, and when the panel opens), including that the
+preference turns the automatic check off and that nothing else in the product
+touches the network.
+
+The maintenance buttons this requirement originally described were replaced by
+the banner flow; the honesty obligations survive the furniture. The old
+disclosure claimed update clicks were "the one action that contacts the
+network", which the automatic check made false — the disclosure now describes
+the network behavior the product actually has.
+
+#### Scenario: Outcomes are reported truthfully
+
+- **WHEN** a check ends — up to date, update found, or failed
+- **THEN** the panel states that outcome, and a failure names the error
+
+#### Scenario: The disclosure matches reality
+
+- **WHEN** the user reads the network disclosure in the update area
+- **THEN** it describes both the click-driven and the automatic checks
+- **AND** it names the preference that silences the automatic one
+
 ## ADDED Requirements
 
 ### Requirement: An available update is announced, not looked for

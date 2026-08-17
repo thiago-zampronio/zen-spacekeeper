@@ -5,9 +5,11 @@
 The system SHALL expose the version of the running script, and every place that
 reports a version SHALL report the same one.
 
-The system SHALL additionally compare, at startup, the version it is running against
-the version present in the installed file it was loaded from, and SHALL record the
-result of that comparison whether or not they differ.
+The system SHALL additionally compare the version it is running against the
+version present in the installed file it was loaded from — at startup, and again
+every time the panel opens (never on a timer: the person who would act on a
+mismatch is the one opening the panel) — and SHALL record the result of that
+comparison whether or not they differ.
 
 When something misbehaves, the version is the first thing needed, and a mod
 installed by copying files can easily be a different version from the one on disk.
@@ -35,18 +37,20 @@ still: every report agrees, and every report is about the wrong artifact.
 #### Scenario: Running code older than what is installed
 
 - **GIVEN** the installed files were replaced while the browser was running
-- **WHEN** the mod starts up
+- **WHEN** the comparison next runs — the panel opening triggers one
 - **THEN** it determines that the running version and the installed version differ
 - **AND** both versions are recorded
 
 #### Scenario: Versions agree
 
-- **WHEN** the mod starts up and the running and installed versions are the same
+- **WHEN** a comparison runs and the running and installed versions are the same
 - **THEN** that agreement is recorded
 - **AND** nothing is reported to the user
 
 The agreement is recorded too: a check that only leaves a trace when it fails cannot
 be distinguished from a check that never ran.
+
+## ADDED Requirements
 
 ### Requirement: A version mismatch is reported, not merely detected
 

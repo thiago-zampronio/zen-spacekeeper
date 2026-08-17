@@ -23,9 +23,11 @@ Prefer to keep it minimal? Drop the flags — `irm … | iex` on Windows,
 `curl … | sh` elsewhere — and you get the plain install, restart questions asked
 instead of assumed, no watcher created.
 
-You will be asked for administrator rights once — the fx-autoconfig loader has to
-be written into Zen's application directory. Everything else goes into your
-profile and needs no privilege.
+You may be asked for administrator rights once — only when Zen's application
+directory is not writable by your user (typical on Linux system installs; a
+per-user macOS install usually needs no prompt, and an already-present loader
+skips the step entirely). Everything else goes into your profile and needs no
+privilege.
 
 If you would rather read a script before running it, download it first:
 
@@ -39,7 +41,7 @@ cache** — without that, Zen ignores the freshly installed loader. Reopen it an
 to `about:spacekeeper`.
 
 To confirm it loaded, **Ctrl+Shift+J** (**Cmd+Shift+J** on macOS) shows
-`[ZSTG] 0.53.0 ready — active Space …`.
+`[ZSTG] 0.54.0 ready — active Space …`.
 
 ### When detection needs help
 
@@ -109,7 +111,7 @@ only the mod itself can answer the second.
 
 Uninstalling leaves the loader in place, because other mods may depend on it, and
 keeps your preferences so a reinstall finds your configuration. Updating and
-uninstalling are also one click inside `about:spacekeeper` (Updates and removal) —
+uninstalling are also one click inside `about:spacekeeper` (Updates / Removal) —
 no installer needed; both end offering a clean restart that dissolves the mod's
 groups and clears the startup cache for you.
 
@@ -141,8 +143,10 @@ at someone else's cache.
 ### The guard
 
 `--guard` / `-Guard` installs a small watcher — a LaunchAgent on macOS, a systemd
-user path unit on Linux, a Scheduled Task on Windows — that notices within seconds
-when a Zen update deletes the loader. Where the system allows a background write
+user path unit on Linux, a Scheduled Task on Windows — that notices when a Zen
+update deletes the loader: within seconds on macOS and Linux (directory
+watchers), at the next logon or the daily noon run on Windows (a scheduled
+task, nothing resident). Where the system allows a background write
 it restores the loader from a copy cached in your profile (byte-for-byte, no
 network); where it does not — macOS protects application bundles from background
 processes — it notifies you with the exact next step instead. It never asks for a
@@ -164,8 +168,9 @@ reporting a success that would never load.
 This has already been observed in practice: a staged update was applied on a
 restart and removed `config.js` and `defaults/pref/config-prefs.js`.
 
-**With the guard installed, this stops being your problem**: within seconds you
-get a notification — either "restored, it loads on the next start" or the exact
+**With the guard installed, this stops being your problem**: you get a
+notification — within seconds on macOS and Linux, at the next logon or daily
+run on Windows — either "restored, it loads on the next start" or the exact
 command to run. Without it, the symptom is the mod simply not loading, with no
 error — `about:spacekeeper` shows "invalid address", the context menu entry is
 gone, and the console has no `[ZSTG]` line. Diagnosis and fix are the same
@@ -218,7 +223,7 @@ restarting.
 | `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
 | `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |
 | `zen.stg.motionSpeed` | int | `100` | speed of the motion presets, in percent (25-400); lower is slower, handy for comparing them |
-| `zen.stg.updateCheck` | bool | `true` | shortly after a window opens, every few hours, and when the panel is opened, checks GitHub for a newer release (metadata only), shows the update pill over the sidebar and fills the update banner. Off means no request at all |
+| `zen.stg.updateCheck` | bool | `true` | asks GitHub for a newer release — shortly after a window opens, every few hours, when the computer wakes, and when the panel opens (metadata only) |
 | `zen.stg.faviconColors` | bool | `true` | derives the group color from the site's favicon |
 | `zen.stg.spaceScopedTabSwitch` | bool | `true` | prevents "switch to tab" from taking you out of the current Space |
 | `zen.stg.systemGroup` | bool | `true` | `about:` and `chrome:` pages share one System group per Space |
@@ -457,9 +462,10 @@ real tabs and must be checked by hand.
    domain: the chosen color should come back.
 10. **Collapse** — collapse a group and open another tab of the domain: it should
     stay collapsed.
-11. **Focus mode** — with `focusMode = true`, switch between tabs of different
-    groups; only the active tab's group stays expanded. Open a new tab (with no
-    group): nothing may collapse.
+11. **Focus mode** — with `focusMode = true` and `focusKeep = 1`, switch between
+    tabs of different groups; only the active tab's group stays expanded (at the
+    default `focusKeep = 3`, the three most recent stay open). Open a new tab
+    (with no group): nothing may collapse.
 12. **Master switch** — with `enabled = false`, opening tabs does not group, the
     existing groups remain and `ZSTG.regroup()` keeps working.
 

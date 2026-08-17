@@ -207,7 +207,7 @@ const en = {
   "update.upToDate": "You are on {version}, the latest release.",
   "update.title": "Version {version} is available",
   "update.bannerBody":
-    "You are on {current}. Nothing is downloaded until you choose to update, and updating never touches your groups or settings.",
+    "You are on {current}. Nothing is downloaded until you choose to update. Your settings are kept; the restart offered after updating regroups your tabs fresh, so group renames and manual order are rebuilt.",
   "update.notesShow": "Release notes",
   "update.notesHide": "Hide notes",
   "update.applying": "Updating…",
@@ -427,7 +427,7 @@ const pt = {
   "update.upToDate": "Você está na {version}, a versão mais recente.",
   "update.title": "A versão {version} está disponível",
   "update.bannerBody":
-    "Você está na {current}. Nada é baixado até você escolher atualizar, e atualizar nunca mexe nos seus grupos ou ajustes.",
+    "Você está na {current}. Nada é baixado até você escolher atualizar. Seus ajustes são mantidos; o restart oferecido após atualizar reagrupa suas abas do zero, então renomes e ordem manual são reconstruídos.",
   "update.notesShow": "Novidades da versão",
   "update.notesHide": "Esconder novidades",
   "update.applying": "Atualizando…",
@@ -647,7 +647,7 @@ const es = {
   "update.upToDate": "Estás en la {version}, la versión más reciente.",
   "update.title": "La versión {version} está disponible",
   "update.bannerBody":
-    "Estás en la {current}. No se descarga nada hasta que elijas actualizar, y actualizar nunca toca tus grupos ni tus ajustes.",
+    "Estás en la {current}. No se descarga nada hasta que elijas actualizar. Tus ajustes se conservan; el reinicio ofrecido tras actualizar reagrupa tus pestañas desde cero, así que renombres y orden manual se reconstruyen.",
   "update.notesShow": "Novedades de la versión",
   "update.notesHide": "Ocultar novedades",
   "update.applying": "Actualizando…",

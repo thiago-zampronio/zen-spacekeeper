@@ -123,6 +123,47 @@ else {
 }
 
 # ---------------------------------------------------------------------------
+Section "Open changes merge truthfully"
+
+# The cross-machine audit found deltas that could not merge: a MODIFIED (or
+# REMOVED) requirement in an open change must exist, by exact name, in the main
+# spec it claims to change — otherwise the archive step silently merges nothing.
+$openDeltas = Get-ChildItem (Join-Path $root "openspec/changes") -Recurse -Filter "spec.md" -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch "archive" -and (Split-Path (Split-Path $_.FullName -Parent) -Parent | Split-Path -Leaf) -eq "specs" }
+$deltaChecks = 0
+foreach ($delta in $openDeltas) {
+    $cap = Split-Path (Split-Path $delta.FullName -Parent) -Leaf
+    $mainPath = Join-Path $root "openspec/specs/$cap/spec.md"
+    $mainText = if (Test-Path $mainPath) { Get-Content $mainPath -Raw } else { "" }
+    $deltaText = Get-Content $delta.FullName -Raw
+    foreach ($kind in @("MODIFIED", "REMOVED")) {
+        $m = [regex]::Match($deltaText, "## $kind Requirements([\s\S]*?)(?=?
+## |\z)")
+        if (-not $m.Success) { continue }
+        foreach ($req in [regex]::Matches($m.Groups[1].Value, "### Requirement: (.+)")) {
+            $name = $req.Groups[1].Value.Trim()
+            $deltaChecks++
+            Check ($mainText.Contains("### Requirement: $name")) "open delta ${cap}: $kind '$name' exists in the main spec"
+        }
+    }
+}
+if ($deltaChecks -eq 0) { Check $true "no open MODIFIED/REMOVED deltas to cross-check" }
+
+# Two release tags once pointed at a later release's commit: every local tag
+# must point at a commit whose script carries that tag's own version.
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    Push-Location $root
+    $badTags = @()
+    foreach ($tag in (git tag --list "v*")) {
+        $blob = (git cat-file -p "${tag}:src/zen-space-tab-groups.uc.mjs" 2>$null) -join "`n"
+        $tv = [regex]::Match($blob, 'const VERSION = "([^"]+)"').Groups[1].Value
+        if ($tv -and ($tv -ne $tag.TrimStart("v"))) { $badTags += "$tag->$tv" }
+    }
+    Check ($badTags.Count -eq 0) ("every local tag's commit carries its own version" + $(if ($badTags) { " (" + ($badTags -join ", ") + ")" }))
+    Pop-Location
+}
+
+# ---------------------------------------------------------------------------
 Section "Requirements with an implementation"
 
 # Every requirement in the spec needs an identifiable anchor in the code. The anchor

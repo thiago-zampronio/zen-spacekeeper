@@ -123,6 +123,17 @@ export function colorName(h) {
  * keys never change case, so no stored identity moves. User renames are
  * handled by the caller and never pass through here.
  */
+/*
+ * Process-wide runtime state. This module is imported without a cache-buster,
+ * so the browser instantiates it ONCE per process and every window shares this
+ * object — the one place a session-wide fact (like "the user said not now")
+ * can live, since the chrome script itself runs once per window.
+ */
+export const runtimeState = {
+  updateDismissed: false,
+  lastAutoCheck: 0,
+};
+
 export function capLabel(s) {
   if (!s) {
     return s;

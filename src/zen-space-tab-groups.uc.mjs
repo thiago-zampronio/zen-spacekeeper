@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.53.0
+// @version        0.54.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.ps1. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.53.0";
+const VERSION = "0.54.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -75,10 +75,11 @@ const DEFAULTS = {
   // is slower. Exists as a magnifying glass — at 25% the character of each
   // preset is legible enough to judge — and as taste once judged.
   motionSpeed: 100,
-  // Once per session, shortly after startup, ask GitHub whether a newer
-  // release exists — metadata only, never a download — and show a quiet pill
-  // at the end of the tab strip when there is one. The second, disclosed
-  // exception to the no-network rule; off turns it into zero requests.
+  // Shortly after a window opens, every few hours after that, and when the
+  // panel opens, ask GitHub whether a newer release exists — metadata only,
+  // never a download — and show the floating update badge over the sidebar
+  // when there is one. The second, disclosed exception to the no-network
+  // rule; off turns it into zero requests.
   updateCheck: true,
   spaceScopedTabSwitch: true,
   // Internal pages (about:, chrome:) share one System group per Space.
@@ -606,9 +607,17 @@ function applyFaviconColor(group, tab, key) {
   if (!cfg().faviconColors || cfg().colors[key]) {
     return;
   }
+  const colorAtStart = group.color;
   colorFromFavicon(tab)
     .then(color => {
       if (!color || !group.isConnected || cfg().colors[key]) {
+        return;
+      }
+      // A color the user picked by hand while the favicon was decoding wins:
+      // the persisted map lags (recordManualColor runs on the NEXT organize),
+      // so the live group color is the only witness of that fresh pick.
+      if (group.color && group.color !== colorAtStart) {
+        recordManualColor(group);
         return;
       }
       const c = cfg();
@@ -728,10 +737,9 @@ function organize(tab, force = false) {
     recordManualColor(target);
     // A label equal to the derived one modulo case is our old lowercase label;
     // anything else is the user's rename and is never touched.
-    if (
-      target.label !== info.label &&
-      target.label?.toLowerCase() === info.label.toLowerCase()
-    ) {
+    // Only the EXACT old all-lowercase derived label is recased: a rename that
+    // merely differs in case ("YOUTUBE") is still the user's rename and stays.
+    if (target.label === info.label.toLowerCase() && target.label !== info.label) {
       target.label = info.label;
     }
     if (current === target) {
@@ -1228,8 +1236,14 @@ function updateHiddenCounts() {
 // Focus mode
 // ---------------------------------------------------------------------------
 
-/** Groups by recent use, most recent first. Ids only, so we hold no nodes. */
-let recentGroups = [];
+/*
+ * Groups by recent use PER SPACE, most recent first. Ids only, so we hold no
+ * nodes. One global list was the audit's worst finding: entries from another
+ * Space crowded this Space's own recent groups out of the keep-set, so
+ * entering a Space collapsed the very groups it had just been using — the
+ * spec says "the N most recently used groups in the Space".
+ */
+const recentGroupsBySpace = new Map();
 
 // Pending focus-mode collapses, one cancellable timer per group id. The delay is
 // what keeps fast group-switching from shaking the sidebar: a group the user
@@ -1395,16 +1409,26 @@ function applyFocusMode() {
     return;
   }
 
-  recentGroups = [
+  const spaceId = spaceOfTab(activeTab);
+  // Dead ids are pruned on every pass: a closed group left in the list would
+  // occupy a focusKeep slot forever, quietly shrinking the promised N.
+  const liveIds = new Set(
+    [...window.gBrowser.tabGroups]
+      .filter(g => isOurGroup(g) && g.getAttribute(SPACE_ATTR) === spaceId)
+      .map(g => g.id)
+  );
+  const recent = [
     activeGroup.id,
-    ...recentGroups.filter(id => id !== activeGroup.id),
+    ...(recentGroupsBySpace.get(spaceId) ?? []).filter(
+      id => id !== activeGroup.id && liveIds.has(id)
+    ),
   ];
+  recentGroupsBySpace.set(spaceId, recent);
 
   // The N most recent stay open. With N = 1 the behavior is the old one; above
   // that, moving between recent groups no longer shifts the sidebar.
-  const keep = new Set(recentGroups.slice(0, cfg().focusKeep));
+  const keep = new Set(recent.slice(0, cfg().focusKeep));
 
-  const spaceId = spaceOfTab(activeTab);
   const delay = cfg().focusDelay;
   for (const g of window.gBrowser.tabGroups) {
     if (!isOurGroup(g) || g.getAttribute(SPACE_ATTR) !== spaceId) {
@@ -1431,7 +1455,9 @@ function applyFocusMode() {
             if (!cfg().focusMode) {
               return;
             }
-            const keepNow = new Set(recentGroups.slice(0, cfg().focusKeep));
+            const keepNow = new Set(
+              (recentGroupsBySpace.get(spaceId) ?? []).slice(0, cfg().focusKeep)
+            );
             if (keepNow.has(id)) {
               return;
             }
@@ -1699,7 +1725,7 @@ async function checkForUpdate(via = "panel") {
   // The list, not just the latest: someone three versions behind deserves the
   // notes of every release they missed, newest first — the from -> to line
   // alone hides two releases' worth of reasons to update.
-  const r = await window.fetch(`https://api.github.com/repos/${REPO}/releases?per_page=15`, {
+  const r = await window.fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`, {
     headers: { Accept: "application/vnd.github+json" },
   });
   if (!r.ok) {
@@ -1753,12 +1779,18 @@ function isNewerVersion(latest, current) {
  */
 const UPDATE_PILL_ID = "zstg-update-pill";
 
-// Dismissing the pill is a session-wide "not now": the alert goes away AND the
-// heartbeat stops asking, until the next restart brings a fresh session.
-let updatePillDismissed = false;
+/*
+ * Dismissing the pill is a session-wide "not now". The flag lives on the CORE
+ * module, which the browser caches once per process — a plain variable here
+ * would be per WINDOW (this script runs once per window), so other windows
+ * kept pilling and heartbeating after "Not now", against the spec.
+ */
+function updateDismissed() {
+  return core?.runtimeState?.updateDismissed === true;
+}
 
 function showUpdatePill(version) {
-  if (updatePillDismissed || window.document.getElementById(UPDATE_PILL_ID)) {
+  if (updateDismissed() || window.document.getElementById(UPDATE_PILL_ID)) {
     return;
   }
   const host = window.document.documentElement;
@@ -1779,8 +1811,13 @@ function showUpdatePill(version) {
   close.setAttribute("label", "\u2715");
   close.setAttribute("tooltiptext", t("update.dismiss"));
   close.addEventListener("command", () => {
-    updatePillDismissed = true;
-    removeUpdatePill();
+    if (core?.runtimeState) {
+      core.runtimeState.updateDismissed = true;
+    }
+    // Every window's pill goes, not just this one's: "not now" was said once.
+    for (const win of Services.wm.getEnumerator("navigator:browser")) {
+      win.document.getElementById(UPDATE_PILL_ID)?.remove();
+    }
     dbg("updatePillDismissed", { version });
   });
   pill.append(main, close);
@@ -1805,7 +1842,7 @@ function removeUpdatePill() {
 }
 
 async function backgroundUpdateCheck(via) {
-  if (!cfg().updateCheck || updatePillDismissed) {
+  if (!cfg().updateCheck || updateDismissed()) {
     return;
   }
   try {
@@ -1841,9 +1878,30 @@ async function fetchRaw(tag, path) {
  */
 async function applyUpdate(tag) {
   const staging = profilePath("spacekeeper-staging");
+  try {
   await IOUtils.makeDirectory(staging, { ignoreExisting: true });
+  // The file list comes from the RELEASE being installed, not from the list
+  // compiled into this (old) running version: a release that adds a file would
+  // otherwise install incomplete, and the missing chrome:// import would
+  // disable the mod on the next start. The running list is the floor — the
+  // release's list is used only when it covers at least as much.
+  let files = UPDATE_FILES;
+  try {
+    const newScript = await fetchRaw(tag, "src/zen-space-tab-groups.uc.mjs");
+    const block = newScript.match(/const UPDATE_FILES = \[([\s\S]*?)\n\];/);
+    if (block) {
+      const parsed = [...block[1].matchAll(/\[\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\]/g)].map(
+        m => [m[1], m[2]]
+      );
+      if (parsed.length >= UPDATE_FILES.length) {
+        files = parsed;
+      }
+    }
+  } catch (e) {
+    dbg("updateManifestFallback", { error: String(e) });
+  }
   const fetched = [];
-  for (const [src, dest] of UPDATE_FILES) {
+  for (const [src, dest] of files) {
     const text = await fetchRaw(tag, src);
     const stagePath = PathUtils.join(staging, dest.replace(/\//g, "_"));
     await IOUtils.writeUTF8(stagePath, text);
@@ -1869,10 +1927,30 @@ async function applyUpdate(tag) {
     }
   }
 
-  for (const [stagePath, dest] of fetched) {
-    await IOUtils.move(stagePath, profilePath(dest));
+  // The moves are the commit point. Each replaced file is backed up first and
+  // everything already moved is rolled back on a mid-loop failure: a profile
+  // holding two versions at once is the one outcome worse than a failed
+  // update, and "all-or-nothing" must hold through the moves, not only the
+  // fetches.
+  const done = [];
+  try {
+    for (const [stagePath, dest] of fetched) {
+      const target = profilePath(dest);
+      const backup = stagePath + ".prev";
+      try {
+        await IOUtils.copy(target, backup);
+      } catch {
+        // a file new in this release has nothing to back up
+      }
+      await IOUtils.move(stagePath, target);
+      done.push([backup, target]);
+    }
+  } catch (e) {
+    for (const [backup, target] of done.reverse()) {
+      await IOUtils.move(backup, target).catch(() => {});
+    }
+    throw e;
   }
-  await IOUtils.remove(staging, { recursive: true, ignoreAbsent: true });
 
   // A guard cache that matches the (unchanged) loader gets its date refreshed,
   // so the restore notification keeps naming a meaningful date.
@@ -1888,6 +1966,12 @@ async function applyUpdate(tag) {
   // The alert's job ends the moment the update is applied.
   removeUpdatePill();
   return { updated: fetched.length, loaderChanged };
+  } finally {
+    // The staging directory never outlives the attempt, success or failure.
+    await IOUtils.remove(staging, { recursive: true, ignoreAbsent: true }).catch(
+      () => {}
+    );
+  }
 }
 
 function runProcess(executable, args) {
@@ -2050,10 +2134,13 @@ const progressListener = {
     if (lastKey.get(tab) === next) {
       return;
     }
-    lastKey.set(tab, next);
     guarded(() => {
       organize(tab);
       settleLooseTabs(spaceOfTab(tab));
+      // Recorded only AFTER the work succeeded: committing the memo first
+      // meant a dropped or failed organize marked the key as handled, and the
+      // tab silently never grouped until an unrelated event.
+      lastKey.set(tab, next);
     });
   },
 };
@@ -2188,6 +2275,11 @@ const prefObserver = {
     // strategy would collapse on a rule the user just left.
     if (data === PREF_PREFIX + "focusMode" || data === PREF_PREFIX + "focusStrategy") {
       clearFocusTimers();
+    }
+    // Turning the check off retires a visible pill: an alert for a feature the
+    // user just disabled must not linger until restart.
+    if (data === PREF_PREFIX + "updateCheck" && !cfg().updateCheck) {
+      removeUpdatePill();
     }
     // The language is resolved once and memoized; changing it has to invalidate
     // that too, or the panel would save the choice and nothing would change.
@@ -2687,6 +2779,19 @@ async function whenReady() {
         }
       };
       Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+      // A window closed before its own startup notification would leak the
+      // observer (and the window it closes over) for the process lifetime.
+      window.addEventListener(
+        "unload",
+        () => {
+          try {
+            Services.obs.removeObserver(obs, "browser-delayed-startup-finished");
+          } catch {
+            // already removed by the normal path
+          }
+        },
+        { once: true }
+      );
     });
   }
   // Spaces are assembled after session restore
@@ -2707,10 +2812,12 @@ async function start() {
       () =>
         guarded(() => {
           reclaimGroups();
-          // Re-seeded each pass: session restore keeps attaching tabs after the
-          // early passes, and the first-activation set must not consider the
-          // current Space "done" before its tabs exist.
-          organizedSpaces.delete(currentSpace());
+          // Re-seeded each pass — for EVERY Space: session restore keeps
+          // attaching tabs after the early passes, and a Space visited briefly
+          // mid-restore must not stay marked "done" with its lazy tabs
+          // ungrouped for the whole session. Clearing all is safe: the set
+          // only gates the once-per-activation pass.
+          organizedSpaces.clear();
           organizeSpaceOnce(currentSpace());
         }),
       delay
@@ -2743,15 +2850,35 @@ async function start() {
   // window, and the sweep is a Map scan — it exits in two reads when the idle
   // strategy is not the one running.
   const idleSweepTimer = window.setInterval(() => guarded(sweepIdleGroups), 30000);
-  // First shot far from the startup path, then a slow heartbeat: a window
-  // that lives for days must still notice a release without a restart (field
-  // finding — the owner's windows outlive releases). Metadata only, and
-  // showUpdatePill dedupes, so repeats cost one request and nothing visual.
-  const updateCheckTimer = window.setTimeout(() => backgroundUpdateCheck("boot"), 45000);
+  // First shot far from the startup path, then a slow heartbeat. The interval
+  // alone proved insufficient in the field: on a laptop that sleeps every
+  // night and stays awake less than 4h at a stretch, the ticks all land
+  // during sleep and 21 hours passed without a single check. So the heartbeat
+  // is also driven by the system waking and the window regaining focus, with
+  // a process-wide floor (shared via the core module) of one automatic check
+  // per 4 hours across all windows. Metadata only; showUpdatePill dedupes.
+  const HEARTBEAT_MS = 4 * 3600000;
+  const maybeHeartbeat = via => {
+    const state = core?.runtimeState;
+    if (!state || Date.now() - state.lastAutoCheck < HEARTBEAT_MS) {
+      return;
+    }
+    state.lastAutoCheck = Date.now();
+    backgroundUpdateCheck(via);
+  };
+  const updateCheckTimer = window.setTimeout(() => {
+    if (core?.runtimeState) {
+      core.runtimeState.lastAutoCheck = Date.now();
+    }
+    backgroundUpdateCheck("boot");
+  }, 45000);
   const updateRecheckTimer = window.setInterval(
-    () => backgroundUpdateCheck("heartbeat"),
-    4 * 3600000
+    () => maybeHeartbeat("heartbeat"),
+    HEARTBEAT_MS
   );
+  const onWake = () => maybeHeartbeat("wake");
+  Services.obs.addObserver(onWake, "wake_notification");
+  window.addEventListener("activate", onWake);
   checkZenContract();
 
   window.addEventListener(
@@ -2771,8 +2898,15 @@ async function start() {
       uninstallSpaceScopedSwitch();
       clearFocusTimers();
       window.clearInterval(idleSweepTimer);
+      recentGroupsBySpace.clear();
       window.clearTimeout(updateCheckTimer);
       window.clearInterval(updateRecheckTimer);
+      try {
+        Services.obs.removeObserver(onWake, "wake_notification");
+      } catch {
+        // never registered or already gone
+      }
+      window.removeEventListener("activate", onWake);
       removeUpdatePill();
       groupLastTouch.clear();
       unregisterPanel();
@@ -2835,6 +2969,7 @@ if (core) {
     checkForUpdate,
     applyUpdate,
     removeUpdatePill,
+    isUpdateDismissed: () => updateDismissed(),
     uninstallSelf,
     resetAndRestart,
     reloadConfig: () => {

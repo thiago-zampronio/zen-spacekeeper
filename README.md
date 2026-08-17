@@ -65,10 +65,12 @@ read-it-first path and the fine print live in the
   split view and groups you made by hand are never touched.
 - **Private by design** — no telemetry, everything stays on your machine, and the
   only network traffic is update-shaped: the update you explicitly click, and a
-  once-per-session check for a newer release (metadata only, off with one pref).
+  quiet check for a newer release — shortly after a window opens, every few hours
+  while it lives, and when the panel opens (metadata only, off with one pref).
 - **Takes care of itself** — an optional guard restores the loader when a Zen
-  update deletes it (or tells you, within seconds); updates and uninstall are one
-  click inside the panel.
+  update deletes it (or tells you — within seconds on macOS and Linux, at the
+  next logon or noon on Windows); updates and uninstall are one click inside
+  the panel.
 
 <br clear="all">
 
@@ -88,8 +90,9 @@ documented in the [manual](docs/MANUAL.md#configuration).
 ## When Zen updates
 
 Every Zen update deletes the loader this mod depends on — that is life for every
-userscript. Spacekeeper is the one that handles it: the optional **guard** notices
-within seconds and restores the loader or notifies you with the exact next step,
+userscript. Spacekeeper is the one that handles it: the optional **guard**
+notices — within seconds on macOS and Linux, at the next logon or scheduled
+daily run on Windows — and restores the loader or notifies you with the next step,
 and even without it, re-running the install one-liner puts everything back. The
 full story is in the [manual](docs/MANUAL.md#after-every-zen-update).
 

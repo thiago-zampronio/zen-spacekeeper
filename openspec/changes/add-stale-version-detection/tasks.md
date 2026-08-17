@@ -45,17 +45,20 @@ Run end to end on Windows, driving Zen through the installer. The mismatch was
 produced by writing a different version into the profile while Zen ran — which is
 indistinguishable from having installed it.
 
-Testing 6.1 disproved the design's central claim and changed the implementation.
-The comparison was startup-only, and at startup the script has just been read from
-the file it is compared against, so it reported match every time. A restart
-without clearing the startup cache was expected to reproduce the stale load from
-cache; it did not — the browser read the current file anyway. The check now also
-runs on a slow interval, and with the interval temporarily shortened it produced
-state=mismatch running=0.49.0 installed=0.49.1 on its own, with nobody asking.
-The panel was changed to re-read on every open for the same reason.
+Testing 6.1 disproved the design's central claim and changed the implementation
+TWICE. The comparison was startup-only, and at startup the script has just been
+read from the file it is compared against, so it reported match every time. A
+slow interval was tried next and did catch the mismatch on its own — but it was
+retired before shipping as a standing cost for an answer nobody is waiting for:
+the person who would act on a mismatch is the one opening the panel. The SHIPPED
+mechanism is startup plus every panel open, never a timer (the code comment at
+checkStaleness records the reasoning), and the delta spec was rewritten to say
+exactly that.
 
-- [x] 6.1 Install an older version, start Zen, install the current one: the log
-      records the mismatch without any user action
+- [x] 6.1 Install an older version, start Zen, install the current one: opening
+      the panel records the mismatch (state=mismatch, both versions in the log)
+      — verified with running=0.49.0 installed=0.49.1 during the interval
+      experiment, then re-verified through the panel-open path that shipped
 - [x] 6.2 The panel names both versions and the remedy
 - [x] 6.3 Following the remedy clears the banner
 - [x] 6.4 With versions in agreement, no banner and a recorded agreement in the log

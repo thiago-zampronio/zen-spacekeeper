@@ -327,7 +327,8 @@
       .mprev[data-motion="cascade"] .mrows > :nth-child(3) { transition-delay: calc(60ms * var(--s, 1)); }
       .mprev[data-motion="cascade"] .mrows > :nth-child(4) { transition-delay: calc(90ms * var(--s, 1)); }
       /* Same specificity as the stagger rules above, later on purpose: the
-         cascade collapse is one un-staggered beat, exactly like the real one. */
+         cascade collapse gathers bottom-up at half the expand step, exactly
+         like the real one. */
       .mprev[data-motion="cascade"][data-state="collapsed"] .mmove {
         transition:
           transform calc(140ms * var(--s, 1)) cubic-bezier(0.4, 0, 1, 1),
@@ -1758,9 +1759,11 @@
           .then(s => { staleInfo = s; renderBanners(); })
           .catch(() => {});
 
-        // Under the same preference that governs the heartbeat: with checking off
-        // this page makes no request, exactly as it makes none today.
-        if (autoCheck) {
+        // Under the same preference that governs the heartbeat — and under the
+        // same "not now": a dismissed session promised no further automatic
+        // checks, and opening the panel is not the user asking. The manual
+        // button still works, because pressing it IS asking.
+        if (autoCheck && !ZSTG?.isUpdateDismissed?.()) {
           runUpdateCheck(false);
         }
       }

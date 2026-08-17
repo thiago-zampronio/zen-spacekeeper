@@ -1,5 +1,42 @@
 ## MODIFIED Requirements
 
+### Requirement: An available update announces itself
+
+The system SHALL, when the automatic check finds a newer release, show a small
+floating alert over the sidebar's lower corner naming the available version —
+anchored to the window itself, so no browser-layout internals can hide it;
+clicking it SHALL open the panel, where the update banner is already filled in —
+the version message, the release notes and the Update action visible; the alert
+SHALL span the tab sidebar's width when that width can be measured; SHALL offer
+a dismiss control that hides the alert and silences further automatic checks
+until the next session; and the alert SHALL appear only when a newer release
+exists.
+
+The alert used to land on the maintenance section's update controls; those were
+replaced by the banner, and the alert lands on the banner now.
+
+#### Scenario: The alert appears and leads to one-click distance
+
+- **GIVEN** the automatic check found version x.y.z, newer than the installed one
+- **WHEN** the user clicks the alert
+- **THEN** the panel opens with the update banner filled in
+- **AND** the versions, the notes and the Update action are already on screen
+
+#### Scenario: Not now means quiet until tomorrow
+
+- **GIVEN** the alert is showing
+- **WHEN** the user clicks its dismiss control
+- **THEN** the alert disappears from every window
+- **AND** no further automatic check runs in this session — not the heartbeat,
+  not the panel-open check
+- **AND** the next session checks and alerts normally
+
+#### Scenario: Up to date means no alert
+
+- **GIVEN** the installed version is the latest release
+- **WHEN** the automatic check runs
+- **THEN** no alert appears anywhere
+
 ### Requirement: Nothing happens without a click
 
 The system SHALL contact the network for update purposes only in these shapes: a

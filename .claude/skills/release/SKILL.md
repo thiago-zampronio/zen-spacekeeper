@@ -87,6 +87,8 @@ release. The checklist, in order:
    purpose and expect the profile-staleness flags; say so in the commit.
 
 5. **Commit, push, publish**: `gh release create vX.Y.Z --latest` with the
+   tag created on the bump commit itself — verify.ps1 fails any tag whose
+   commit does not carry that tag's version — and with the
    changelog entry as the notes, verbatim — the panel shows those notes next
    to "update available", so they are user-facing copy, not an afterthought.
 
