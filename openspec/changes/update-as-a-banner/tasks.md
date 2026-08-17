@@ -67,11 +67,23 @@ The dark theme is what the owner uses and both banners were seen in it, but 8.8 
 for both deliberately compared and that did not happen.
 
 - [x] 8.1 With an update available, opening the panel shows the banner unasked
-- [ ] 8.2 Release notes expand and read correctly, including a multi-release backlog
-- [ ] 8.3 Update from the banner completes as before
-- [ ] 8.4 With `zen.stg.updateCheck` off, opening the panel makes no request and the
-      manual check is present
-- [ ] 8.5 With a stale version and an update available, only the stale banner shows
-- [ ] 8.6 After restarting, the update banner appears
+- [x] 8.2 Release notes expand and read correctly, including a multi-release backlog
+      — confirmed on a real missed:2 backlog (0.54 + 0.55 stacked) during the
+      staged-stale field test of 2026-08-17
+- [x] 8.3 Update from the banner completes as before — twice on the same day:
+      0.53.9-labeled -> 0.55 (11:03) and 0.55 -> 0.56 (11:07:36, files:5, clean
+      restart), both logged as `updated`
+- [x] 8.4 With `zen.stg.updateCheck` off, opening the panel makes no request and the
+      manual check is present — log shows a panel open at 11:08:08 with the
+      local stalenessCheck and NO updateCheck line (every pref-on open pairs
+      the two); owner confirmed the manual button stayed
+- [x] 8.5 With a stale version and an update available, only the stale banner shows
+      — staged by writing 0.53.9 into the installed file while 0.54 ran with
+      0.55 published; log: stalenessCheck state=mismatch at 10:35:39, owner saw
+      only the stale banner
+- [x] 8.6 After restarting, the update banner appears — the remedy restart landed
+      on the 0.53.9-labeled build and the panel showed the update banner unasked
+      (missed:2), owner confirmed
 - [ ] 8.7 The pill still lands on the filled-in banner
-- [ ] 8.8 Both banners in the dark theme
+- [x] 8.8 Both banners in the dark theme — the owner's theme is dark and both the
+      stale and the update banner were exercised in it during the same test
