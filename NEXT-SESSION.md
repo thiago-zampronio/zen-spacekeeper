@@ -1,23 +1,27 @@
 # What is open, and what to run next
 
-Scratch notes between sessions. Not documentation — delete it when the four changes
-below are archived.
+Scratch notes between sessions. Not documentation — delete it when the one change
+below is archived and the node verifier question is settled.
 
 ## State
 
-Windows is current: the repository, the profile and the running browser are all on
-the version in `CHANGELOG.md`, and `scripts/verify.ps1` passes. Releases v0.49.0
-through v0.52.0 are published on GitHub, with their changelog entries as notes.
+Windows is current as of 2026-08-18: the repository, the profile and the local
+tags are all on 0.58.0, and **both** `scripts/verify.ps1` and
+`scripts/verify.mjs` pass here. Releases through v0.58.0 are published on GitHub,
+with their changelog entries as notes.
 
-Four changes are open, and **every one of them is blocked on a machine, not on
-work**. Nothing is waiting on a decision except the one question at the bottom.
+**One change is left open**, and it is blocked on machines, not on work:
 
 | Change | Left | Needs |
 | --- | --- | --- |
-| ~~`add-cross-platform-install`~~ | **archived** | — |
 | `add-installer-restart` | 5.5, 5.6 | Windows (interactive), Linux |
-| `add-stale-version-detection` | 6.8 | macOS |
-| `update-as-a-banner` | 8.2–8.8 | any browser, mostly macOS |
+| ~~`add-cross-platform-install`~~ | **archived** | — |
+| ~~`add-stale-version-detection`~~ | **archived** | — |
+| ~~`update-as-a-banner`~~ | **archived** | — |
+
+Both remaining tasks are the same interactive installer-restart checks, on two
+systems. Everything else in this file is background for them, or for the
+node-verifier decision below.
 
 `installation` is now a real capability in the living spec, with nine requirements
 verified on all three systems. Archiving it immediately caught a conflict worth
@@ -52,41 +56,28 @@ curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/ma
 ~/.local/share/zen/zen --profile ~/.config/zen/*.default about:spacekeeper &
 ```
 
-## On the Mac
+## On the Mac: the banner walkthrough is spent
 
-Clone fresh and install — that alone exercises `add-stale-version-detection` 6.8
-and confirms the installer half behaves as it does on Windows:
+`add-stale-version-detection` and `update-as-a-banner` were both archived on
+2026-08-18, so the long banner script that used to live here (8.2–8.8, and the
+staged-stale releases v0.55.0 and v0.57.0 that fed it) has been run and is gone.
+Each archived `tasks.md` records which checks were confirmed in the field and
+which the owner waived.
 
-```sh
-git clone https://github.com/thiago-zampronio/zen-spacekeeper
-cd zen-spacekeeper && ./install.sh --check     # before installing
-./install.sh --guard --restart
-./install.sh --check                            # after
-```
+What the Mac is still useful for is the interactive restart, if a browser is
+easier to sacrifice there than on Windows. Tasks 5.1–5.4 are already confirmed
+on macOS.
 
-Then, for `update-as-a-banner`, the Mac is in the right state by accident: whatever
-is installed there is older than v0.52.0, so opening `about:spacekeeper` should show
-the blue banner immediately. That covers 8.1 again and opens the door to the rest:
+### The three interactive checks still open (5.5, Windows)
 
-- **8.2** — click **Release notes**. The Mac is several releases behind, so this is
-  the multi-release backlog case that Windows could not produce.
-- **8.3** — click **Update**. It should download and then hand over to the orange
-  banner, because updating leaves the browser running the older code.
-- **8.5** — that hand-over IS the precedence case: at that moment an update no
-  longer exists but a stale version does. To see it properly, install an older
-  version while a newer release exists.
-- **8.6** — restart from the orange banner; the update banner should be gone,
-  because there is nothing newer left.
-- **8.7** — the pill appears a few seconds after a window opens when a release is
-  newer. Clicking it should land on the filled-in banner.
-- **8.4** — turn `zen.stg.updateCheck` off in the new Updates section, reload the
-  panel: no request, and the manual **Check for updates** button present.
-- **8.8** — the two banners side by side in the dark theme.
-
-For `add-installer-restart` 5.5 (Windows) the three interactive checks were never
-run because they close the browser: accept the restart prompt, decline it, and
-leave an unsaved-changes dialog open so the bounded wait expires. The non-
-interactive case is done.
+Still open for the same reason as before: each one closes the browser. Accept
+the restart prompt, decline it, and leave an unsaved-changes dialog open so the
+bounded wait expires. The non-interactive case is done, and was exercised again
+on 2026-08-18 — `.\install.ps1` with no flag and no terminal consent skipped
+the restart cleanly. Evidence, not impression: Zen had been up since 22:42:30 the
+previous day and was still the same process afterwards, and the startup cache
+kept its 22:42:34 timestamp from that startup. Nothing was closed, and nothing
+was deleted.
 
 ## Archived on the Mac (2026-08-17): the slide and the fold fix
 
@@ -107,16 +98,31 @@ Worth knowing later:
 - A few browser checks were closed as owner-waived rather than individually
   retested — the notes in each archived tasks.md say exactly which.
 
-## TODO on the Windows machine (owner, next time he boots it)
+## Done on the Windows machine (2026-08-18)
+
+Both verifiers were run on this machine, on the same tree, at 0.58.0:
 
 ```powershell
-node scripts/verify.mjs        # expect EVERYTHING IN SYNC, exit 0
-pwsh -NoProfile -File scripts/verify.ps1   # same verdict, same sections
+node scripts/verify.mjs                    # EVERYTHING IN SYNC, exit 0
+pwsh -NoProfile -File scripts/verify.ps1   # EVERYTHING IN SYNC, exit 0
 ```
 
-If both agree, the last thing blocking the retirement of `verify.ps1` is the
-review verdict below. If the node run fails, the suspect is named there too:
-the Windows spawn path is the one piece never exercised.
+They agree **check for check**: 54 identical checks, same order, same results,
+same exit code. The port's only extra output is its own five-check parity
+section, which is there by design. The Windows spawn path — the one piece never
+exercised — works: `openspec` and `eslint` both ran through the `.cmd` shims.
+
+Getting there surfaced two things worth keeping:
+
+- **A misplaced pair of local tags.** The new tag check failed in BOTH
+  verifiers: `v0.49.0` and `v0.50.0` pointed at the 0.51.0 commit. The cause
+  was local only — GitHub's tags were right all along, and `git fetch` will not
+  move a local tag that already exists. `git fetch --tags --force origin` fixed
+  it, and nothing published was touched. This is exactly the cross-machine drift
+  the check was added to catch, and it caught it on its first real outing.
+- **The profile was five releases behind** (0.53.0 against 0.58.0), because the
+  pull brought them all at once. `.\install.ps1` was re-run; the Installation
+  section is green again.
 
 ## The node verifier exists, and is NOT yet the authority
 
@@ -130,12 +136,14 @@ where verify.ps1 dies inside `Get-Content`). The pre-commit hook prefers
 verify.ps1 and falls back to verify.mjs, so a machine without pwsh finally
 runs a full verify.
 
-**Two things stand between it and retiring verify.ps1:**
+**One thing now stands between it and retiring verify.ps1 — the review.** The
+Windows run is done; both items stay listed so the history of what was demanded
+remains readable.
 
-1. **It has never run on Windows.** The Windows spawn path (`shell: true` +
-   cmd quoting for the `openspec`/`eslint` `.cmd` shims, per CVE-2024-27980)
-   is written and commented but untested. Run `node scripts/verify.mjs` on the
-   Windows machine and compare against `verify.ps1` there.
+1. ~~**It has never run on Windows.**~~ **Settled 2026-08-18** — it has now,
+   and it agrees with `verify.ps1` check for check (see the Windows section
+   above). The `shell: true` + cmd-quoting path for the `.cmd` shims
+   (per CVE-2024-27980) is exercised and correct.
 2. **The adversarial review never returned a final approval.** Two rounds
    rejected (blockers: missing directories waved through; Windows `.cmd`
    spawns) and both were fixed; the third round died in a retry loop after the
@@ -143,7 +151,7 @@ runs a full verify.
    plus both scripts' output is too much for one agent. If it is re-run, split
    the review by section instead of asking for the whole file at once.
 
-Until both are settled, verify.ps1 is the release gate. When they are, delete
+Until the review is settled, verify.ps1 is the release gate. When it is, delete
 verify.ps1 rather than keeping both: the port carries a parity section that
 polices their shared literal lists, which is a live drift guard while they
 coexist and dead weight the moment one is gone.
