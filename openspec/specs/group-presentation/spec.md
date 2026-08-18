@@ -342,7 +342,9 @@ reorder option is enabled, keep a Space's expanded groups above its collapsed
 groups by moving a group at the moment it closes or opens — a group that
 collapses sinks below the open cluster, a group that expands rises above the
 collapsed cluster; the move SHALL be minimal, preserving the user's order
-inside each cluster; the option SHALL be off by default, SHALL react to
+inside each cluster; the option SHALL be off as the raw fallback and for
+profiles that predate the first-run seed, while the seed enables it on fresh
+profiles as part of the recommended experience; SHALL react to
 collapse and expand only — never to tab focus, never during a drag — and SHALL
 leave loose tabs at the bottom as specified elsewhere.
 

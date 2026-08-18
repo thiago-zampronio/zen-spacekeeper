@@ -207,9 +207,18 @@ Nothing stops working for anyone who prefers the raw pref.
 In `about:config`, prefix `zen.stg.`. Changes take effect immediately, without
 restarting.
 
+**A new installation starts on the recommended experience.** The first time the
+script runs in a profile that has never used it, it writes seven settings once:
+focus mode on with the idle strategy, open groups on top, ten groups kept, the
+fold motion, and `google.com` split by subdomain with short labels. They are
+ordinary preferences from then on — change any of them and it stays changed. A
+profile that already used Spacekeeper is never touched, on any update; the
+`Default` column below is the value in play when nothing was seeded or chosen.
+
 | Pref | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `zen.stg.enabled` | bool | `true` | turns on automatic organization (manual commands remain available when off) |
+| `zen.stg.seeded` | bool | `false` | marks that the first-run seed already ran in this profile; set once and never read again |
 | `zen.stg.groupBySubdomain` | bool | `false` | `mail.google.com` separate from `drive.google.com` |
 | `zen.stg.subdomainDomains` | string | `""` | sites split by subdomain, comma-separated (the rest of the web is unaffected) |
 | `zen.stg.subdomainLabel` | string | `host` | name shown when a site is split: `host` (`mail.google`) or `sub` (`mail`) |

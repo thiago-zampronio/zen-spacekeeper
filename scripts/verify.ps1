@@ -175,6 +175,7 @@ $anchors = [ordered]@{
     "configuration/diagnostic log"                 = 'IOUtils.writeUTF8'
     "configuration/tolerates invalid input"        = 'function parseRules'
     "configuration/interface language"             = 'function chooseLanguage'
+    "configuration/first run seeds"                = 'function seedRecommendedDefaults'
     "favicon-colors/extraction"                    = 'getImageData'
     "favicon-colors/classification by hue"         = 'function colorName'
     "favicon-colors/does not block"                = 'function applyFaviconColor'

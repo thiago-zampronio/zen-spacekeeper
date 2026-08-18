@@ -99,6 +99,8 @@ const DEFAULTS = {
   // ends up being a history of the sites you visit, in plain text inside the
   // profile. That has to be a deliberate choice, not a silent default.
   debugLog: false,
+  // Marker of the one-shot first-run seed. Stored identity: never rename.
+  seeded: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -236,6 +238,38 @@ function declareDefaults() {
       console.warn(`${LOG} could not declare ${name}: ${ex.message}`);
     }
   }
+}
+
+/*
+ * The recommended experience ships as a one-shot seed of EXPLICIT prefs, never
+ * as changed DEFAULTS: defaults are retroactive, and two of these values are
+ * dangerous retroactively — subdomainDomains participates in key derivation
+ * (a changed fallback would re-key google.com tabs and orphan the groups
+ * already on a user's screen), and focusMode would start collapsing strips
+ * nobody asked to collapse. The zen.stg.groups guard is what makes updates a
+ * no-op for existing profiles: every existing user lacks the marker on the
+ * update that ships this, but anyone who ever had a group has the map. The
+ * marker is set in both branches, so this runs once per profile, ever.
+ */
+function seedRecommendedDefaults() {
+  const p = Services.prefs;
+  if (p.prefHasUserValue(PREF_PREFIX + "seeded")) {
+    return;
+  }
+  if (p.prefHasUserValue(PREF_PREFIX + "groups")) {
+    p.setBoolPref(PREF_PREFIX + "seeded", true);
+    dbg("seedSkipped", { reason: "existing profile" });
+    return;
+  }
+  p.setBoolPref(PREF_PREFIX + "focusMode", true);
+  p.setStringPref(PREF_PREFIX + "focusStrategy", "idle");
+  p.setBoolPref(PREF_PREFIX + "focusReorder", true);
+  p.setIntPref(PREF_PREFIX + "focusKeep", 10);
+  p.setStringPref(PREF_PREFIX + "collapseMotion", "fold");
+  p.setStringPref(PREF_PREFIX + "subdomainDomains", "google.com");
+  p.setStringPref(PREF_PREFIX + "subdomainLabel", "sub");
+  p.setBoolPref(PREF_PREFIX + "seeded", true);
+  dbg("seeded", { prefs: 7 });
 }
 
 function prefBool(name) {
@@ -3029,6 +3063,7 @@ async function whenReady() {
 
 async function start() {
   declareDefaults();
+  guarded(seedRecommendedDefaults);
   await whenReady();
 
   guarded(reclaimGroups);
