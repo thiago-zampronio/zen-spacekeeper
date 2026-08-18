@@ -138,9 +138,12 @@ gate reaching a tab mid-animation; SHALL fall
 back to instant when the operating system asks for reduced motion or when the
 instant option is chosen; SHALL start every animated height at a measured height
 — a real tab row for per-row presets, the real sheet for a container-level
-preset — so no dead headroom eats the visible motion; SHALL show, in
-the panel, one animated preview of the selected preset that plays once per
-selection change and then rests; SHALL scale every preset's timing — and the
+preset — so no dead headroom eats the visible motion; SHALL ensure a published
+measurement reflects the settled layout, never a snapshot taken while any row
+or container height is still animating, so that once the strip settles no tab
+of an expanded group is left clipped out of view by a stale measurement; SHALL
+show, in the panel, one animated preview of the selected preset that plays once
+per selection change and then rests; SHALL scale every preset's timing — and the
 preview's — by a user-set speed percentage, where 100 is the designed timing and
 lower is slower; SHALL keep each preset's character legible in both directions,
 so no preset reads as another on either collapse or expand; and SHALL keep the
@@ -166,6 +169,23 @@ motion tells, and the frequency rule bounds every option.
 - **THEN** the animated height starts at a measured height — a real row, or the
   real sheet for a container-level preset — not a loose cap, so the motion spans
   the preset's full duration instead of a dead beat followed by a crammed vanish
+
+#### Scenario: A measurement taken mid-animation never sticks
+
+- **GIVEN** the Fold preset
+- **WHEN** a tab joins a group while row heights are still animating — a new
+  tab's insertion animation, or Fold's own selected-row choreography — and the
+  group is then expanded
+- **THEN** once the strip settles, every tab of the group is visible
+- **AND** the published sheet height matches the settled content, not any
+  mid-animation snapshot
+
+#### Scenario: A tab adopted into a collapsed group appears on expand
+
+- **GIVEN** the Fold preset and a collapsed group
+- **WHEN** a tab is adopted into the group and the group is later expanded
+- **THEN** after the expand settles, the adopted tab is visible along with
+  every other tab of the group
 
 #### Scenario: The panel previews the chosen motion
 
@@ -326,8 +346,21 @@ inside each cluster; the option SHALL be off by default, SHALL react to
 collapse and expand only — never to tab focus, never during a drag — and SHALL
 leave loose tabs at the bottom as specified elsewhere.
 
+The move SHALL be animated as a slide: the moved group glides from its old
+position to its new one and the system groups it displaces glide the opposite
+way, instead of repositioning in a single frame. The slide SHALL be instant
+when the instant motion option is selected or when the operating system asks
+for reduced motion; its timing SHALL stretch by the same user-set motion speed
+percentage that scales the collapse presets; it SHALL look the same under
+every motion preset; and it SHALL be cosmetic — the reorder SHALL complete,
+and the strip SHALL settle in the correct final order, even when the
+animation cannot be measured or played.
+
 The ordering makes the focus visible without reading a single label: what is
 open is simply what is on top, and closing something files it away downward.
+The slide is what marks the reposition as intended — the expand beside it is
+animated, so an instant jump reads as a glitch, exactly what the motion
+presets exist to prevent.
 
 #### Scenario: A closing group sinks
 
@@ -342,6 +375,33 @@ open is simply what is on top, and closing something files it away downward.
 - **AND** the collapsed `figma` group sits above the open `github` group
 - **WHEN** the `figma` group expands
 - **THEN** `figma` moves above the collapsed groups, into the open cluster
+
+#### Scenario: The reposition slides instead of jumping
+
+- **GIVEN** focus mode is on with reorder enabled, a motion preset other than
+  instant, and the OS not asking for reduced motion
+- **WHEN** a group rises on expand or sinks on collapse
+- **THEN** the group slides visibly from its old position to its new one
+- **AND** the system groups it passes slide the opposite way into the gap
+
+#### Scenario: Instant option and reduced motion mean no slide
+
+- **GIVEN** the instant motion option is selected, or the OS asks for reduced
+  motion
+- **WHEN** a group rises or sinks under the reorder option
+- **THEN** the reposition is instant, with no slide
+
+#### Scenario: The speed setting stretches the slide
+
+- **GIVEN** the motion speed is set below 100
+- **WHEN** a group rises or sinks under the reorder option
+- **THEN** the slide's duration stretches by the same factor as the presets
+
+#### Scenario: A failed animation never blocks the move
+
+- **GIVEN** focus mode is on with reorder enabled
+- **WHEN** the slide cannot be measured or played
+- **THEN** the group still moves to its correct position, instantly
 
 #### Scenario: Tab focus alone moves nothing
 

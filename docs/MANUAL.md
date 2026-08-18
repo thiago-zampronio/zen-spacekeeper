@@ -218,7 +218,7 @@ restarting.
 | `zen.stg.focusMode` | bool | `false` | focus mode master switch; the strategy pref picks the mechanic |
 | `zen.stg.focusStrategy` | string | `groups` | `groups` = the N most recently used groups stay open; `idle` = untouched groups collapse after a time window |
 | `zen.stg.focusIdleMinutes` | int | `60` | idle strategy window, 1-1440: minutes a group can sit untouched before collapsing; any touch resets it |
-| `zen.stg.focusReorder` | bool | `false` | with focus mode on, expanded groups stay above collapsed ones — a group sinks when it closes, rises when it opens |
+| `zen.stg.focusReorder` | bool | `false` | with focus mode on, expanded groups stay above collapsed ones — a group slides down when it closes, slides up when it opens (instant when the motion is `off` or the OS asks for reduced motion) |
 | `zen.stg.focusKeep` | int | `3` | how many groups focus mode keeps open, 1-10 (`1` = only the active one) |
 | `zen.stg.focusDelay` | int | `800` | ms focus mode waits before collapsing; returning in time cancels it; `0` = immediate |
 | `zen.stg.collapseMotion` | string | `swift` | collapse/expand motion: `off`, `swift`, `fold` or `cascade` |

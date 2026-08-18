@@ -88,6 +88,34 @@ run because they close the browser: accept the restart prompt, decline it, and
 leave an unsaved-changes dialog open so the bounded wait expires. The non-
 interactive case is done.
 
+## Archived on the Mac (2026-08-17): the slide and the fold fix
+
+Both shipped, field-tested, synced into `group-presentation`, and archived
+(`2026-08-17-animate-focus-reorder`, `2026-08-17-fix-fold-stale-sheet`).
+`verify.ps1` passes end to end on the Mac — pwsh installed via brew this
+session. Not yet released; the working tree carries the commits.
+
+Worth knowing later:
+
+- The `zstg-` debug log gained events: `focusSlide`, `focusSlideGaveUp`,
+  `sheetMeasured`, `sheetSkippedCollapsed`, `collapseEvent`. Both field bugs
+  of this session were diagnosed from them in minutes.
+- Design history that matters: `<tab-group>` has NO layout box (rects read
+  0,0,0 — measure the label, animate the children), and sheet measurements
+  taken mid-animation lie (hence the movement-gated, publish-once settle
+  loop). Both are written into the archived changes' design.md files.
+- A few browser checks were closed as owner-waived rather than individually
+  retested — the notes in each archived tasks.md say exactly which.
+
+## Deferred idea: verify in node instead of pwsh
+
+Raised on the Mac session of 2026-08-17 and deliberately not done: porting
+`scripts/verify.ps1` (~800 lines, ~71 checks) to node would drop the pwsh
+dependency, but the port risk — a silently weakened check in the translation —
+outweighs it while `brew install powershell` solves the whole problem in one
+command (done on this Mac; verify passes here now). Revisit only if the
+friction returns: another contributor, another machine, or CI.
+
 ## Settled: the two restarts stay different
 
 Raised and decided. After a successful update the panel's dialog calls

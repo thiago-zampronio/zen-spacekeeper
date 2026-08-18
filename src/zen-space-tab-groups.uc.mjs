@@ -1211,20 +1211,109 @@ const COUNT_ATTR = "zstg-hidden-count";
  * script publishes, per group, the expanded container's content height
  * (--zstg-sheet-measured) and the row count (--zstg-rows, the calc fallback's
  * input). Published from updateHiddenCount because every tab-mutation path
- * already calls it — staleness is at most one paint, the same guarantee the
- * hidden count has. scrollHeight is measured only while expanded: under other
+ * already calls it. scrollHeight is measured only while expanded: under other
  * presets a collapsed group's rows are zero-height, and a 0 published here
- * would clip the sheet at rest.
+ * would clip the sheet at rest — the expand-armed settle loop below covers
+ * the tab that joined while the group was collapsed.
  */
+/*
+ * The height is published through a settle loop, never from a single read.
+ * Field trace (2026-08-17): a snapshot taken 4-6ms after the trigger lands
+ * mid-animation — a new tab's insertion animation, or fold's own
+ * selected-row choreography — and published 40/80/121px for a sheet that
+ * settles at 160px; the stale number became the clip and hid the tail rows
+ * until the next unrelated republication. So each trigger re-arms a per-group
+ * loop that reads scrollHeight once per frame and publishes only when two
+ * consecutive readings agree — an integer height holds still across frames
+ * only when the transitions are done. Bounded, and each iteration bails when
+ * the group collapses or leaves the DOM; a newer trigger replaces the loop,
+ * so the newest mutation wins. Waiting on transitionend instead would couple
+ * to two animation systems the mod does not own (the browser's tab insertion
+ * and fold's CSS); polling observes the outcome, not the mechanism.
+ */
+const SHEET_SETTLE_FRAMES = 90;
+const sheetSettleTokens = new WeakMap();
+
 function publishSheetMetrics(group) {
   const count = group.tabs?.length ?? 0;
+  const prevRows = group.style.getPropertyValue("--zstg-rows");
   group.style.setProperty("--zstg-rows", String(count));
-  if (!group.collapsed) {
-    const h = group.querySelector(".tab-group-container")?.scrollHeight ?? 0;
-    if (h > 0) {
+  if (group.collapsed) {
+    if (prevRows !== String(count)) {
+      dbg("sheetSkippedCollapsed", { key: group.getAttribute(KEY_ATTR), rows: count });
+    }
+    return;
+  }
+  const token = {};
+  sheetSettleTokens.set(group, token);
+  // Movement-gated, publish-once. Two field tests shaped this:
+  // - "stable for two frames" alone published the LEADING plateau (the
+  //   pre-animation layout reads identically before the transition starts:
+  //   160 -> 41 at frame 3, on the very flow under repair);
+  // - publishing every mid-flight plateau RETARGETED the running expand (the
+  //   window animated to 41px, finished, then expanded the rest — a visible
+  //   two-stage motion).
+  // So: stability only counts after the value has been seen to MOVE, it must
+  // hold for a stretch of frames scaled by the motion speed (a slowed-down
+  // easing crawls, so its false plateaus last longer too), and the loop
+  // publishes ONCE and stops — in a healthy flow that publish is a no-op, so
+  // the animation is never redirected. A window with no movement means the
+  // strip was at rest, and the initial value is published at the end.
+  const publish = (h, frames) => {
+    const prev = group.style.getPropertyValue("--zstg-sheet-measured");
+    if (prev !== `${h}px`) {
+      dbg("sheetMeasured", {
+        key: group.getAttribute(KEY_ATTR),
+        from: prev || null,
+        to: h,
+        frames,
+      });
       group.style.setProperty("--zstg-sheet-measured", `${h}px`);
     }
-  }
+  };
+  const scale = 100 / cfg().motionSpeed;
+  const settleFrames = Math.min(30, Math.ceil(6 * scale));
+  const windowFrames = Math.min(300, Math.ceil(SHEET_SETTLE_FRAMES * scale));
+  let frames = 0;
+  let initial = -1;
+  let prevRead = -1;
+  let moved = false;
+  let stableRun = 0;
+  const step = () => {
+    if (sheetSettleTokens.get(group) !== token) {
+      return;
+    }
+    try {
+      if (!group.isConnected || group.collapsed) {
+        return;
+      }
+      const h = group.querySelector(".tab-group-container")?.scrollHeight ?? 0;
+      frames += 1;
+      if (initial < 0) {
+        initial = h;
+      } else if (!moved && h !== initial) {
+        moved = true;
+      }
+      if (moved) {
+        stableRun = h === prevRead ? stableRun + 1 : 0;
+        if (stableRun >= settleFrames && h > 0) {
+          publish(h, frames);
+          return;
+        }
+      }
+      prevRead = h;
+      if (frames < windowFrames) {
+        window.requestAnimationFrame(step);
+      } else if (!moved && h > 0) {
+        // Nothing moved through the whole window: the strip was at rest and
+        // the initial reading IS the settled layout.
+        publish(h, frames);
+      }
+    } catch (e) {
+      dbg("sheetSettleFailed", { error: String(e) });
+    }
+  };
+  window.requestAnimationFrame(step);
 }
 
 function updateHiddenCount(group) {
@@ -1351,6 +1440,108 @@ function sweepIdleGroups() {
 }
 
 /*
+ * The slide under the reorder move. A DOM move repositions in a single frame —
+ * CSS cannot animate a reorder — so next to the animated expand the jump reads
+ * as a glitch. FLIP fixes that without touching the move: measure the affected
+ * groups before, move, measure again, and play the inverted delta back to zero
+ * with element.animate (self-cleaning: no attribute or inline style survives
+ * the effect). Two facts this shape was measured into, not designed from:
+ *
+ * - <tab-group> generates NO box — getBoundingClientRect on it is 0,0,0
+ *   forever (measured via the give-up diagnostic; every delta of the first
+ *   build read 0,0). So the group's position is read off its LABEL, the one
+ *   child visible in both collapse states, and the transform plays on the
+ *   group's element CHILDREN (label container and tab container), which do
+ *   have boxes.
+ * - The playback composites ("add") instead of replacing: the fold preset
+ *   keeps a translateY on the tab container, and a replacing animation would
+ *   stomp it for its duration and snap on release.
+ *
+ * The invert step waits, one rAF at a time, until the label's rect actually
+ * changes, then plays before that frame paints — no flash either way. Groups
+ * the move did not displace come out with a zero delta and are skipped. The
+ * gates mirror the presets': the instant option and OS reduced motion mean no
+ * slide, and the duration stretches by the same speed factor. Cosmetic by the
+ * same contract as the reorder itself — the move ALWAYS runs, even when
+ * measuring or playing throws; a rect read on a mid-flight slide sees the
+ * current transform, so a stacked FLIP starts from the visually current
+ * position once the previous effect is cancelled.
+ */
+const SLIDE_BASE_MS = 150;
+const SLIDE_WAIT_FRAMES = 90;
+
+function slideBox(group) {
+  return (group.querySelector(".tab-group-label") ?? group).getBoundingClientRect();
+}
+
+function slideResettle(groups, doMove) {
+  let before = null;
+  try {
+    const motionOff =
+      cfg().collapseMotion === "off" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!motionOff) {
+      before = groups.map(g => [g, slideBox(g)]);
+    }
+  } catch (e) {
+    dbg("focusSlideFailed", { at: "measure", error: String(e) });
+    before = null;
+  }
+  doMove();
+  if (!before) {
+    return;
+  }
+  const [moved, movedFirst] = before[0];
+  let frames = 0;
+  const tryPlay = () => {
+    try {
+      const now = slideBox(moved);
+      if (
+        Math.abs(now.left - movedFirst.left) <= 1 &&
+        Math.abs(now.top - movedFirst.top) <= 1
+      ) {
+        frames += 1;
+        if (frames < SLIDE_WAIT_FRAMES) {
+          window.requestAnimationFrame(tryPlay);
+        } else {
+          dbg("focusSlideGaveUp", { frames });
+        }
+        return;
+      }
+      const duration = SLIDE_BASE_MS * (100 / cfg().motionSpeed);
+      let played = 0;
+      for (const [g, first] of before) {
+        for (const child of g.children) {
+          for (const a of child.getAnimations()) {
+            if (a.id === "zstg-slide") {
+              a.cancel();
+            }
+          }
+        }
+        const last = slideBox(g);
+        const dx = first.left - last.left;
+        const dy = first.top - last.top;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+          continue;
+        }
+        for (const child of g.children) {
+          const anim = child.animate(
+            [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }],
+            { duration, easing: "ease-in-out", composite: "add" }
+          );
+          anim.id = "zstg-slide";
+        }
+        played += 1;
+      }
+      dbg("focusSlide", { duration, played, frames });
+    } catch (e) {
+      dbg("focusSlideFailed", { at: "play", error: String(e) });
+    }
+  };
+  window.requestAnimationFrame(tryPlay);
+}
+
+/*
  * The reorder option: open groups sit above collapsed ones. The event is the
  * group CLOSING or OPENING — not tab focus: a group that collapses sinks below
  * the open cluster, a group that expands rises above the collapsed cluster.
@@ -1389,7 +1580,9 @@ function resettleGroupOrder(group) {
         below: lastExpanded.getAttribute(KEY_ATTR),
         to: target._tPos,
       });
-      window.gBrowser.moveTabTo(group, { tabIndex: target._tPos });
+      slideResettle([group, ...others], () =>
+        window.gBrowser.moveTabTo(group, { tabIndex: target._tPos })
+      );
     } else {
       // Rise: above the first collapsed group — the bottom of the open cluster.
       const firstCollapsed = others.find(g => g.collapsed);
@@ -1405,7 +1598,9 @@ function resettleGroupOrder(group) {
         above: firstCollapsed.getAttribute(KEY_ATTR),
         to: target._tPos,
       });
-      window.gBrowser.moveTabTo(group, { tabIndex: target._tPos });
+      slideResettle([group, ...others], () =>
+        window.gBrowser.moveTabTo(group, { tabIndex: target._tPos })
+      );
     }
   } catch (e) {
     dbg("focusResettleFailed", { error: String(e) });
@@ -2267,6 +2462,11 @@ function onTabSelect() {
 /** Covers the label click, the commands and focus mode in one place. */
 function onGroupCollapseChanged(e) {
   const g = e.target;
+  dbg("collapseEvent", {
+    type: e.type,
+    key: g.getAttribute?.(KEY_ATTR) ?? null,
+    collapsed: g.collapsed,
+  });
   // A manual chip-expand restarts the idle clock: the user just asked for this
   // group, retiring it one sweep later would undo their gesture.
   if (e.type === "TabGroupExpand") {
