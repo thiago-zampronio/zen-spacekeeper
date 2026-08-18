@@ -636,6 +636,7 @@ $sources = @(
     "install.ps1",
     "install.sh",
     "scripts/verify.ps1",
+    "scripts/verify.mjs",
     "README.md",
     "docs/MANUAL.md"
 ) + (Get-ChildItem (Join-Path $root "openspec/specs") -Recurse -Filter "*.md" |
@@ -654,7 +655,7 @@ foreach ($s in $sources) {
     # The catalog is deliberately left out: it holds the translations. This file
     # skips the token pass alone \u2014 the token list itself would match it.
     $hits = Select-String -Path $p -Pattern '[\u00e3\u00e7\u00f5\u00ea\u00f4\u00e2\u00ed\u00fa]' -AllMatches
-    if (-not $hits -and $s -ne "scripts/verify.ps1") {
+    if (-not $hits -and $s -ne "scripts/verify.ps1" -and $s -ne "scripts/verify.mjs") {
         $hits = Select-String -Path $p -Pattern $ptTokens -AllMatches
     }
     if ($hits) { $withPortuguese += "$s (line $($hits[0].LineNumber))" }

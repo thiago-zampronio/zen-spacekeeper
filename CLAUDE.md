@@ -76,7 +76,8 @@ src/resources/           served over chrome://userchrome/content/
   zstg-panel.html        the about:spacekeeper panel, chrome-privileged
   zstg-i18n.mjs          every user-visible string, 3 languages
   zstg-core.mjs          the pure logic; verify.ps1 runs its tests under node
-scripts/verify.ps1       spec ↔ code ↔ docs ↔ installation sync check
+scripts/verify.ps1       spec ↔ code ↔ docs ↔ installation sync check — the authority
+scripts/verify.mjs       the same checks in Node, for a machine without pwsh
 vendor/fx-autoconfig/    vendored loader (MPL 2.0) — do not edit
 openspec/specs/          the living specification
 openspec/changes/        proposals in flight; archive/ is history, in Portuguese

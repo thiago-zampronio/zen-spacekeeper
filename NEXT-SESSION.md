@@ -107,14 +107,35 @@ Worth knowing later:
 - A few browser checks were closed as owner-waived rather than individually
   retested — the notes in each archived tasks.md say exactly which.
 
-## Deferred idea: verify in node instead of pwsh
+## The node verifier exists, and is NOT yet the authority
 
-Raised on the Mac session of 2026-08-17 and deliberately not done: porting
-`scripts/verify.ps1` (~800 lines, ~71 checks) to node would drop the pwsh
-dependency, but the port risk — a silently weakened check in the translation —
-outweighs it while `brew install powershell` solves the whole problem in one
-command (done on this Mac; verify passes here now). Revisit only if the
-friction returns: another contributor, another machine, or CI.
+`scripts/verify.mjs` is a check-for-check port of `verify.ps1` (adversarial
+review + A/B mutation trials, 2026-08-17/18). Both pass this tree; seven
+deliberate breakages — accent, unaccented pt token, header/const version
+mismatch, missing CHANGELOG entry, i18n key missing in one language, broken
+requirement anchor, deleted `src/guard/` — fail BOTH, and on the missing
+directory the port is the better of the two (it names three failing checks
+where verify.ps1 dies inside `Get-Content`). The pre-commit hook prefers
+verify.ps1 and falls back to verify.mjs, so a machine without pwsh finally
+runs a full verify.
+
+**Two things stand between it and retiring verify.ps1:**
+
+1. **It has never run on Windows.** The Windows spawn path (`shell: true` +
+   cmd quoting for the `openspec`/`eslint` `.cmd` shims, per CVE-2024-27980)
+   is written and commented but untested. Run `node scripts/verify.mjs` on the
+   Windows machine and compare against `verify.ps1` there.
+2. **The adversarial review never returned a final approval.** Two rounds
+   rejected (blockers: missing directories waved through; Windows `.cmd`
+   spawns) and both were fixed; the third round died in a retry loop after the
+   reviewers' context filled up — reading an 800-line script plus a 58KB port
+   plus both scripts' output is too much for one agent. If it is re-run, split
+   the review by section instead of asking for the whole file at once.
+
+Until both are settled, verify.ps1 is the release gate. When they are, delete
+verify.ps1 rather than keeping both: the port carries a parity section that
+polices their shared literal lists, which is a live drift guard while they
+coexist and dead weight the moment one is gone.
 
 ## Settled: the two restarts stay different
 
