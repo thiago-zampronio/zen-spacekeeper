@@ -107,6 +107,17 @@ Worth knowing later:
 - A few browser checks were closed as owner-waived rather than individually
   retested — the notes in each archived tasks.md say exactly which.
 
+## TODO on the Windows machine (owner, next time he boots it)
+
+```powershell
+node scripts/verify.mjs        # expect EVERYTHING IN SYNC, exit 0
+pwsh -NoProfile -File scripts/verify.ps1   # same verdict, same sections
+```
+
+If both agree, the last thing blocking the retirement of `verify.ps1` is the
+review verdict below. If the node run fails, the suspect is named there too:
+the Windows spawn path is the one piece never exercised.
+
 ## The node verifier exists, and is NOT yet the authority
 
 `scripts/verify.mjs` is a check-for-check port of `verify.ps1` (adversarial
