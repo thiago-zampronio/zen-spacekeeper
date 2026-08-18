@@ -5,7 +5,7 @@
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
-// Kept in step with @version above by verify.ps1. It was duplicated as a literal
+// Kept in step with @version above by verify.mjs. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
 const VERSION = "0.58.0";
@@ -14,7 +14,7 @@ const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
 
 // The pure logic — key derivation, rules, colors, the deterministic test cases —
-// lives in zstg-core.mjs, so verify.ps1 can run it under plain node on every
+// lives in zstg-core.mjs, so verify.mjs can run it under plain node on every
 // commit. Without it there is nothing to run: fail once, loudly, and stay off
 // (start() never runs when this is null).
 const core = (() => {
@@ -1889,7 +1889,7 @@ function setCollapsed(collapsed) {
 
 const REPO = "thiago-zampronio/zen-spacekeeper";
 
-// Kept equal to the installers' file lists; verify.ps1 fails if they disagree.
+// Kept equal to the installers' file lists; verify.mjs fails if they disagree.
 // The fetch happens HERE, in the chrome script, never in the panel document —
 // the panel's CSP stays exactly as strict as it is.
 const UPDATE_FILES = [
@@ -2570,7 +2570,7 @@ const prefObserver = {
  */
 function selfTest() {
   // The deterministic derivation cases live in zstg-core.mjs and also run under
-  // node in verify.ps1. Here they run against the REAL Services.eTLD — the same
+  // node in verify.mjs. Here they run against the REAL Services.eTLD — the same
   // list, two judges, and a case passing in only one of them is itself a finding.
   //
   // Every field the derivation reads is overridden by `noRules`. Without

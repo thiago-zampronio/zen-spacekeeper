@@ -171,4 +171,4 @@ the published release notes SHALL be that entry.
 
 - **GIVEN** the version constants were bumped
 - **WHEN** the changelog has no entry for the new version
-- **THEN** `verify.ps1` fails
+- **THEN** `verify.mjs` fails

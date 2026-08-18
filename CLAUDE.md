@@ -8,7 +8,7 @@ script (`.uc.mjs`) loaded by fx-autoconfig — not an extension, not a Zen Mod.
 **1. OpenSpec first.** Every behavior change goes through a proposal before any code
 is written. Use the `openspec-propose` skill; do not skip straight to editing
 `src/`. The living specification is `openspec/specs/` — one directory per
-capability, each requirement anchored in the code by `scripts/verify.ps1`. A change that alters
+capability, each requirement anchored in the code by `scripts/verify.mjs`. A change that alters
 behavior without touching the spec leaves the spec lying.
 
 Wording fixes, translations, tooling and installer plumbing do not need a proposal.
@@ -17,14 +17,14 @@ Anything a user could notice as different behavior does.
 Two sync rules the cross-machine audit paid for: **deltas follow the
 implementation** — when testing or implementation diverges from what a change's
 delta specifies, edit the DELTA in the same commit (tasks.md alone is the diary,
-not the record; verify.ps1 also fails a MODIFIED/REMOVED delta whose requirement
+not the record; verify.mjs also fails a MODIFIED/REMOVED delta whose requirement
 does not exist in the main spec). And **cross-capability ripples ship deltas
 too** — a change that falsifies a promise another capability makes (a
 disclosure, a "nothing else does X" claim) must carry a delta for that
 capability, or the main specs end up contradicting each other.
 
 **2. Everything in English.** Specification, proposals, code, identifiers, comments,
-commit messages, user-visible text. `verify.ps1` fails if a source file contains
+commit messages, user-visible text. `verify.mjs` fails if a source file contains
 Portuguese accented characters, so this does not regress quietly.
 
 The one exception: `openspec/changes/archive/` is in Portuguese. It is the record of
@@ -62,7 +62,6 @@ that node's parent — which is what guarantees the group is born in the right S
 
 ```
 CHANGELOG.md             one entry per released version; the release notes source
-NEXT-SESSION.md          scratch handoff: what is open and what to run next
 install.ps1              Windows installer: loader + mod, detects Zen and profile
 install.sh               the same installer for macOS and Linux (POSIX sh)
 eslint.config.mjs        no-undef + no-unused-vars over src/, nothing of style
@@ -75,9 +74,8 @@ src/*.uc.css             collapse and appearance, scoped to tab-group[zstg-key]
 src/resources/           served over chrome://userchrome/content/
   zstg-panel.html        the about:spacekeeper panel, chrome-privileged
   zstg-i18n.mjs          every user-visible string, 3 languages
-  zstg-core.mjs          the pure logic; verify.ps1 runs its tests under node
-scripts/verify.ps1       spec ↔ code ↔ docs ↔ installation sync check — the authority
-scripts/verify.mjs       the same checks in Node, for a machine without pwsh
+  zstg-core.mjs          the pure logic; verify.mjs runs its tests under node
+scripts/verify.mjs       spec ↔ code ↔ docs ↔ installation sync check
 vendor/fx-autoconfig/    vendored loader (MPL 2.0) — do not edit
 openspec/specs/          the living specification
 openspec/changes/        proposals in flight; archive/ is history, in Portuguese
@@ -85,13 +83,13 @@ openspec/changes/        proposals in flight; archive/ is history, in Portuguese
 
 No user-visible text goes anywhere but `zstg-i18n.mjs`. The panel and the chrome
 script import the same catalog, so a phrase exists in exactly one place. Adding a
-key means adding it to all three languages — `verify.ps1` fails otherwise.
+key means adding it to all three languages — `verify.mjs` fails otherwise.
 
 ## Working loop
 
 ```powershell
 .\install.ps1            # copy src/ into the profile (macOS/Linux: ./install.sh)
-.\scripts\verify.ps1     # spec, docs, syntax, languages, installed files
+node scripts\verify.mjs  # spec, docs, syntax, languages, installed files
 ```
 
 Then restart Zen. If the script does not load, clear the startup cache in
@@ -100,23 +98,39 @@ The installer's `-Restart` / `--restart` option does the restart and the cache
 clearing in one step.
 
 Enable the repo's pre-commit gate once per clone — it runs the syntax, lint and
-language checks on every commit, and the full `verify.ps1` when `pwsh` is
-installed — and install the dev tooling (eslint) it and verify.ps1 expect:
+language checks plus the full `verify.mjs` on every commit — and install the dev
+tooling (eslint) both of them expect:
 
 ```sh
 git config core.hooksPath scripts/hooks
 npm install
 ```
 
+## Testing the other two systems
+
+Linux is tested on WSL (Ubuntu under Windows), which beat the Docker plan:
+systemd is PID 1, `/bin/sh` is `dash` — the shell the installer must survive —
+and WSLg puts the window on the Windows desktop. Zen installs from its own
+tarball into `~/.local/share/zen`, needing no root; the one missing library was
+`libasound2t64`. Two limits: WSLg renders in software, so the window paints
+blank and is useless for judging appearance, and a tarball install registers no
+`.desktop` entry, so the taskbar icon is generic. Neither is a product defect.
+
+```sh
+wsl -d Ubuntu
+curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh -s -- --guard
+~/.local/share/zen/zen --profile ~/.config/zen/*.default about:spacekeeper &
+```
+
 ## Releasing
 
 The full checklist lives in the `release` skill (`.claude/skills/release/`) —
 invoke it whenever publishing. The non-negotiables it encodes: the version in
-three places, a `CHANGELOG.md` entry (verify.ps1 fails without it, so a
+three places, a `CHANGELOG.md` entry (verify.mjs fails without it, so a
 release cannot ship silent), and release notes written for the person inside
 the panel — plain language, no jargon, never a how-to-update section.
 
-`verify.ps1` catches a requirement with no implementation, a pref with no
+`verify.mjs` catches a requirement with no implementation, a pref with no
 documentation, a README citing a function that no longer exists, and a stale file in
 the profile. It does **not** catch an implementation that is present and wrong. For
 behavior, `ZSTG.selfTest()` in the browser console.
@@ -156,4 +170,4 @@ browser — languages switching in the menu and the panel together, the dark the
 `tasks.md` and are checked **only** when the user confirms they tested it. This has
 been gotten wrong before and had to be reverted.
 
-The same applies to reporting: if `verify.ps1` fails, say so and paste the output.
+The same applies to reporting: if `verify.mjs` fails, say so and paste the output.

@@ -1,7 +1,7 @@
 {
   "name": "zen-spacekeeper",
   "private": true,
-  "description": "Dev tooling only - the mod itself has no build step and no runtime dependency. npm install brings eslint for verify.ps1 and the pre-commit hook.",
+  "description": "Dev tooling only - the mod itself has no build step and no runtime dependency. npm install brings eslint for scripts/verify.mjs and the pre-commit hook.",
   "scripts": {
     "lint": "eslint ."
   },

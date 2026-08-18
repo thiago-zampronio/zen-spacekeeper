@@ -59,7 +59,7 @@ context: |
 
   CONVENTIONS
   - Every behavior change goes through a proposal before implementation.
-  - scripts/verify.ps1 must pass before a change is archived.
+  - scripts/verify.mjs must pass before a change is archived.
   - Verification tasks that require a running browser are never marked complete
     from code reading alone — only the user confirms those.
 
@@ -83,7 +83,7 @@ rules:
 operations:
   apply:
     guidance:
-      - Run scripts/verify.ps1 after implementing, and report its actual output.
+      - Run scripts/verify.mjs after implementing, and report its actual output.
       - Never mark a browser-verification task complete without the user saying so.
   archive:
     guidance:

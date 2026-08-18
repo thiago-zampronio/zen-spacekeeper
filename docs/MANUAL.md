@@ -274,7 +274,7 @@ To add a language:
 1. Add its code to `LANGUAGES` and its own name to `LANGUAGE_NAMES`.
 2. Copy the `en` object, translate the values, and add it to `CATALOG`.
 3. Add the prefix to `chooseLanguage` if it should be picked automatically.
-4. Run `.\scripts\verify.ps1` — it fails if any language is missing a key.
+4. Run `node scripts/verify.mjs` — it fails if any language is missing a key.
 
 ## Commands
 
@@ -320,12 +320,12 @@ investigating:
 ## Verification
 
 ```powershell
-.\scripts\verify.ps1
+node scripts/verify.mjs
 ```
 
 It runs anywhere PowerShell does — on macOS and Linux, install
 [pwsh](https://github.com/PowerShell/PowerShell) and run
-`pwsh scripts/verify.ps1`. Node and the OpenSpec CLI are required; a missing tool
+`node scripts/verify.mjs`. Node and the OpenSpec CLI are required; a missing tool
 fails the run instead of silently passing with checks skipped.
 
 It checks, without changing anything, whether the four layers are in sync: valid
@@ -509,7 +509,6 @@ real tabs and must be checked by hand.
 
 ```
 CHANGELOG.md             one entry per released version; the release notes source
-NEXT-SESSION.md          scratch handoff: what is open and what to run next
 install.ps1              Windows installer: loader + mod, detects Zen and the profile
 install.sh               the same installer for macOS and Linux
 eslint.config.mjs        two rules: no-undef and no-unused-vars, nothing of style
@@ -518,7 +517,7 @@ package-lock.json        pins that tooling
 docs/                    this manual and the README's screenshots
 src/                     script, stylesheet and panel (source of truth)
 src/resources/           panel page, text catalog and core logic, over chrome://
-scripts/verify.ps1       checks spec, code, docs and installation are in sync
+scripts/verify.mjs       checks spec, code, docs and installation are in sync
 vendor/fx-autoconfig/    vendored loader (MPL 2.0)
 openspec/                specification and changes in progress
 ```

@@ -3,9 +3,9 @@
 #
 #   git config core.hooksPath scripts/hooks
 #
-# Fast checks always run; the full verify.ps1 runs when pwsh is installed. A
+# Fast checks always run, then the full verify (scripts/verify.mjs). A
 # missing required tool FAILS the commit rather than waving it through — the same
-# no-green-stamp rule verify.ps1 follows. Bypass for an emergency with
+# no-green-stamp rule the verifier follows. Bypass for an emergency with
 # `git commit --no-verify`, and own the consequences.
 
 set -u
@@ -42,7 +42,8 @@ fi
 
 # --- Language gate -----------------------------------------------------------
 # Accented characters, plus the unaccented-Portuguese tokens that slipped through
-# the accent check once. verify.ps1 runs the same list; keep the two in step.
+# the accent check once. scripts/verify.mjs runs the same list, and compares the
+# two copies on every run; keep them in step.
 sources="src/zen-space-tab-groups.uc.mjs src/zen-space-tab-groups.uc.css \
 src/resources/zstg-panel.html install.ps1 install.sh README.md docs/MANUAL.md \
 scripts/verify.mjs"
@@ -53,8 +54,8 @@ for s in $sources; do
         say "Portuguese accent in $s"; fail=1
     fi
     # A verifier carries the token list itself, so the token pass would always
-    # flag it. Accents above still apply to it; verify.ps1 skips itself the same
-    # way, for the same reason.
+    # flag it. Accents above still apply to it, and the verifier skips itself the
+    # same way, for the same reason.
     case "$s" in
         scripts/verify.mjs) continue ;;
     esac
@@ -64,16 +65,9 @@ for s in $sources; do
 done
 
 # --- Full verify -------------------------------------------------------------
-# verify.ps1 stays the authority: it is the one validated on all three systems.
-# scripts/verify.mjs is the same checks in Node, and covers the machine without
-# pwsh — which used to mean no full verify at all. Only one of them runs, so a
-# commit never pays for both.
-if command -v pwsh >/dev/null 2>&1; then
-    pwsh -NoProfile -File scripts/verify.ps1 || { say "verify.ps1 failed"; fail=1; }
-elif command -v node >/dev/null 2>&1; then
-    node scripts/verify.mjs || { say "verify.mjs failed"; fail=1; }
-else
-    say "neither pwsh nor node found - full verify skipped"; fail=1
-fi
+# node is already required above, so the full verify now runs on every commit,
+# on every platform. This replaced a PowerShell verifier that was skipped
+# whenever pwsh was absent.
+node scripts/verify.mjs || { say "verify.mjs failed"; fail=1; }
 
 exit $fail

@@ -3,7 +3,7 @@
  *
  * Imported twice, and that duality is the whole point:
  *   - by the chrome script, via chrome://userchrome/content/zstg-core.mjs
- *   - by scripts/verify.ps1 under plain node, which runs the derivation tests on
+ *   - by scripts/verify.mjs under plain node, which runs the derivation tests on
  *     every commit without needing a running Zen
  *
  * Nothing here may touch `window`, `Services`, `document` or any Gecko global.
@@ -252,7 +252,7 @@ export function makeTestETLD(suffixes = ["com.br", "co.uk", "com", "org", "net"]
 
 /**
  * The deterministic derivation cases, shared by ZSTG.selfTest() (real Services.eTLD)
- * and by verify.ps1 under node (makeTestETLD fixture). One list, two judges: a case
+ * and by verify.mjs under node (makeTestETLD fixture). One list, two judges: a case
  * that only passes in one of them is itself a finding.
  *
  * @param {(url: string, over?: object) => {key,label}|null} keyFromText an

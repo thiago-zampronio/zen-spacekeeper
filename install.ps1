@@ -48,7 +48,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # How long the offered restart waits for Zen to exit before giving up. Kept equal
-# in install.sh (RESTART_WAIT); verify.ps1 fails if the two disagree.
+# in install.sh (RESTART_WAIT); the verifier fails if the two disagree.
 $RestartWaitSeconds = 20
 
 $FILES = @(

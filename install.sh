@@ -32,11 +32,11 @@ RESTART=0
 GUARD=0
 
 # How long the offered restart waits for Zen to exit before giving up. Kept equal
-# in install.ps1 ($RestartWaitSeconds); verify.ps1 fails if the two disagree.
+# in install.ps1 ($RestartWaitSeconds); the verifier fails if the two disagree.
 RESTART_WAIT=20
 
 # ---------------------------------------------------------------------------
-# The two file lists. Kept in the same order as install.ps1; verify.ps1 fails if
+# The two file lists. Kept in the same order as install.ps1; the verifier fails if
 # the two installers disagree about what they deploy.
 
 FILES="src/zen-space-tab-groups.uc.mjs:chrome/JS/zen-space-tab-groups.uc.mjs

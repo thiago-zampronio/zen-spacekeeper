@@ -1,7 +1,7 @@
 # Changelog
 
 One entry per released version, newest first. The GitHub release notes are the
-entry for that version — `scripts/verify.ps1` fails when the current version
+entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 

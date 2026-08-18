@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Checks that specification, code, documentation and installation are in sync.
 //
-// Node port of scripts/verify.ps1, check for check. Pure ESM, no npm dependency:
+// The verifier: spec <-> code <-> docs <-> installation sync check. Pure ESM,
+// no npm dependency:
 // it only reads and compares, and shells out to `openspec`, `git`, `node` and
 // `eslint` the same way the PowerShell script does.
 //
@@ -47,12 +48,11 @@ function readText(path) {
   return existsSync(path) ? readFileSync(path, "utf8") : "";
 }
 
-// verify.ps1 runs under $ErrorActionPreference = "Stop": a Get-ChildItem over a
-// directory that is not there aborts the whole run, non-zero. Scanning nothing must
-// never read as scanning something clean - the vendored loader could be gone and the
-// list of its files would still come back satisfied - so a missing directory throws
-// here too. The single deliberate exception is openspec/changes, which verify.ps1
-// reads with -ErrorAction SilentlyContinue: that one call passes { optional: true }.
+// Scanning nothing must never read as scanning something clean: the vendored
+// loader could be gone and the list of its files would still come back
+// satisfied, green. So a missing directory throws instead of returning an empty
+// list. The single deliberate exception is openspec/changes, which is legitimately
+// absent when no change is in flight: that one call passes { optional: true }.
 function requireDir(path, options) {
   if (existsSync(path)) return true;
   if (options && options.optional) return false;
@@ -907,7 +907,6 @@ const literalSources = [
   "src/resources/zstg-panel.html",
   "install.ps1",
   "install.sh",
-  "scripts/verify.ps1",
   "scripts/verify.mjs",
   "README.md",
   "docs/MANUAL.md",
@@ -923,12 +922,12 @@ const sources = literalSources.concat(
 // a factory name). The token list is deliberately short and unambiguous - every
 // word on it is Portuguese-only, so a hit is never a false alarm on English prose.
 // Both patterns are written with escapes so that this file does not match itself
-// on the accent pass, exactly as verify.ps1 does.
+// on the accent pass.
 const accentPattern = "[\\u00e3\\u00e7\\u00f5\\u00ea\\u00f4\\u00e2\\u00ed\\u00fa]";
 const ptTokens = "\\b(painel|restaurado|reconhecido|reconhecidos|depois|trocou|mudou|usuario|configuracao)\\b";
-// The two verifiers skip the token pass alone - the token list itself would match
-// them. The catalog is deliberately left out of the list: it holds the translations.
-const tokenPassExempt = ["scripts/verify.ps1", "scripts/verify.mjs"];
+// This file skips the token pass alone - it carries the token list, which would
+// match itself. The catalog is left out of the list: it holds the translations.
+const tokenPassExempt = ["scripts/verify.mjs"];
 
 const withPortuguese = [];
 for (const s of sources) {
@@ -945,47 +944,19 @@ check(withPortuguese.length === 0, sources.length + " source files in English");
 for (const s of withPortuguese) detail("Portuguese found: " + s);
 
 // ---------------------------------------------------------------------------
-section("Parity with verify.ps1");
+section("Parity with the pre-commit hook");
 
-// Two verifiers over one repository drift exactly the way the twins this script
-// polices drift - the installers, the guard scripts, the panel updater. A
-// requirement anchored in one and not in the other leaves both green while one
-// proves less, and nothing notices, because each script is its own oracle. The
-// shared tables are literal lists in both files, so they are compared directly.
-const ps1Verify = readText(join(root, "scripts/verify.ps1"));
-
-const ps1Anchors = [];
-{
-  const block = group1(ps1Verify, "\\$anchors = \\[ordered\\]@\\{([\\s\\S]*?)\\n\\}", "");
-  for (const line of block.split("\n")) {
-    const m = /^\s*"([^"]+)"\s*=\s*'(.*)'\s*$/.exec(line);
-    if (m) ps1Anchors.push([m[1], m[2]]);
-  }
-}
-const anchorDrift = [];
-if (ps1Anchors.length === 0) anchorDrift.push("no anchor map could be read from verify.ps1");
-for (const [name, pattern] of anchors) {
-  const theirs = ps1Anchors.find(([n]) => n === name);
-  if (!theirs) anchorDrift.push("anchored only here: " + name);
-  else if (theirs[1] !== pattern) anchorDrift.push("different pattern: " + name);
-}
-for (const [name] of ps1Anchors) {
-  if (!anchors.some(([n]) => n === name)) anchorDrift.push("anchored only in verify.ps1: " + name);
-}
-check(anchorDrift.length === 0, "the anchor map matches verify.ps1 (" + ps1Anchors.length + " entries)");
-for (const d of anchorDrift) detail(d);
-
-// The token list exists in three places (both verifiers and the pre-commit hook),
-// and the hook's comment asks for them to be kept in step. All three are read here:
-// the hook's copy is the one that runs on every commit, so leaving it out of the
-// comparison would have policed the two copies a commit never touches.
+// The Portuguese token list lives in two places: this script and the hook that
+// runs on every commit. Two copies of one list drift exactly the way the twins
+// this script polices drift - the installers, the guard scripts, the panel
+// updater - so they are compared directly, and a word added to or dropped from
+// one copy cannot hide.
 //
-// The hook folds a singular/plural pair into one alternative with an optional final
-// letter (`...s?`), so its list is compared as the SET OF WORDS the pattern matches
-// rather than as a string - and no token is spelled out in this comment, so that
-// adding this file to the hook's own source list cannot make it flag itself:
-// an equivalent spelling must not raise a false alarm, and a word added to or
-// dropped from one copy must not hide behind one.
+// The hook folds a singular/plural pair into one alternative with an optional
+// final letter (`...s?`), so its list is compared as the SET OF WORDS the
+// pattern matches rather than as a string: an equivalent spelling must not
+// raise a false alarm. No token is spelled out in this comment, so that this
+// file being one of the hook's own sources cannot make it flag itself.
 function tokenWords(pattern) {
   const inner = group1(pattern, "\\\\b\\((.+?)\\)\\\\b", "");
   const expand = (token) => {
@@ -997,14 +968,11 @@ function tokenWords(pattern) {
   return sortUnique(out);
 }
 
-const ps1PtTokens = group1(ps1Verify, "\\$ptTokens = '\\(\\?i\\)(.*)'", "");
 const hookText = readText(join(root, "scripts/hooks/pre-commit"));
 const hookPtTokens = group1(hookText, "grep -niE '([^']+)'", "");
 const myWords = tokenWords(ptTokens);
 const tokenDrift = [];
 if (myWords.length === 0) tokenDrift.push("no words could be read from this script's own token list");
-if (!ps1PtTokens) tokenDrift.push("no token list could be read from verify.ps1");
-else if (ps1PtTokens !== ptTokens) tokenDrift.push("verify.ps1 has: " + ps1PtTokens);
 if (!hookPtTokens) tokenDrift.push("no token list could be read from scripts/hooks/pre-commit");
 else {
   const hookWords = tokenWords(hookPtTokens);
@@ -1014,52 +982,9 @@ else {
 }
 check(
   tokenDrift.length === 0,
-  "the Portuguese token list matches verify.ps1 and the pre-commit hook (" + myWords.length + " words)",
+  "the Portuguese token list matches the pre-commit hook (" + myWords.length + " words)",
 );
 for (const d of tokenDrift) detail(d);
-
-// A PowerShell @( ... ) array of single- or double-quoted literals, one per line.
-function ps1List(name) {
-  const block = group1(ps1Verify, "\\$" + name + " = @\\(([\\s\\S]*?)\\n\\)", "");
-  const out = [];
-  for (const line of block.split("\n")) {
-    const m = /^\s*(?:'([^']*)'|"([^"]*)")\s*,?\s*$/.exec(line);
-    if (m) out.push(m[1] !== undefined ? m[1] : m[2]);
-  }
-  return out;
-}
-
-// This file is the one entry the language gate has and verify.ps1 does not: both
-// verifiers skip their own token pass, and each is a source file to the other.
-//
-// That single asymmetry is an open enforcement hole, not a settled difference: the
-// pre-commit gate runs verify.ps1, and verify.ps1's $sources does not name this
-// file, so Portuguese written HERE is caught only by running this script by hand.
-// Closing it takes one line in verify.ps1's $sources, one in the hook's `sources`,
-// and widening verify.ps1's token-pass exemption to both verifiers. Until then the
-// gap is announced on every run rather than absorbed by the comparison: a tolerated
-// entry that nothing says out loud is a hole nobody remembers to close.
-const knownGap = {
-  "scripts/verify.mjs":
-    "verify.ps1's $sources and scripts/hooks/pre-commit's sources do not list it, " +
-    "so the pre-commit gate never reads it - only this script does",
-};
-const sharedLists = [
-  ["the staleness wording", staleLines, ps1List("staleLines"), false],
-  ["the guard wording", guardWording, ps1List("guardWording"), false],
-  ["the language-gate source list", literalSources, ps1List("sources"), true],
-];
-for (const [label, mine, theirs, reportGaps] of sharedLists) {
-  const drift = theirs.length === 0 ? ["nothing could be read from verify.ps1"] : [];
-  for (const v of mine) {
-    if (containsCI(theirs, v)) continue;
-    if (reportGaps && knownGap[v]) warnings.push(label + ": " + v + " is checked only here - " + knownGap[v]);
-    else drift.push("only here: " + v);
-  }
-  for (const v of theirs) if (!containsCI(mine, v)) drift.push("only in verify.ps1: " + v);
-  check(drift.length === 0, label + " matches verify.ps1 (" + theirs.length + " entries)");
-  for (const d of drift) detail(d);
-}
 
 // ---------------------------------------------------------------------------
 section("Syntax");
