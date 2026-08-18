@@ -5,6 +5,18 @@ entry for that version — `scripts/verify.ps1` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.58.0 — groups glide into place, and a fresh install starts ready
+
+- **New:** with open groups kept on top, a group now glides to its new place
+  when you open or close it, instead of jumping there. Nothing else about the
+  order changed.
+- **New:** a brand new installation starts with the setup we use every day —
+  focus mode, open groups on top, the fold motion, and Google split by
+  subdomain. Everything stays adjustable in about:spacekeeper, and an existing
+  installation keeps your settings exactly as they are.
+- **Fixed:** expanding a group sometimes showed only its first tabs, with the
+  rest hidden until you clicked another tab. Every tab shows up now.
+
 ## 0.57.0 — a stage for one last click
 
 - No behavior changes in here. The previous release fixed where the update
