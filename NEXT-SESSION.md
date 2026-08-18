@@ -1,35 +1,42 @@
 # What is open, and what to run next
 
-Scratch notes between sessions. Not documentation — delete it when the one change
-below is archived and the node verifier question is settled.
+Scratch notes between sessions. Not documentation. As of 2026-08-18 the only
+thing still open is the decision under "The one decision left" below; when that
+is taken, delete this file.
 
-## State
+## State: nothing pending
 
-Windows is current as of 2026-08-18: the repository, the profile and the local
-tags are all on 0.58.0, and **both** `scripts/verify.ps1` and
-`scripts/verify.mjs` pass here. Releases through v0.58.0 are published on GitHub,
-with their changelog entries as notes.
+Windows is current as of 2026-08-18. The repository, the profile and the local
+tags are all on 0.58.0; **both** `scripts/verify.ps1` and `scripts/verify.mjs`
+pass here, and `openspec validate` passes on all 15 items. Releases through
+v0.58.0 are published on GitHub with their changelog entries as notes.
 
-**One change is left open**, and it is blocked on machines, not on work:
+**No changes are active.** `add-installer-restart` was the last one, archived
+2026-08-18 as `2026-08-18-add-installer-restart` after its delta was synced into
+the `installation` capability, which went from 9 requirements to 12: the restart
+offer, the graceful bounded close, and the detected-profile cache clearing.
 
-| Change | Left | Needs |
-| --- | --- | --- |
-| `add-installer-restart` | 5.5, 5.6 | Windows (interactive), Linux |
-| ~~`add-cross-platform-install`~~ | **archived** | — |
-| ~~`add-stale-version-detection`~~ | **archived** | — |
-| ~~`update-as-a-banner`~~ | **archived** | — |
+Its two remaining verification tasks were closed on the owner's confirmation:
 
-Both remaining tasks are the same interactive installer-restart checks, on two
-systems. Everything else in this file is background for them, or for the
-node-verifier decision below.
+- **5.5 (Windows)** — the non-interactive case was observed directly here, twice.
+  The other three (accept the prompt, decline it, and the bounded wait against an
+  unsaved-changes dialog) are owner-confirmed as run previously, and were not
+  re-observed in the closing session because each one closes the browser.
+- **5.6 (Linux)** — owner-confirmed as done on another machine.
 
-`installation` is now a real capability in the living spec, with nine requirements
-verified on all three systems. Archiving it immediately caught a conflict worth
-knowing about: `add-installer-restart` modifies one of those requirements, and its
-delta had renamed a scenario the main spec now carries — so archive refused it. A
-MODIFIED block replaces the whole requirement, so every existing scenario name has
-to survive in it. Fixed by keeping the original name on the branch that is still
-the original behavior.
+Both are marked as such in the archived `tasks.md`, following the precedent set
+when earlier browser checks were closed as owner-waived. Anyone auditing later
+can tell which checks were watched and which were reported.
+
+The archive also cleared the conflict that once blocked it: a MODIFIED block
+replaces a requirement wholesale, so the delta had to keep the original scenario
+name `After a successful install` intact. It did, and the sync applied cleanly.
+
+The banner walkthrough that used to fill this file is gone with it:
+`add-stale-version-detection` and `update-as-a-banner` were archived on
+2026-08-18, along with the staged-stale releases v0.55.0 and v0.57.0 that fed
+them. Each archived `tasks.md` records which of their checks were confirmed in
+the field and which the owner waived.
 
 ## Linux is done, on WSL
 
@@ -55,29 +62,6 @@ wsl -d Ubuntu
 curl -fsSL https://raw.githubusercontent.com/thiago-zampronio/zen-spacekeeper/main/install.sh | sh -s -- --guard
 ~/.local/share/zen/zen --profile ~/.config/zen/*.default about:spacekeeper &
 ```
-
-## On the Mac: the banner walkthrough is spent
-
-`add-stale-version-detection` and `update-as-a-banner` were both archived on
-2026-08-18, so the long banner script that used to live here (8.2–8.8, and the
-staged-stale releases v0.55.0 and v0.57.0 that fed it) has been run and is gone.
-Each archived `tasks.md` records which checks were confirmed in the field and
-which the owner waived.
-
-What the Mac is still useful for is the interactive restart, if a browser is
-easier to sacrifice there than on Windows. Tasks 5.1–5.4 are already confirmed
-on macOS.
-
-### The three interactive checks still open (5.5, Windows)
-
-Still open for the same reason as before: each one closes the browser. Accept
-the restart prompt, decline it, and leave an unsaved-changes dialog open so the
-bounded wait expires. The non-interactive case is done, and was exercised again
-on 2026-08-18 — `.\install.ps1` with no flag and no terminal consent skipped
-the restart cleanly. Evidence, not impression: Zen had been up since 22:42:30 the
-previous day and was still the same process afterwards, and the startup cache
-kept its 22:42:34 timestamp from that startup. Nothing was closed, and nothing
-was deleted.
 
 ## Archived on the Mac (2026-08-17): the slide and the fold fix
 
@@ -124,37 +108,54 @@ Getting there surfaced two things worth keeping:
   pull brought them all at once. `.\install.ps1` was re-run; the Installation
   section is green again.
 
-## The node verifier exists, and is NOT yet the authority
+## The node verifier: both blockers settled, one decision left
 
 `scripts/verify.mjs` is a check-for-check port of `verify.ps1` (adversarial
 review + A/B mutation trials, 2026-08-17/18). Both pass this tree; seven
 deliberate breakages — accent, unaccented pt token, header/const version
 mismatch, missing CHANGELOG entry, i18n key missing in one language, broken
 requirement anchor, deleted `src/guard/` — fail BOTH, and on the missing
-directory the port is the better of the two (it names three failing checks
-where verify.ps1 dies inside `Get-Content`). The pre-commit hook prefers
-verify.ps1 and falls back to verify.mjs, so a machine without pwsh finally
-runs a full verify.
+directory the port is the better of the two (it names three failing checks where
+verify.ps1 dies inside `Get-Content`). The pre-commit hook prefers verify.ps1 and
+falls back to verify.mjs, so a machine without pwsh still runs a full verify.
 
-**One thing now stands between it and retiring verify.ps1 — the review.** The
-Windows run is done; both items stay listed so the history of what was demanded
-remains readable.
+**The two things that used to stand between it and retiring `verify.ps1` are both
+settled:**
 
-1. ~~**It has never run on Windows.**~~ **Settled 2026-08-18** — it has now,
-   and it agrees with `verify.ps1` check for check (see the Windows section
-   above). The `shell: true` + cmd-quoting path for the `.cmd` shims
-   (per CVE-2024-27980) is exercised and correct.
-2. **The adversarial review never returned a final approval.** Two rounds
-   rejected (blockers: missing directories waved through; Windows `.cmd`
-   spawns) and both were fixed; the third round died in a retry loop after the
-   reviewers' context filled up — reading an 800-line script plus a 58KB port
-   plus both scripts' output is too much for one agent. If it is re-run, split
-   the review by section instead of asking for the whole file at once.
+1. ~~**It has never run on Windows.**~~ **Settled 2026-08-18** — it ran here and
+   agrees with `verify.ps1` check for check: 54 identical checks, same order,
+   same results, same exit code, established by diffing the normalized output of
+   both rather than by reading the tails. The port's only extra output is its own
+   five-check parity section, which is there by design. The `shell: true` +
+   cmd-quoting path for the `openspec`/`eslint` `.cmd` shims (per
+   CVE-2024-27980) is exercised and correct.
+2. ~~**The adversarial review never returned a final approval.**~~ **Settled**
+   — owner-confirmed 2026-08-18 as completed on the Mac. The earlier rounds are
+   history worth keeping: two were rejected (blockers: missing directories waved
+   through; Windows `.cmd` spawns), both were fixed, and the third died in a
+   retry loop once the reviewers' context filled up. If it ever needs re-running,
+   split the review by section rather than handing over the whole file at once.
 
-Until the review is settled, verify.ps1 is the release gate. When it is, delete
-verify.ps1 rather than keeping both: the port carries a parity section that
-polices their shared literal lists, which is a live drift guard while they
-coexist and dead weight the moment one is gone.
+## The one decision left: delete verify.ps1, or keep both
+
+Nothing blocks the retirement any more, but the deletion itself was never
+authorized, so both scripts are still here and `verify.ps1` is still the release
+gate. The recommendation on record is to **delete `verify.ps1` rather than keep
+both**: the port carries a parity section that polices their shared literal
+lists, which is a live drift guard while they coexist and dead weight the moment
+one is gone.
+
+It is not a one-line deletion. It touches at least:
+
+- `CLAUDE.md`, which names `verify.ps1` throughout — the working loop, the
+  release rules, the language gate, and the sentence about requirements being
+  anchored in the code
+- `scripts/hooks/pre-commit`, which prefers it and falls back to the port
+- the port's own parity section, which exists only to police the pair
+- the `release` skill, if it names the gate
+
+Until that is decided and carried out, `verify.ps1` remains the authority and
+both are run together on this machine.
 
 ## Settled: the two restarts stay different
 

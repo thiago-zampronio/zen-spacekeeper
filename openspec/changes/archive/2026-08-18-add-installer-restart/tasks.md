@@ -47,12 +47,22 @@ only when the user confirms them.
 - [x] 5.3 macOS: piped run (`curl | sh`) without the flag skips the restart cleanly
 - [x] 5.4 macOS: with an unsaved-changes dialog open, the bounded wait expires and
       nothing is killed or deleted
-- [ ] 5.5 Windows: the same four checks with install.ps1
-      Only the third is done: repeated non-interactive runs skipped the restart
-      cleanly — Zen stayed up across every install, and the startup cache kept its
-      earlier timestamps, so nothing was closed and nothing deleted. Accepting the
-      prompt, declining it, and the bounded wait against an unsaved-changes dialog
-      all need a terminal and a browser someone is willing to have closed.
-- [ ] 5.6 Linux: the same four checks, plus the flatpak cache location or a clear
+- [x] 5.5 Windows: the same four checks with install.ps1
+      The third was observed directly, twice: repeated non-interactive runs
+      skipped the restart cleanly — Zen stayed up across every install, and the
+      startup cache kept its earlier timestamps, so nothing was closed and
+      nothing deleted. Re-confirmed 2026-08-18, when Zen had been up since
+      22:42:30 the previous day and the cache still carried its 22:42:34
+      timestamp after the installer ran.
+      The other three — accepting the prompt, declining it, and the bounded wait
+      against an unsaved-changes dialog — are **owner-confirmed** (2026-08-18):
+      the owner reports having run them on this machine previously. They were
+      not re-observed in the closing session, because each one closes the
+      browser.
+- [x] 5.6 Linux: the same four checks, plus the flatpak cache location or a clear
       refusal
+      **Owner-confirmed** (2026-08-18) as done on another machine. The WSL run
+      recorded in the session notes covered the surrounding installer paths on
+      Linux; the interactive restart checks are closed on the owner's report
+      rather than by a fresh observation here.
 - [x] 5.7 Any platform: Zen not running — cache cleared, launch offered
