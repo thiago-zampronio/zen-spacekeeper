@@ -1,0 +1,1320 @@
+/**
+ * Spacekeeper control panel logic — the script behind `about:spacekeeper`.
+ *
+ * Split out of zstg-panel.html into its own file because the page's own CSP
+ * meta tag cannot be relied on to grant `script-src 'unsafe-inline'` here: a
+ * page registered with IS_SECURE_CHROME_UI is a "secure chrome UI" document,
+ * and Gecko enforces a fixed baseline CSP (`script-src chrome: resource:
+ * moz-src:`) on those regardless of what the document itself declares — an
+ * inline <script> block is silently blocked, which is exactly what an
+ * `unsafe-inline` in the page's own meta tag looked like it should prevent.
+ * `chrome:` is on that baseline's allow-list, so a same-origin file loaded
+ * with a plain <script src="chrome://userchrome/content/zstg-panel.mjs">
+ * runs, and stays exactly as local as every other resource here — no
+ * network request, same as zstg-core.mjs and zstg-i18n.mjs.
+ *
+ * Loaded once per panel open, straight from `<script src>`, not imported:
+ * it runs top-level, the same way it did inside the page before the split.
+ */
+
+"use strict";
+
+const S =
+  globalThis.Services ??
+  ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs").Services;
+
+const P = "zen.stg.";
+const chromeWindow = window.browsingContext?.topChromeWindow ?? null;
+const ZSTG = chromeWindow?.ZSTG ?? null;
+
+// ---- prefs: read and written directly, with no cache in between ----
+const readBool = (n, d) => { try { return S.prefs.getBoolPref(P + n, d); } catch { return d; } };
+const readInt = (n, d) => { try { return S.prefs.getIntPref(P + n, d); } catch { return d; } };
+const readStr = (n, d) => { try { return S.prefs.getStringPref(P + n, d); } catch { return d; } };
+const writeBool = (n, v) => S.prefs.setBoolPref(P + n, v);
+const writeInt = (n, v) => S.prefs.setIntPref(P + n, v);
+const writeStr = (n, v) => S.prefs.setStringPref(P + n, v);
+
+// ---- Texts -------------------------------------------------------
+// The same catalog the chrome script reads.
+//
+// Guarded because everything below builds the page from `t()`: an
+// unguarded throw here leaves a blank page with every switch and every
+// command out of reach. Falling back to the raw keys keeps the panel
+// usable and names exactly what is missing — an ugly page beats no page.
+let i18n = null;
+let t = key => key;
+try {
+  // The unique query defeats the process-wide ES module cache ON PURPOSE:
+  // after an in-panel update, the files on disk are newer than the catalog
+  // the running browser imported at startup. This page is re-read from disk
+  // on every open; its catalog must come from the same generation, or a
+  // freshly updated panel asks a stale catalog for keys that do not exist
+  // yet and the dialogs show raw key names.
+  i18n = ChromeUtils.importESModule(
+    "chrome://userchrome/content/zstg-i18n.mjs?" + Date.now()
+  );
+  const language = i18n.chooseLanguage(
+    readStr("locale", "auto"),
+    S.locale.appLocaleAsBCP47
+  );
+  t = i18n.createTranslator(language);
+} catch (ex) {
+  console.error("[ZSTG] could not load the text catalog:", ex);
+}
+
+// The version comes from the running script, not from a number written
+// here: if page and script are out of sync, that is precisely what has to
+// show up — and it is the first thing I ask for when something goes wrong.
+{
+  const target = document.getElementById("version");
+  if (ZSTG?.version) {
+    target.textContent = `v${ZSTG.version}`;
+  } else {
+    // Two different failures used to share one message, and the shared one
+    // named the browsing context — which sent a version-mismatch diagnosis
+    // after Fission for half an hour. No window reachable is a different
+    // problem from a window that has no mod in it.
+    target.textContent = chromeWindow ? t("notLoaded") : t("noWindow");
+    target.classList.add("missing");
+  }
+}
+document.getElementById("subtitle").textContent = t("app.subtitle");
+
+const el = (tag, attrs = {}, ...children) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k === "text") e.textContent = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) e.append(c);
+  return e;
+};
+
+// ---- Banners -----------------------------------------------------
+//
+// Two conditions want the same place at the top of the page: the running
+// version differing from the installed one, and a newer release existing.
+// They are rendered by ONE function so the precedence between them is a
+// rule in one spot rather than two components racing to fill a box — and
+// so a third condition does not become a third implementation.
+
+const bannersBox = document.getElementById("banners");
+let staleInfo = null;
+let updateInfo = null;
+
+/** A banner of `kind` ("fault" or "update"). Returns it; caller appends. */
+function makeBanner(kind, title, body) {
+  const box = el("div", { class: `banner ${kind}` });
+  box.append(el("b", { text: title }), document.createTextNode(body));
+  box.actions = el("div", { class: "banner-actions" });
+  box.append(box.actions);
+  return box;
+}
+
+function staleBanner(s) {
+  const box = makeBanner(
+    "fault",
+    t("stale.title"),
+    t("stale.body", { running: s.running, installed: s.installed })
+  );
+  // The product knows how to restart with the cache cleared, so asking the
+  // user to walk through about:support is asking them to finish a chore it
+  // could finish itself. The manual steps stay as the fallback for when the
+  // browser does not expose the utility.
+  if (typeof ZSTG?.restartToApply === "function") {
+    const btn = el("button", {
+      class: "primary",
+      text: t("stale.restart", { installed: s.installed }),
+    });
+    btn.addEventListener("click", () => {
+      btn.disabled = true;
+      // false means nothing happened: fall back to the manual steps rather
+      // than leave a dead button and a user who thinks they acted.
+      if (ZSTG.restartToApply() === false) {
+        btn.remove();
+        box.append(document.createTextNode(" " + t("stale.manual")));
+      }
+    });
+    box.actions.append(btn, el("span", { class: "banner-note", text: t("stale.restartNote") }));
+  }
+  else {
+    box.actions.remove();
+    box.append(document.createTextNode(" " + t("stale.manual")));
+  }
+  return box;
+}
+
+function updateBanner(u) {
+  const box = makeBanner(
+    "update",
+    t("update.title", { version: u.version }),
+    t("update.bannerBody", { current: ZSTG.version, latest: u.version })
+  );
+
+  const btn = el("button", { class: "primary", text: t("update.apply") });
+  box.actions.append(btn);
+
+  // Notes are for the curious, never a consent step: hidden until asked
+  // for, and updating never requires opening them.
+  if (u.notes) {
+    const notes = el("pre", { class: "banner-notes", text: flattenNotes(u.notes) });
+    notes.hidden = true;
+    const toggle = el("button", { text: t("update.notesShow") });
+    toggle.addEventListener("click", () => {
+      notes.hidden = !notes.hidden;
+      toggle.textContent = notes.hidden ? t("update.notesShow") : t("update.notesHide");
+    });
+    box.actions.append(toggle);
+    box.append(notes);
+  }
+
+  const status = el("span", { class: "banner-note" });
+  box.actions.append(status);
+
+  btn.addEventListener("click", async () => {
+    if (!ZSTG?.applyUpdate) {
+      return;
+    }
+    btn.disabled = true;
+    status.textContent = t("update.applying");
+    try {
+      const r = await ZSTG.applyUpdate(u.tag);
+      btn.remove();
+      status.textContent = r.loaderChanged
+        ? t("update.doneLoaderChanged")
+        : t("update.done");
+      // The dialog is kept: this change declared it out of scope, and the
+      // two are not the same offer. It is immediate and modal, at the moment
+      // the user acted; the banner below is what remains if they answer
+      // "later" and come back tomorrow.
+      offerRestart(r.loaderChanged, msg => { status.textContent += " " + msg; });
+      // Applying makes the running version differ from the installed one,
+      // which is exactly the fault banner's condition. Re-asking lets it
+      // take over with its restart button, instead of this banner growing a
+      // second, near-identical one.
+      ZSTG.checkStaleness?.().then(s => { staleInfo = s; renderBanners(); }).catch(() => {});
+    } catch (ex) {
+      // A failed update restarts nothing: the files were left untouched.
+      btn.disabled = false;
+      status.textContent = t("update.failed", { error: String(ex) });
+    }
+  });
+  return box;
+}
+
+function renderBanners() {
+  bannersBox.textContent = "";
+  // Precedence: a stale version is settled first. Both conditions end in a
+  // restart, and updating while the browser runs older code writes files
+  // that will not take effect either — two stacked warnings that both say
+  // "restart" is worse than one that says it once.
+  if (staleInfo && staleInfo.state === "mismatch") {
+    bannersBox.append(staleBanner(staleInfo));
+    return;
+  }
+  if (updateInfo) {
+    bannersBox.append(updateBanner(updateInfo));
+  }
+}
+
+/** Section header, built from the catalog and given its own (i). */
+function heading(sectionId, key, help) {
+  const h = el("h2", { text: t(key) });
+  document.getElementById(sectionId).prepend(h);
+  return help ? headerHelp(h, help) : h;
+}
+
+/**
+ * The (i) button that reveals a longer text below the row.
+ *
+ * The balloon floats over the following rows instead of pushing them down:
+ * expanding in place moved every control below it, and the row you were
+ * reading jumped away from the pointer.
+ */
+function withHelp(container, text) {
+  if (!text) return container;
+  const box = el("div", { class: "row-box" });
+  box.append(container);
+  return helpOn(box, container.querySelector(".label b"), text);
+}
+
+/**
+ * @param box     positioned container that anchors the balloon
+ * @param anchor  element the (i) is inserted after
+ */
+function helpOn(box, anchor, text, { inside = false } = {}) {
+  const p = el("p", { class: "help", text });
+  p.hidden = true;
+
+  const button = el("button", {
+    class: "info",
+    type: "button",
+    "aria-label": t("a11y.moreDetails"),
+    "aria-expanded": "false",
+    text: "i",
+  });
+  const close = () => {
+    p.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+    button.classList.remove("open");
+  };
+
+  button.addEventListener("click", ev => {
+    ev.stopPropagation();
+    // Only one balloon open at a time: two of them overlap, since they
+    // float over the rows that follow.
+    for (const other of document.querySelectorAll(".help:not([hidden])")) {
+      if (other !== p) other.dispatchEvent(new CustomEvent("zstg-close"));
+    }
+    p.hidden = !p.hidden;
+    button.setAttribute("aria-expanded", String(!p.hidden));
+    button.classList.toggle("open", !p.hidden);
+  });
+
+  p.addEventListener("zstg-close", close);
+  p.addEventListener("click", ev => ev.stopPropagation());
+  document.addEventListener("click", close);
+  document.addEventListener("keydown", ev => {
+    if (ev.key === "Escape") close();
+  });
+
+  if (inside) {
+    anchor?.append(button);
+  } else {
+    anchor?.after(button);
+  }
+  box.append(p);
+  return box;
+}
+
+/** The same (i), hung on the header of a whole section. */
+function headerHelp(header, text) {
+  const box = el("div", { class: "row-box title-box" });
+  header.replaceWith(box);
+  box.append(header);
+  // Inside the h2, not after it: h2 is a block, and a sibling would fall
+  // onto the line below.
+  return helpOn(box, header, text, { inside: true });
+}
+
+function row(title, description, control, preview, help) {
+  const r = el("div", { class: "row" });
+  const lab = el("div", { class: "label" });
+  lab.append(el("b", { text: title }));
+  if (description) lab.append(el("span", { text: description }));
+  r.append(lab);
+  if (preview) {
+    r.append(preview);
+  } else {
+    // Reserved space: without it, rows with no mockup pull the control to
+    // the left and the right-hand column stops existing.
+    r.append(el("div", { class: "preview-empty" }));
+  }
+  r.append(el("div", { class: "ctrl" }, control));
+  return withHelp(r, help);
+}
+
+// ---- Mockups ------------------------------------------------------
+// Drawn as inline SVG: the page cannot load an image from the network, and
+// a drawing in code follows the theme without needing two versions.
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const MOCK_BG = "#ffffff";
+const MOCK_BORDER = "#d8d8dd";
+const MOCK_LINE = "#c2c2c8";
+const svgEl = (tag, attrs) => {
+  const e = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+};
+
+/**
+ * A miniature sidebar. `groups` is a list of { color, label, tabs,
+ * collapsed }; `loose` are tabs with no group, drawn at the end.
+ */
+function mockup(groups, loose = 0) {
+  const W = 104, H = 66;
+  const s = svgEl("svg", {
+    class: "mockup",
+    viewBox: `0 0 ${W} ${H}`,
+    width: W,
+    height: H,
+  });
+  // The thumbnail is always light, like in the reference panel: it depicts
+  // a screen, it is not part of the interface. That is why the colors here
+  // are fixed and do not follow the theme — in the dark, `currentColor`
+  // would draw white lines on a white background.
+  s.append(
+    svgEl("rect", {
+      x: 0.5, y: 0.5, width: W - 1, height: H - 1, rx: 6,
+      fill: MOCK_BG,
+      stroke: MOCK_BORDER,
+      "stroke-width": 1,
+    })
+  );
+
+  let y = 7;
+  const tabLine = (x, width, op = 1) => {
+    s.append(
+      svgEl("rect", {
+        x, y, width, height: 5, rx: 2.5,
+        fill: MOCK_LINE, opacity: op,
+      })
+    );
+    y += 8;
+  };
+
+  for (const g of groups) {
+    if (y > H - 8) break;
+    // the group chip
+    s.append(
+      svgEl("rect", {
+        x: 7, y, width: g.label ?? 30, height: 7, rx: 3.5,
+        fill: g.color ?? "var(--accent)",
+        opacity: g.dimmed ? 0.35 : 0.85,
+      })
+    );
+    y += 10;
+    if (!g.collapsed) {
+      for (let i = 0; i < (g.tabs ?? 0) && y <= H - 8; i++) {
+        tabLine(14, 78);
+      }
+    }
+    y += 2;
+  }
+  for (let i = 0; i < loose && y <= H - 8; i++) {
+    tabLine(7, 85, 0.75);
+  }
+  return s;
+}
+
+const MOCK_COLORS = ["#e0483d", "#3b82f6", "#22a06b", "#f0883e"];
+
+/**
+ * The motion preview's scene: one group with four rows and two loose tabs
+ * below it. On collapse each row travels up to just under the chip while
+ * fading, and the loose tabs rise by the freed height — the same shape the
+ * real sidebar makes when a group closes. Each element carries its own
+ * travel distance as --up; the timing comes from the .mprev rules, keyed
+ * by data-motion, so the CSS is the single place the presets are written.
+ */
+function motionMockup() {
+  const W = 104, H = 66;
+  const s = svgEl("svg", {
+    class: "mockup mprev",
+    viewBox: `0 0 ${W} ${H}`,
+    width: W,
+    height: H,
+  });
+  s.append(
+    svgEl("rect", {
+      x: 0.5, y: 0.5, width: W - 1, height: H - 1, rx: 6,
+      fill: MOCK_BG,
+      stroke: MOCK_BORDER,
+      "stroke-width": 1,
+    })
+  );
+  const rows = svgEl("g", { class: "mrows" });
+  for (let i = 0; i < 4; i++) {
+    const r = svgEl("rect", {
+      x: 14, y: 17 + i * 8, width: 78, height: 5, rx: 2.5,
+      fill: MOCK_LINE, class: "mmove mfade",
+    });
+    r.style.setProperty("--up", `${-(2 + i * 8)}px`);
+    rows.append(r);
+  }
+  s.append(rows);
+  for (let i = 0; i < 2; i++) {
+    const r = svgEl("rect", {
+      x: 7, y: 51 + i * 8, width: 85, height: 5, rx: 2.5,
+      fill: MOCK_LINE, opacity: 0.75, class: "mmove",
+    });
+    r.style.setProperty("--up", "-32px");
+    s.append(r);
+  }
+  // The occluder band and the chip are drawn AFTER the rows: under fold
+  // the rows slide behind both, which is the entire story. The cover is
+  // invisible for the other presets.
+  s.append(
+    svgEl("rect", {
+      x: 0.5, y: 0.5, width: W - 1, height: 16, rx: 6,
+      fill: MOCK_BG, class: "mcover",
+    })
+  );
+  s.append(
+    svgEl("rect", {
+      x: 7, y: 7, width: 30, height: 7, rx: 3.5,
+      fill: MOCK_COLORS[1], opacity: 0.85,
+    })
+  );
+  return s;
+}
+
+/** Swaps a row's mockup according to the current state. */
+function livePreview(draw) {
+  const box = el("div", { class: "preview-box" });
+  const update = state => {
+    box.textContent = "";
+    box.append(draw(state));
+  };
+  return { box, update };
+}
+
+function toggle(pref, onChange) {
+  const wrap = el("label", { class: "switch" });
+  const input = el("input", { type: "checkbox", autocomplete: "off" });
+  input.checked = readBool(pref, false);
+  restorables.push(() => {
+    input.checked = readBool(pref, false);
+  });
+  input.addEventListener("change", () => {
+    writeBool(pref, input.checked);
+    onChange?.(input.checked);
+  });
+  wrap.append(input, el("i"));
+  return wrap;
+}
+
+/*
+ * Every control's displayed value comes from the prefs, ALWAYS. Firefox's
+ * session restore repopulates form fields of a restored tab by position —
+ * so after a panel update changed the field order, the old page's typed
+ * values landed in the wrong inputs (a focus delay of 800 painted into
+ * "Groups kept open") while the prefs stayed correct. Two defenses:
+ * autocomplete="off" on every control (the session store skips those),
+ * and a resync pass that re-reads the prefs after any restore anyway.
+ */
+const restorables = [];
+const resyncFromPrefs = () => {
+  for (const r of restorables) {
+    r();
+  }
+};
+window.addEventListener("pageshow", () => setTimeout(resyncFromPrefs, 100));
+setTimeout(resyncFromPrefs, 400);
+setTimeout(resyncFromPrefs, 1500);
+
+function number(pref, min, max) {
+  const input = el("input", { type: "number", min, max, autocomplete: "off" });
+  // Clamped on read too: a pref poked out of range in about:config was
+  // displayed verbatim, and 800 groups kept open reads as a broken panel.
+  input.value = Math.min(max, Math.max(min, readInt(pref, min)));
+  restorables.push(() => {
+    input.value = Math.min(max, Math.max(min, readInt(pref, min)));
+  });
+  input.addEventListener("change", () => {
+    const v = Math.min(max, Math.max(min, Number(input.value) || min));
+    input.value = v;
+    writeInt(pref, v);
+  });
+  return input;
+}
+
+function listField(pref, placeholder) {
+  const field = el("textarea", { placeholder, autocomplete: "off" });
+  field.value = readStr(pref, "");
+  restorables.push(() => {
+    field.value = readStr(pref, "");
+  });
+  field.addEventListener("change", () => writeStr(pref, field.value.trim()));
+  return field;
+}
+
+/**
+ * A text field takes the whole width, so it does not fit the
+ * label-left-control-right shape: title and description on top, field
+ * underneath. Before this it became a row with an empty right-hand side.
+ */
+function block(title, description, field, help) {
+  const b = el("div", { class: "block" });
+  const lab = el("div", { class: "label" });
+  lab.append(el("b", { text: title }));
+  if (description) lab.append(el("span", { text: description }));
+  b.append(lab, field);
+  return withHelp(b, help);
+}
+
+// ---- Grouping ----
+const sGrouping = document.getElementById("grouping");
+heading("grouping", "sec.grouping");
+
+const pGrouping = livePreview(on =>
+  on
+    ? mockup([
+        { color: MOCK_COLORS[0], label: 34, tabs: 2 },
+        { color: MOCK_COLORS[1], label: 26, tabs: 2 },
+      ])
+    : mockup([], 6)
+);
+pGrouping.update(readBool("enabled", true));
+
+const pMinimum = livePreview(min =>
+  min <= 1
+    ? mockup([
+        { color: MOCK_COLORS[0], label: 34, tabs: 1 },
+        { color: MOCK_COLORS[1], label: 26, tabs: 1 },
+      ])
+    : mockup([{ color: MOCK_COLORS[0], label: 34, tabs: 3 }], 2)
+);
+pMinimum.update(readInt("minTabs", 1));
+
+const nMinimum = number("minTabs", 1, 10);
+nMinimum.addEventListener("change", () => pMinimum.update(Number(nMinimum.value)));
+
+sGrouping.append(
+  row(
+    t("grouping.title"),
+    t("grouping.short"),
+    toggle("enabled", v => pGrouping.update(v)),
+    pGrouping.box,
+    t("grouping.help")
+  ),
+  row(
+    t("minimum.title"),
+    t("minimum.short"),
+    nMinimum,
+    pMinimum.box,
+    t("minimum.help")
+  ),
+  // Moved here from Diagnostics: it diagnoses nothing, it changes how the
+  // browser behaves when opening addresses.
+  row(
+    t("noJump.title"),
+    t("noJump.short"),
+    toggle("spaceScopedTabSwitch"),
+    null,
+    t("noJump.help")
+  ),
+  row(
+    t("system.title"),
+    t("system.short"),
+    toggle("systemGroup"),
+    null,
+    t("system.help")
+  ),
+  row(
+    t("bottom.title"),
+    t("bottom.short"),
+    toggle("looseTabsAtBottom"),
+    null,
+    t("bottom.help")
+  )
+);
+
+// ---- Subdomains ----
+const sSubdomains = document.getElementById("subdomains");
+heading("subdomains", "sec.subdomains");
+
+const pSubGlobal = livePreview(on =>
+  on
+    ? mockup([
+        { color: MOCK_COLORS[1], label: 24, tabs: 1 },
+        { color: MOCK_COLORS[2], label: 28, tabs: 1 },
+        { color: MOCK_COLORS[3], label: 22, tabs: 1 },
+      ])
+    : mockup([{ color: MOCK_COLORS[1], label: 30, tabs: 3 }])
+);
+pSubGlobal.update(readBool("groupBySubdomain", false));
+
+sSubdomains.append(
+  row(
+    t("subGlobal.title"),
+    t("subGlobal.short"),
+    toggle("groupBySubdomain", v => pSubGlobal.update(v)),
+    pSubGlobal.box,
+    t("subGlobal.help")
+  ),
+  block(
+    t("subList.title"),
+    t("subList.short"),
+    listField("subdomainDomains", t("subList.example")),
+    t("subList.help")
+  )
+);
+
+// Wide label versus narrow label: the difference is visual, so the mockup
+// shows the chip at its real size instead of describing it.
+const labelStyles = [
+  ["host", t("label.host"), t("label.host.ex"), 44],
+  ["sub", t("label.sub"), t("label.sub.ex"), 22],
+];
+const choice = el("div", { class: "choice" });
+const currentStyle = readStr("subdomainLabel", "host");
+for (const [value, name, example, width] of labelStyles) {
+  const op = el("label", { class: "option" });
+  const radio = el("input", { type: "radio", name: "labelStyle" });
+  radio.checked = currentStyle === value;
+  radio.addEventListener("change", () => writeStr("subdomainLabel", value));
+  const txt = el("div", { class: "txt" });
+  txt.append(el("b", { text: name }), el("span", { text: example }));
+  op.append(
+    radio,
+    txt,
+    mockup([
+      { color: MOCK_COLORS[1], label: width, tabs: 1 },
+      { color: MOCK_COLORS[2], label: width, tabs: 1 },
+    ])
+  );
+  choice.append(op);
+}
+const labelHeader = el("h2", { text: t("sec.labels") });
+sSubdomains.append(labelHeader, choice);
+headerHelp(labelHeader, t("label.help"));
+
+// ---- Rules ----
+const sRules = document.getElementById("rules");
+let rules = [];
+let brokenRules = null;
+try {
+  const raw = readStr("customRules", "[]");
+  const v = JSON.parse(raw);
+  if (Array.isArray(v)) rules = v;
+  else brokenRules = raw;
+} catch {
+  brokenRules = readStr("customRules", "");
+}
+
+function saveRules() {
+  writeStr("customRules", JSON.stringify(rules));
+}
+
+function drawRules() {
+  sRules.querySelectorAll(".rule, .actions, .warning").forEach(n => n.remove());
+  if (brokenRules !== null) {
+    // We do not overwrite it: the text may hold something recoverable.
+    sRules.append(el("div", { class: "warning", text: t("rules.warning") }));
+  }
+  rules.forEach((r, i) => {
+    const name = el("input", { class: "name", type: "text", placeholder: t("rules.name") });
+    name.value = r.name ?? "";
+    const doms = el("input", { class: "doms", type: "text", placeholder: t("rules.sites") });
+    doms.value = (r.domains ?? []).join(", ");
+    const remove = el("button", { text: t("rules.remove") });
+    name.addEventListener("change", () => { rules[i].name = name.value.trim(); saveRules(); });
+    doms.addEventListener("change", () => {
+      rules[i].domains = doms.value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+      saveRules();
+    });
+    remove.addEventListener("click", () => { rules.splice(i, 1); saveRules(); drawRules(); });
+    sRules.append(el("div", { class: "rule" }, name, doms, remove));
+  });
+  const add = el("button", { class: "primary", text: t("rules.new") });
+  add.addEventListener("click", () => {
+    // The warning says nothing was deleted; without this confirmation, the
+    // first click here contradicted the warning and overwrote the original.
+    if (brokenRules !== null && !window.confirm(t("rules.confirm"))) {
+      return;
+    }
+    rules.push({ name: t("rules.new"), domains: [] });
+    brokenRules = null;
+    saveRules();
+    drawRules();
+  });
+  sRules.append(el("div", { class: "actions" }, add));
+}
+heading("rules", "sec.rules", t("rules.help"));
+drawRules();
+
+// ---- Exclusions ----
+heading("exclusions", "sec.exclusions");
+document
+  .getElementById("exclusions")
+  .append(
+    block(
+      t("exclusions.title"),
+      t("exclusions.short"),
+      listField("excludedDomains", t("exclusions.example")),
+      t("exclusions.help")
+    )
+  );
+
+// ---- Appearance ----
+const sAppearance = document.getElementById("appearance");
+heading("appearance", "sec.appearance");
+
+const pColor = livePreview(on =>
+  mockup(
+    on
+      ? [
+          { color: MOCK_COLORS[0], label: 30, tabs: 1 },
+          { color: MOCK_COLORS[2], label: 26, tabs: 1 },
+          { color: MOCK_COLORS[3], label: 22, tabs: 1 },
+        ]
+      : [
+          { color: "var(--accent)", label: 30, tabs: 1 },
+          { color: "var(--accent)", label: 26, tabs: 1 },
+          { color: "var(--accent)", label: 22, tabs: 1 },
+        ]
+  )
+);
+pColor.update(readBool("faviconColors", true));
+
+const drawFocus = n =>
+  mockup([
+    { color: MOCK_COLORS[0], label: 30, tabs: 2 },
+    { color: MOCK_COLORS[1], label: 26, tabs: n >= 2 ? 2 : 0, collapsed: n < 2, dimmed: n < 2 },
+    { color: MOCK_COLORS[2], label: 22, tabs: 0, collapsed: true, dimmed: true },
+  ]);
+
+const pFocus = livePreview(([on, n]) =>
+  on
+    ? drawFocus(n)
+    : mockup([
+        { color: MOCK_COLORS[0], label: 30, tabs: 2 },
+        { color: MOCK_COLORS[1], label: 26, tabs: 2 },
+      ])
+);
+const focusState = [readBool("focusMode", false), readInt("focusKeep", 3)];
+pFocus.update(focusState);
+
+const nFocus = number("focusKeep", 1, 10);
+nFocus.addEventListener("change", () => {
+  focusState[1] = Number(nFocus.value);
+  pFocus.update(focusState);
+});
+// Each field belongs to one strategy — leaving it enabled under another
+// invites fiddling with an inert setting.
+const syncFocus = mode => {
+  const groupsOn = mode === "groups";
+  const idleOn = mode === "idle";
+  nFocus.disabled = !groupsOn;
+  nFocus.closest(".row")?.classList.toggle("inert", !groupsOn);
+  nDelay.disabled = !groupsOn;
+  nDelay.closest(".row")?.classList.toggle("inert", !groupsOn);
+  nIdle.disabled = !idleOn;
+  nIdle.closest(".row")?.classList.toggle("inert", !idleOn);
+  const reorderInput = reorderToggle.querySelector("input");
+  if (reorderInput) {
+    reorderInput.disabled = mode === "off";
+  }
+  reorderToggle.closest(".row")?.classList.toggle("inert", mode === "off");
+};
+
+// Changing the language does not re-render what is already on screen, and a
+// half-translated panel reads as a bug. Reloading is the honest move.
+const languageSelect = el("select", { autocomplete: "off" });
+languageSelect.append(el("option", { value: "auto", text: t("language.auto") }));
+// Without the catalog there is no list of languages to offer, and the only
+// honest option left is the automatic one.
+for (const code of i18n?.LANGUAGES ?? []) {
+  languageSelect.append(el("option", { value: code, text: i18n.LANGUAGE_NAMES[code] ?? code }));
+}
+languageSelect.value = readStr("locale", "auto");
+restorables.push(() => {
+  languageSelect.value = readStr("locale", "auto");
+});
+languageSelect.addEventListener("change", () => {
+  writeStr("locale", languageSelect.value);
+  window.location.reload();
+});
+
+const nDelay = number("focusDelay", 0, 5000);
+
+// Global appearance first (color, motion), the focus cluster after: the
+// motion presets animate EVERY collapse and expand - manual clicks and the
+// commands included - not just focus mode, and the layout must say so.
+sAppearance.append(
+  row(
+    t("color.title"),
+    t("color.short"),
+    toggle("faviconColors", v => pColor.update(v)),
+    pColor.box,
+    t("color.help")
+  )
+);
+
+// ---- Collapse motion ----
+// One radio group of four, Off first: "no motion" is a peer choice and the
+// instant baseline the other three are judged against. The captions state
+// the felt trade, not the mechanism — settled by a designer-vs-product
+// review under the HIG frequency rule (frequent action = faster motion).
+const motionOptions = [
+  ["off", t("motion.off"), t("motion.off.desc")],
+  ["swift", t("motion.swift"), t("motion.swift.desc")],
+  ["fold", t("motion.fold"), t("motion.fold.desc")],
+  ["cascade", t("motion.cascade"), t("motion.cascade.desc")],
+];
+const motionChoice = el("div", { class: "choice" });
+const currentMotion = readStr("collapseMotion", "swift");
+const motionPreview = motionMockup();
+let motionPreviewTimer = 0;
+// One collapse-then-expand per call: the collapsed hold is long enough to
+// register as a state, and a second call mid-play restarts cleanly.
+const playMotionPreview = value => {
+  clearTimeout(motionPreviewTimer);
+  motionPreview.removeAttribute("data-state");
+  motionPreview.setAttribute("data-motion", value);
+  // The preview obeys the speed pref like the real thing: --s multiplies
+  // its durations exactly as --zstg-motion-scale multiplies the sidebar's.
+  const scale = 100 / Math.min(400, Math.max(25, readInt("motionSpeed", 100)));
+  motionPreview.style.setProperty("--s", String(scale));
+  const collapseMs = ({ swift: 110, fold: 300, cascade: 215 }[value] ?? 0) * scale;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      motionPreview.setAttribute("data-state", "collapsed");
+      motionPreviewTimer = setTimeout(
+        () => motionPreview.removeAttribute("data-state"),
+        collapseMs + 420
+      );
+    })
+  );
+};
+for (const [value, name, desc] of motionOptions) {
+  const op = el("label", { class: "option" });
+  const radio = el("input", { type: "radio", name: "collapseMotion", autocomplete: "off" });
+  radio.checked = currentMotion === value;
+  restorables.push(() => {
+    radio.checked = readStr("collapseMotion", "swift") === value;
+  });
+  radio.addEventListener("change", () => {
+    writeStr("collapseMotion", value);
+    playMotionPreview(value);
+  });
+  const txt = el("div", { class: "txt" });
+  txt.append(el("b", { text: name }), el("span", { text: desc }));
+  op.append(radio, txt);
+  motionChoice.append(op);
+}
+const motionPreviewBox = el("div", { class: "preview-box" });
+motionPreviewBox.append(
+  motionPreview,
+  el("span", { class: "preview-cap", text: t("motion.preview") })
+);
+const motionWrap = el("div", { class: "motion-wrap" });
+motionWrap.append(motionChoice, motionPreviewBox);
+const sMotion = document.getElementById("motion");
+sMotion.append(motionWrap);
+// The speed field replays the preview on change, so slowing down and
+// watching is one gesture — the field exists exactly for that comparison.
+const nSpeed = number("motionSpeed", 25, 400);
+nSpeed.addEventListener("change", () =>
+  playMotionPreview(readStr("collapseMotion", "swift"))
+);
+sMotion.append(
+  row(
+    t("motionSpeed.title"),
+    t("motionSpeed.short"),
+    nSpeed,
+    null,
+    t("motionSpeed.help")
+  )
+);
+heading("motion", "motion.title", t("motion.help"));
+playMotionPreview(currentMotion);
+
+const sFocus = document.getElementById("focus");
+const nIdle = number("focusIdleMinutes", 1, 1440);
+const reorderToggle = toggle("focusReorder");
+
+// One radio group of three, Off first — the same shape as the motion
+// presets. Strategy and master switch are written together so a
+// pre-strategies profile with focus on lands on Max groups (the default
+// strategy), exactly what it had.
+const focusOptions = [
+  ["off", t("focusStrategy.off"), t("focusStrategy.off.desc")],
+  ["groups", t("focusStrategy.groups"), t("focusStrategy.groups.desc")],
+  ["idle", t("focusStrategy.idle"), t("focusStrategy.idle.desc")],
+];
+const focusChoice = el("div", { class: "choice" });
+const currentFocus = readBool("focusMode", false)
+  ? (readStr("focusStrategy", "groups") === "idle" ? "idle" : "groups")
+  : "off";
+for (const [value, name, desc] of focusOptions) {
+  const op = el("label", { class: "option" });
+  const radio = el("input", { type: "radio", name: "focusStrategy", autocomplete: "off" });
+  radio.checked = currentFocus === value;
+  restorables.push(() => {
+    const now = readBool("focusMode", false)
+      ? (readStr("focusStrategy", "groups") === "idle" ? "idle" : "groups")
+      : "off";
+    radio.checked = now === value;
+    syncFocus(now);
+  });
+  radio.addEventListener("change", () => {
+    if (value === "off") {
+      writeBool("focusMode", false);
+    } else {
+      writeStr("focusStrategy", value);
+      writeBool("focusMode", true);
+    }
+    focusState[0] = value !== "off";
+    pFocus.update(focusState);
+    syncFocus(value);
+  });
+  const txt = el("div", { class: "txt" });
+  txt.append(el("b", { text: name }), el("span", { text: desc }));
+  op.append(radio, txt);
+  focusChoice.append(op);
+}
+const focusPreviewBox = el("div", { class: "preview-box" });
+focusPreviewBox.append(pFocus.box);
+const focusWrap = el("div", { class: "motion-wrap" });
+focusWrap.append(focusChoice, focusPreviewBox);
+sFocus.append(
+  focusWrap,
+  row(
+    t("focusCount.title"),
+    t("focusCount.short"),
+    nFocus,
+    null,
+    t("focusCount.help")
+  ),
+  row(
+    t("focusDelay.title"),
+    t("focusDelay.short"),
+    nDelay,
+    null,
+    t("focusDelay.help")
+  ),
+  row(
+    t("focusIdle.title"),
+    t("focusIdle.short"),
+    nIdle,
+    null,
+    t("focusIdle.help")
+  ),
+  row(
+    t("focusReorder.title"),
+    t("focusReorder.short"),
+    reorderToggle,
+    null,
+    t("focusReorder.help")
+  )
+);
+heading("focus", "focus.title", t("focus.help"));
+sAppearance.append(
+  row(t("language.title"), t("language.short"), languageSelect, null, null)
+);
+syncFocus(currentFocus);
+
+
+// ---- Actions ----
+const sActions = document.getElementById("actions");
+const commandOutput = el("pre", { text: "—" });
+const commands = [
+  ["regroup", t("cmd.regroup"), () => ZSTG?.regroup()],
+  ["ungroup", t("cmd.ungroup"), () => ZSTG?.ungroup()],
+  ["collapse", t("cmd.collapse"), () => ZSTG?.collapseAll()],
+  ["expand", t("cmd.expand"), () => ZSTG?.expandAll()],
+  ["recover", t("cmd.recover"), () => ZSTG?.recoverOldGroups()],
+];
+
+/**
+ * An answer in a sentence, not an object: `{"moved":3}` is not an answer.
+ *
+ * Keyed by the command's id and never by its label — matching on the label
+ * broke the moment the label came from the catalog and changed language.
+ */
+function sentence(id, r) {
+  const n = typeof r === "number" ? r : Array.isArray(r) ? r.length : null;
+  if (id === "regroup") {
+    return n ? t("cmd.regrouped", { n }) : t("cmd.nothingToDo");
+  }
+  if (id === "ungroup") {
+    return n ? t("cmd.ungrouped", { n }) : t("cmd.noGroups");
+  }
+  if (id === "recover") {
+    return n ? t("cmd.recovered", { n }) : t("cmd.noOldGroups");
+  }
+  return t("cmd.done");
+}
+
+const actionButtons = el("div", { class: "actions" });
+for (const [id, label, fn] of commands) {
+  const b = el("button", { text: label });
+  b.addEventListener("click", () => {
+    if (!ZSTG) {
+      commandOutput.textContent = t("noWindow");
+      return;
+    }
+    // Ungrouping loses the names you gave the groups, and that does not
+    // come back.
+    if (id === "ungroup" && !window.confirm(t("cmd.confirmUngroup"))) {
+      return;
+    }
+    commandOutput.textContent = sentence(id, fn());
+  });
+  actionButtons.append(b);
+}
+sActions.append(actionButtons, commandOutput);
+heading("actions", "sec.actions", t("actions.help"));
+
+// ---- Diagnostics ----
+const sDiagnostics = document.getElementById("diagnostics");
+heading("diagnostics", "sec.diagnostics");
+const testOutput = el("pre", { text: "—" });
+const testButton = el("button", { text: t("selfTest.button") });
+testButton.addEventListener("click", () => {
+  if (!ZSTG) {
+    testOutput.textContent = t("noWindow");
+    return;
+  }
+  const r = ZSTG.selfTest();
+  const failures = r.cases.filter(c => !c.ok);
+  testOutput.textContent = failures.length
+    ? t("selfTest.failed", { n: failures.length, total: r.total }) +
+      "\n\n" +
+      failures.map(f => `• ${f.name}`).join("\n")
+    : t("selfTest.ok", { n: r.total });
+});
+sDiagnostics.append(
+  row(t("log.title"), t("log.short"), toggle("debugLog"), null, t("log.help")),
+  el("div", { class: "actions" }, testButton),
+  testOutput
+);
+
+// ---- Maintenance: update and uninstall ----
+// The buttons only ask the chrome script; every fetch happens THERE, so this
+// page keeps loading nothing remote. Checking/updating are the one action in
+// the whole product that contacts the network, and only when clicked.
+const sMaintenance = document.getElementById("maintenance");
+heading("maintenance", "sec.maintenance", t("maintenance.help"));
+// Both outputs start hidden and appear only when they have something to
+// say. A permanently visible empty box reads as a layout bug, and this one
+// sat under a section that no longer had any output to produce.
+const say = (node, text) => {
+  node.textContent = text;
+  node.hidden = !text;
+};
+const maintOutput = el("pre", { class: "maint-out" });
+maintOutput.hidden = true;
+// The manual check lives in Updates now, so its answer belongs there too —
+// writing it into the Removal section would answer in the wrong place.
+const updateOutput = el("pre", { class: "maint-out" });
+updateOutput.hidden = true;
+
+// Kept only while automatic checking is off. With it on, the check already
+// ran when this page opened and the answer is in the banner; a button asking
+// for it again would be a control that does nothing new. With it off, this
+// is the only way to look — and removing it would turn a preference the user
+// set into a dead end, which is not the same as respecting it.
+const btnCheck = el("button", { class: "accented", text: t("update.check") });
+
+// Real dialogs, not window.confirm: confirmEx gives the buttons their own
+// labels (the native OK/Cancel never said "Uninstall" or "Restart"), and a
+// native checkbox where a second question would otherwise mean a second
+// popup. In BOTH dialogs the keyboard default is the harmless button.
+const PR = S.prompt;
+const DIALOG_FLAGS =
+  PR.BUTTON_POS_0 * PR.BUTTON_TITLE_IS_STRING +
+  PR.BUTTON_POS_1 * PR.BUTTON_TITLE_IS_STRING +
+  PR.BUTTON_POS_1_DEFAULT;
+
+// Shown only after a SUCCESSFUL update. "Not now" is the keyboard default
+// on purpose: this modal appears asynchronously, seconds after the click,
+// and an Enter in flight must not restart the browser. The loader reminder
+// rides in the dialog body because the output area under the buttons does
+// not survive the restart the dialog invites.
+// `report` is where "you will have to restart yourself" is said. It used to
+// be the maintenance output unconditionally; that box now starts hidden and
+// the update lives in the banner, so an unconditional write would have put
+// the message somewhere nobody can see it.
+function offerRestart(loaderChanged, report) {
+  const body =
+    t("restart.body") + (loaderChanged ? "\n\n" + t("restart.loaderNote") : "");
+  const ret = PR.confirmEx(
+    window,
+    t("restart.title"),
+    body,
+    DIALOG_FLAGS,
+    t("restart.action"),
+    t("restart.later"),
+    null,
+    null,
+    { value: false }
+  );
+  if (ret === 0 && ZSTG?.resetAndRestart?.()) {
+    return;
+  }
+  report(t("reset.manual"));
+}
+
+// Numeric, per segment: the spec offers an update only when the release is
+// NEWER — a maintainer running ahead of the latest release must not be
+// offered a downgrade.
+function isNewer(latest, current) {
+  const a = String(latest).split(".").map(Number);
+  const b = String(current).split(".").map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] || 0) - (b[i] || 0);
+    if (d) {
+      return d > 0;
+    }
+  }
+  return false;
+}
+
+// The release notes are markdown written for the GitHub page; here they
+// read as plain text, so the heavy markers go.
+const flattenNotes = md =>
+  md.replace(/^#+\s*/gm, "").replace(/\*\*/g, "").trim();
+
+/**
+ * `announce` false is the check nobody asked for — the one that runs when
+ * the panel opens. It fills the banner when there is news and says nothing
+ * at all otherwise, including when it fails: reporting a network error to
+ * someone who did not ask about the network is noise about a thing they
+ * were not doing.
+ */
+const runUpdateCheck = async (announce = true) => {
+  if (!ZSTG?.checkForUpdate) {
+    if (announce) { say(updateOutput, t("noWindow")); }
+    return;
+  }
+  if (announce) { say(updateOutput, t("update.checking")); }
+  try {
+    const r = await ZSTG.checkForUpdate();
+    if (!r.version || !isNewer(r.version, ZSTG.version)) {
+      updateInfo = null;
+      if (announce) {
+        say(updateOutput, t("update.upToDate", { version: ZSTG.version }));
+      }
+      // Being current retires the alert: a lingering pill next to an
+      // up-to-date panel would be the product disagreeing with itself.
+      ZSTG.removeUpdatePill?.();
+    } else {
+      updateInfo = { tag: r.tag, version: r.version, notes: r.notes };
+      if (announce) { say(updateOutput, ""); }
+    }
+    renderBanners();
+  } catch (ex) {
+    if (announce) {
+      say(updateOutput, t("update.failed", { error: String(ex) }));
+    }
+  }
+};
+btnCheck.addEventListener("click", () => runUpdateCheck(true));
+
+const btnUninstall = el("button", { class: "destructive", text: t("uninstall.button") });
+btnUninstall.addEventListener("click", async () => {
+  if (!ZSTG?.uninstallSelf) {
+    say(maintOutput, t("noWindow"));
+    return;
+  }
+  // ONE dialog for both decisions: remove, and whether to restart now. The
+  // checkbox label is intentionally short — the body's second paragraph is
+  // its required disclosure (what the restart dissolves, and that the
+  // groups are NOT recreated, since the thing that would recreate them is
+  // being removed); do not trim or move that paragraph. The checkbox is
+  // born checked because the restart completes what the user just asked
+  // for and closes no tab; the destructive gate is the Uninstall button,
+  // with Cancel as the keyboard default so Enter cannot blast through.
+  const check = { value: true };
+  const ret = PR.confirmEx(
+    window,
+    t("uninstall.title"),
+    t("uninstall.body"),
+    DIALOG_FLAGS,
+    t("uninstall.action"),
+    t("common.cancel"),
+    null,
+    t("uninstall.checkbox"),
+    check
+  );
+  if (ret !== 0) {
+    return;
+  }
+  try {
+    await ZSTG.uninstallSelf();
+    say(maintOutput, t("uninstall.done"));
+    if (check.value) {
+      const restarted = ZSTG?.resetAndRestart?.();
+      if (!restarted) {
+        maintOutput.textContent += "\n" + t("reset.manual");
+      }
+    } else {
+      maintOutput.textContent += "\n" + t("reset.manual");
+    }
+  } catch (ex) {
+    // A failed removal discards the checkbox answer: nothing was removed,
+    // so there is nothing to finish with a restart.
+    say(maintOutput, t("uninstall.failed", { error: String(ex) }));
+  }
+});
+
+// ---- Updates ------------------------------------------------------
+// The preference had no row anywhere: it existed only in about:config,
+// which contradicts the panel being a view over the preferences. It gets
+// one here, and the network disclosure becomes its help — the promise now
+// sits on the setting it describes instead of floating in a section that
+// no longer does any updating.
+const sUpdates = document.getElementById("updates");
+heading("updates", "sec.updates");
+const autoCheck = readBool("updateCheck", true);
+
+const manualRow = el("div", { class: "actions" }, btnCheck);
+manualRow.hidden = autoCheck;
+
+sUpdates.append(
+  row(
+    t("updates.title"),
+    t("updates.short"),
+    toggle("updateCheck", on => {
+      // The manual button is the answer to "then how do I look?", so it
+      // appears the moment automatic looking is switched off — waiting for
+      // a reload would leave the question unanswered on screen.
+      manualRow.hidden = on;
+    }),
+    null,
+    t("updates.help")
+  ),
+  manualRow,
+  updateOutput
+);
+
+// ---- Removal ------------------------------------------------------
+// Uninstall keeps a row of its own, under a divider: the destructive button
+// must never share a row with something that appears and disappears —
+// adjacent targets that change is how misclicks happen.
+sMaintenance.append(
+  maintOutput,
+  el("div", { class: "actions danger" }, btnUninstall)
+);
+
+// ---- What the banners report -------------------------------------
+if (ZSTG) {
+  // The startup comparison is only a first paint: it ran when the script had
+  // just been read from the file it compares against, so it almost always
+  // says "match". The window this exists for opens LATER — an install lands
+  // while the browser keeps running the code it already had — and in that
+  // window the startup answer is stale itself.
+  staleInfo = ZSTG.staleness;
+  renderBanners();
+  ZSTG.checkStaleness?.()
+    .then(s => { staleInfo = s; renderBanners(); })
+    .catch(() => {});
+
+  // Under the same preference that governs the heartbeat — and under the
+  // same "not now": a dismissed session promised no further automatic
+  // checks, and opening the panel is not the user asking. The manual
+  // button still works, because pressing it IS asking.
+  if (autoCheck && !ZSTG?.isUpdateDismissed?.()) {
+    runUpdateCheck(false);
+  }
+}
+
+// The pill in the tab strip links here with #update. The check above
+// already runs; the landing WAITS for the banner to exist — scrolling at
+// load time aimed at an empty box, and as the banner rendered above, the
+// view stayed anchored below it (the owner's report: the panel opened
+// focused under the popup).
+if (window.location.hash === "#update") {
+  let landTries = 0;
+  const land = () => {
+    if (bannersBox.firstElementChild || landTries++ > 50) {
+      bannersBox.scrollIntoView({ block: "start" });
+    } else {
+      setTimeout(land, 100);
+    }
+  };
+  land();
+}
+
+// Fields commit on `change`, which needs a blur. Closing the tab or quitting
+// the browser never blurs, so a pending edit silently vanished. Blurring the
+// focused field here fires the exact same save path a completed edit takes.
+window.addEventListener("pagehide", () => {
+  document.activeElement?.blur?.();
+});

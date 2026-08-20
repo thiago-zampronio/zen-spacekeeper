@@ -1896,6 +1896,7 @@ const UPDATE_FILES = [
   ["src/zen-space-tab-groups.uc.mjs", "chrome/JS/zen-space-tab-groups.uc.mjs"],
   ["src/zen-space-tab-groups.uc.css", "chrome/CSS/zen-space-tab-groups.uc.css"],
   ["src/resources/zstg-panel.html", "chrome/resources/zstg-panel.html"],
+  ["src/resources/zstg-panel.mjs", "chrome/resources/zstg-panel.mjs"],
   ["src/resources/zstg-i18n.mjs", "chrome/resources/zstg-i18n.mjs"],
   ["src/resources/zstg-core.mjs", "chrome/resources/zstg-core.mjs"],
 ];

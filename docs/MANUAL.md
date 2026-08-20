@@ -493,8 +493,11 @@ real tabs and must be checked by hand.
   is registered as trusted UI rather than as content. A script on that page has
   the same power over the browser that the mod does. The price is paid on the
   other side: the page is strictly local, loads no font, image or script from the
-  network, and its CSP (`default-src chrome:`, with inline script and style allowed
-  for its own code) blocks any network request that tried.
+  network, and its CSP (`default-src chrome:`, with inline style allowed for its
+  own code) blocks any network request that tried. Its logic ships as its own
+  file, `zstg-panel.mjs`, loaded with `<script src="chrome://...">` rather than
+  inline — Gecko's fixed baseline CSP for privileged "secure chrome UI" pages
+  permits `chrome:` sources but not an inline `<script>` block.
 - **One window at a time:** the script is window-scoped; each window keeps its own
   listeners.
 - **Own styling for the collapse.** Zen only styles `zen-folder[collapsed]`; a

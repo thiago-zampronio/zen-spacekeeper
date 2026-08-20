@@ -582,7 +582,10 @@ const css = readText(join(root, "src/zen-space-tab-groups.uc.css"));
 const coreSrc = readText(join(root, "src/resources/zstg-core.mjs"));
 const guardSrc = readText(join(root, "src/guard/guard.sh")) + readText(join(root, "src/guard/guard.ps1"));
 const installerSrc = readText(join(root, "install.sh")) + readText(join(root, "install.ps1"));
-const panel = readText(join(root, "src/resources/zstg-panel.html")) + readText(join(root, "src/resources/zstg-i18n.mjs"));
+const panel =
+  readText(join(root, "src/resources/zstg-panel.html")) +
+  readText(join(root, "src/resources/zstg-panel.mjs")) +
+  readText(join(root, "src/resources/zstg-i18n.mjs"));
 const blobs = [js, css, panel, coreSrc, guardSrc, installerSrc];
 
 const missingAnchors = anchors
@@ -905,6 +908,7 @@ const literalSources = [
   "src/zen-space-tab-groups.uc.mjs",
   "src/zen-space-tab-groups.uc.css",
   "src/resources/zstg-panel.html",
+  "src/resources/zstg-panel.mjs",
   "install.ps1",
   "install.sh",
   "scripts/verify.mjs",
@@ -995,6 +999,10 @@ if (which("node")) {
     "script has no syntax error",
   );
   check(run(process.execPath, ["--check", i18nPath]).code === 0, "text catalog has no syntax error");
+  check(
+    run(process.execPath, ["--check", join(root, "src/resources/zstg-panel.mjs")]).code === 0,
+    "panel script has no syntax error",
+  );
 } else {
   check(false, "node is required; the syntax check could not run");
 }
