@@ -86,7 +86,7 @@ const en = {
   "focusReorder.title": "Open groups on top",
   "focusReorder.short": "A group that closes sinks below the open ones; opening lifts it back.",
   "focusReorder.help":
-    "With focus mode on, the strip keeps expanded groups above collapsed ones. The move happens when a group opens or closes — never on tab focus, never during a drag — and the order inside each cluster stays yours.",
+    "With focus mode on, the strip keeps expanded groups above collapsed ones. The move happens when a group opens, closes or appears for the first time — never on tab focus, never during a drag — and the order inside each cluster stays yours.",
   "system.title": "Group system pages",
   "system.short": "about:config and other internal pages share one System group.",
   "system.help":
@@ -306,7 +306,7 @@ const pt = {
   "focusReorder.title": "Grupos abertos no topo",
   "focusReorder.short": "Um grupo que fecha desce para baixo dos abertos; abrir o traz de volta.",
   "focusReorder.help":
-    "Com o modo foco ligado, a barra mantém os grupos expandidos acima dos recolhidos. O movimento acontece quando um grupo abre ou fecha — nunca no foco da aba, nunca durante um arrasto — e a ordem dentro de cada bloco continua sendo a sua.",
+    "Com o modo foco ligado, a barra mantém os grupos expandidos acima dos recolhidos. O movimento acontece quando um grupo abre, fecha ou aparece pela primeira vez — nunca no foco da aba, nunca durante um arrasto — e a ordem dentro de cada bloco continua sendo a sua.",
   "system.title": "Agrupar páginas do sistema",
   "system.short": "about:config e outras páginas internas dividem um grupo Sistema.",
   "system.help":
@@ -526,7 +526,7 @@ const es = {
   "focusReorder.title": "Grupos abiertos arriba",
   "focusReorder.short": "Un grupo que se cierra baja debajo de los abiertos; abrirlo lo sube de vuelta.",
   "focusReorder.help":
-    "Con el modo foco activo, la barra mantiene los grupos expandidos por encima de los plegados. El movimiento ocurre cuando un grupo se abre o se cierra — nunca al enfocar una pestaña, nunca durante un arrastre — y el orden dentro de cada bloque sigue siendo el tuyo.",
+    "Con el modo foco activo, la barra mantiene los grupos expandidos por encima de los plegados. El movimiento ocurre cuando un grupo se abre, se cierra o aparece por primera vez — nunca al enfocar una pestaña, nunca durante un arrastre — y el orden dentro de cada bloque sigue siendo el tuyo.",
   "system.title": "Agrupar páginas del sistema",
   "system.short": "about:config y otras páginas internas comparten un grupo Sistema.",
   "system.help":

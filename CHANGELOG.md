@@ -5,6 +5,17 @@ entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.59.0 — new groups appear on top, not at the bottom
+
+- **Fixed:** with **Open groups on top** enabled, a group for a site you just
+  opened landed at the bottom of the sidebar. It sat under everything you had
+  closed, and only moved up after you clicked another tab. It now slides up to
+  join the open groups right away, and the order you set inside each block
+  stays yours.
+- **Fixed:** that setting described the move as happening when a group opens or
+  closes. It also happens when a group first appears, and the description in
+  about:spacekeeper → Focus mode now says so.
+
 ## 0.58.0 — groups glide into place, and a fresh install starts ready
 
 - **New:** with open groups kept on top, a group now glides to its new place

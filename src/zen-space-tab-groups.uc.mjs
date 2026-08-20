@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.58.0
+// @version        0.59.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.mjs. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.58.0";
+const VERSION = "0.59.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -867,6 +867,13 @@ function organize(tab, force = false) {
     group: group.id,
     tabs: candidates.length,
   });
+  // Birth is the third moment the reorder rides. The anchor above is the tab's
+  // own position, and the loose settle has already pushed that tab — still on
+  // about:blank when it was evaluated — to the end of the Space: without this,
+  // the group the user just opened is the one group guaranteed to be born under
+  // the collapsed cluster. Deferred and guarded like the collapse path, so the
+  // positions it reads are the ones the browser has finished writing.
+  window.setTimeout(() => guarded(() => resettleGroupOrder(group)), 0);
 }
 
 /**
@@ -1577,13 +1584,15 @@ function slideResettle(groups, doMove) {
 
 /*
  * The reorder option: open groups sit above collapsed ones. The event is the
- * group CLOSING or OPENING — not tab focus: a group that collapses sinks below
- * the open cluster, a group that expands rises above the collapsed cluster.
+ * group CLOSING, OPENING or BEING CREATED — not tab focus: a group that
+ * collapses sinks below the open cluster, a group that expands rises above the
+ * collapsed cluster, and a group born expanded rises the same way.
  * Minimal moves only, so the order inside each cluster stays the user's.
  * Native move only and cosmetic by contract — on any failure it logs and
  * leaves the strip alone (the TabMove debounce already runs the nest
  * corrector, which covers the one bad outcome a move can have). Triggered by
- * collapse/expand events only, never from TabMove, so it cannot fight a drag.
+ * collapse/expand events and by creation only, never from TabMove, so it
+ * cannot fight a drag.
  */
 function resettleGroupOrder(group) {
   const c = cfg();
@@ -2506,8 +2515,9 @@ function onGroupCollapseChanged(e) {
   if (e.type === "TabGroupExpand") {
     guarded(() => touchGroup(g));
   }
-  // Open-groups-on-top rides exactly this moment: the partition changes when a
-  // group closes or opens, not when a tab gains focus.
+  // Open-groups-on-top rides this moment and the birth of a group (see
+  // organize): the partition changes when a group closes, opens or appears,
+  // not when a tab gains focus.
   window.setTimeout(() => guarded(() => resettleGroupOrder(g)), 0);
   window.setTimeout(() => guarded(() => updateHiddenCount(g)), 0);
 }
