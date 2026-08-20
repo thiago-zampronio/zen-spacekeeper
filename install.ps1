@@ -55,6 +55,7 @@ $FILES = @(
     @{ From = "src/zen-space-tab-groups.uc.mjs"; To = "chrome\JS\zen-space-tab-groups.uc.mjs" }
     @{ From = "src/zen-space-tab-groups.uc.css"; To = "chrome\CSS\zen-space-tab-groups.uc.css" }
     @{ From = "src/resources/zstg-panel.html";   To = "chrome\resources\zstg-panel.html" }
+    @{ From = "src/resources/zstg-panel.mjs";    To = "chrome\resources\zstg-panel.mjs" }
     @{ From = "src/resources/zstg-i18n.mjs";     To = "chrome\resources\zstg-i18n.mjs" }
     @{ From = "src/resources/zstg-core.mjs";     To = "chrome\resources\zstg-core.mjs" }
 )

@@ -35,4 +35,19 @@ export default [
       ],
     },
   },
+  {
+    // zstg-panel.mjs runs as a <script src> in an actual DOM document (the
+    // about:spacekeeper page), not as a privileged chrome-window script - the
+    // timer and event globals below are ordinary web-page globals, not part of
+    // the Gecko chrome surface the block above documents.
+    files: ["src/resources/zstg-panel.mjs"],
+    languageOptions: {
+      globals: {
+        CustomEvent: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        requestAnimationFrame: "readonly",
+      },
+    },
+  },
 ];
