@@ -155,8 +155,12 @@ Reading `prefs.js` from disk beats asking what the configuration is.
   nothing until the installer runs again.
 - **The panel page runs with UI privilege.** It reads and writes prefs directly. Keep
   it strictly local: no font, image, script or fetch from the network. Its CSP
-  (`default-src chrome:`, inline script/style allowed for its own code) enforces
-  the no-network rule, and a requirement in the spec depends on it.
+  (`default-src chrome:`, inline style allowed for its own code) enforces the
+  no-network rule, and a requirement in the spec depends on it. Its logic lives in
+  `zstg-panel.mjs`, loaded via `<script src="chrome://...">`, not inline: Gecko
+  enforces a fixed baseline CSP on "secure chrome UI" documents that allows
+  `chrome:` sources but blocks an inline `<script>` block outright, no matter what
+  the page's own CSP meta tag says.
 - **`attr()` in CSS only reads the pseudo-element's own element.** The hidden-tab
   count is written on the label, not on the group, for that reason.
 - **Zen only styles `zen-folder[collapsed]`.** A regular group toggles the attribute
