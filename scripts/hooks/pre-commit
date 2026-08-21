@@ -64,6 +64,17 @@ for s in $sources; do
     fi
 done
 
+# --- Tests -------------------------------------------------------------------
+# The suite runs before the verifier because it is the faster of the two and its
+# failures are the more specific: verify.mjs answers "is the repository
+# consistent", the suite answers "does the logic still do what the specification
+# says". A missing vitest FAILS the commit, same as a missing eslint.
+if [ -x node_modules/.bin/vitest ]; then
+    node_modules/.bin/vitest run || { say "the test suite failed"; fail=1; }
+else
+    say "vitest not found - run npm install"; fail=1
+fi
+
 # --- Full verify -------------------------------------------------------------
 # node is already required above, so the full verify now runs on every commit,
 # on every platform. This replaced a PowerShell verifier that was skipped

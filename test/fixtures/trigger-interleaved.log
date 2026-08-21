@@ -1,0 +1,10 @@
+{"n": 1516, "t": "2026-08-20T14:35:24.127Z", "event": "looseMisplaced", "space": "{00000000-0000-4000-8000-000000000000}", "keys": ["?"], "lastGroup": "domain:mike"}
+{"n": 1517, "t": "2026-08-20T14:35:24.129Z", "event": "looseSettled", "space": "{00000000-0000-4000-8000-000000000000}", "key": null, "from": 20, "to": 40}
+{"n": 1518, "t": "2026-08-20T14:35:24.129Z", "event": "strip", "reason": "afterSettle", "space": "{00000000-0000-4000-8000-000000000000}", "strip": ["(empty)", "[domain:delta x4]", "[domain:foxtrot x1 collapsed]", "[domain:golf x1 collapsed]", "[domain:echo x3 collapsed]", "[host:bravo.example x1 collapsed]", "[domain:juliet x1 collapsed]", "[host:alpha.example x6 collapsed]", "[host:charlie.example x1 collapsed]", "[domain:mike x2 collapsed]", "loose:?", "<hbox>"]}
+{"n": 1519, "t": "2026-08-20T14:35:24.143Z", "event": "collapseEvent", "type": "TabGroupExpand", "key": "domain:mike", "collapsed": false}
+{"n": 1520, "t": "2026-08-20T14:35:24.143Z", "event": "droppedWhileBusy"}
+{"n": 1521, "t": "2026-08-20T14:35:24.149Z", "event": "movedToGroup", "key": "domain:mike", "space": "{00000000-0000-4000-8000-000000000000}", "group": "1700000000000-58"}
+{"n": 1522, "t": "2026-08-20T14:35:24.157Z", "event": "focusRise", "key": "domain:mike", "above": "domain:foxtrot", "to": 24}
+{"n": 1523, "t": "2026-08-20T14:35:24.165Z", "event": "focusSlide", "duration": 150, "played": 8, "frames": 0}
+{"n": 1524, "t": "2026-08-20T14:35:24.315Z", "event": "strip", "reason": "beforeNestFix", "space": "{00000000-0000-4000-8000-000000000000}", "strip": ["(empty)", "[domain:delta x4]", "[domain:mike x3]", "[domain:foxtrot x1 collapsed]", "[domain:golf x1 collapsed]", "[domain:echo x3 collapsed]", "[host:bravo.example x1 collapsed]", "[domain:juliet x1 collapsed]", "[host:alpha.example x6 collapsed]", "[host:charlie.example x1 collapsed]", "<hbox>"]}
+{"n": 1525, "t": "2026-08-20T14:35:24.902Z", "event": "sheetMeasured", "key": "domain:mike", "from": "80px", "to": 120, "frames": 90}

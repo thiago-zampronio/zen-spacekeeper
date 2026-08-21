@@ -680,7 +680,7 @@ const maps = [
 ];
 const selfDescribing = ["README.md", "CLAUDE.md", "LICENSE", "NOTICE"];
 // On disk but not part of the repository the maps describe (gitignored artifacts).
-const notRepo = ["node_modules"];
+const notRepo = ["node_modules", "coverage"];
 const topLevel = listDir(root, "any").filter(
   (name) => !name.startsWith(".") && !selfDescribing.includes(name) && !notRepo.includes(name),
 );

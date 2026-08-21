@@ -1,11 +1,18 @@
 {
   "name": "zen-spacekeeper",
   "private": true,
-  "description": "Dev tooling only - the mod itself has no build step and no runtime dependency. npm install brings eslint for scripts/verify.mjs and the pre-commit hook.",
+  "description": "Dev tooling only - the mod itself has no build step and no runtime dependency. npm install brings eslint and vitest for scripts/verify.mjs, the test suite and the pre-commit hook.",
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "check-log": "node scripts/check-log.mjs",
+    "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
-    "eslint": "^9.0.0"
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^9.0.0",
+    "vitest": "^4.1.11"
   }
 }

@@ -7,7 +7,7 @@ export default [
   // clone made the verifier fail there and pass everywhere else, which turns a gate
   // into a coin flip: the answer has to come from what is committed, not from what
   // happens to be lying in the working tree.
-  { ignores: ["**/_*", "node_modules/**", "vendor/**"] },
+  { ignores: ["**/_*", "node_modules/**", "vendor/**", "coverage/**"] },
   {
     files: ["src/**/*.mjs"],
     languageOptions: {

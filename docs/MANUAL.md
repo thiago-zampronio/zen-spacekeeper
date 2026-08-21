@@ -515,12 +515,16 @@ CHANGELOG.md             one entry per released version; the release notes sourc
 install.ps1              Windows installer: loader + mod, detects Zen and the profile
 install.sh               the same installer for macOS and Linux
 eslint.config.mjs        two rules: no-undef and no-unused-vars, nothing of style
-package.json             dev tooling only (eslint); the mod has no dependencies
+package.json             dev tooling only (eslint, vitest); the mod has no dependencies
 package-lock.json        pins that tooling
+vitest.config.mjs        test suite; coverage is a diagnostic, not a gate
 docs/                    this manual and the README's screenshots
 src/                     script, stylesheet and panel (source of truth)
 src/resources/           panel page, text catalog and core logic, over chrome://
 scripts/verify.mjs       checks spec, code, docs and installation are in sync
+scripts/check-log.mjs    checks a real debug log against the specified behaviour
+scripts/lib/             the assertions both the check and the tests share
+test/                    the test suite, each test tagged with the requirement it covers
 vendor/fx-autoconfig/    vendored loader (MPL 2.0)
 openspec/                specification and changes in progress
 ```

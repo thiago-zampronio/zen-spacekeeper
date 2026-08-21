@@ -16,3 +16,6 @@ desktop.ini
 
 # Backup kept while the source was translated to English
 src/_backup-antes-traducao.mjs
+
+# Coverage output (a diagnostic, never committed)
+coverage/

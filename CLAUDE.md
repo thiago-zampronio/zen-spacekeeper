@@ -76,6 +76,10 @@ src/resources/           served over chrome://userchrome/content/
   zstg-i18n.mjs          every user-visible string, 3 languages
   zstg-core.mjs          the pure logic; verify.mjs runs its tests under node
 scripts/verify.mjs       spec ↔ code ↔ docs ↔ installation sync check
+scripts/check-log.mjs    asserts the specified behaviour over a real debug log
+scripts/lib/             strip and log assertions, shared by the check and the tests
+test/                    vitest suite; every test names the requirement it covers
+vitest.config.mjs        test config; coverage is a diagnostic of the pure layer only
 vendor/fx-autoconfig/    vendored loader (MPL 2.0) — do not edit
 openspec/specs/          the living specification
 openspec/changes/        proposals in flight; archive/ is history, in Portuguese
