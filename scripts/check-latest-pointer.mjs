@@ -34,21 +34,49 @@ function fail(message) {
 
 const headers = { Accept: "application/vnd.github+json" };
 
-const [listRes, latestRes] = await Promise.all([
-  fetch(`${API}?per_page=100`, { headers }),
-  fetch(`${API}/latest`, { headers }),
-]);
-
-if (!listRes.ok) {
-  fail(`could not list releases (HTTP ${listRes.status})`);
+async function read() {
+  const [listRes, latestRes] = await Promise.all([
+    fetch(`${API}?per_page=100`, { headers }),
+    fetch(`${API}/latest`, { headers }),
+  ]);
+  if (!listRes.ok) {
+    fail(`could not list releases (HTTP ${listRes.status})`);
+  }
+  if (!latestRes.ok) {
+    fail(`could not read the latest-release pointer (HTTP ${latestRes.status})`);
+  }
+  return { all: await listRes.json(), pointer: (await latestRes.json()).tag_name };
 }
-if (!latestRes.ok) {
-  fail(`could not read the latest-release pointer (HTTP ${latestRes.status})`);
+
+// The two endpoints do not become consistent at the same instant, and this runs
+// seconds after publishing — the worst possible moment. On its first real use it
+// reported the pointer naming a release the list did not yet contain, twice, and
+// passed on the third try with nothing changed. A check that cries wolf at the
+// only moment it is ever run is a check people learn to ignore.
+//
+// So the ONE symptom of that race — the pointer naming a release absent from the
+// list — is retried. Everything else fails immediately: a pointer that IS in the
+// list and simply is not the highest is the mistake this exists to catch, and
+// retrying that would be waiting for a wrong answer to change its mind.
+let all;
+let pointer;
+for (let attempt = 1; ; attempt++) {
+  ({ all, pointer } = await read());
+  if (all.some((r) => r?.tag_name === pointer) || attempt === 4) {
+    break;
+  }
+  console.log(`[..] ${pointer} is not in the release list yet; retrying (${attempt}/3)`);
+  await new Promise((r) => setTimeout(r, attempt * 2000));
 }
 
-const all = await listRes.json();
-const pointer = (await latestRes.json()).tag_name;
 const highest = latestRelease(all)?.tag_name;
+
+if (!all.some((r) => r?.tag_name === pointer)) {
+  fail(
+    `the latest-release pointer names ${pointer}, which is still not in the release list.\n` +
+      `     This is normally GitHub lagging just after a publish — run it again in a minute.`
+  );
+}
 
 if (!highest) {
   fail("no published, non-draft, non-prerelease release exists");
