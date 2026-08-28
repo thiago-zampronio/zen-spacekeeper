@@ -5,6 +5,18 @@ entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.60.1 — the reinstall tells you it started, and only runs once
+
+- **Fixed:** the reinstall in your browser's **Tools → userScripts** menu gave no
+  sign it had started, so it looked like the click had missed. It now says what
+  it is doing while it does it.
+- **Fixed:** pressing that button twice could start two reinstalls at once, and
+  the second could undo the first. Only one runs now, however many times you
+  press.
+- **Fixed:** when a new version also changed the part of Spacekeeper that lives
+  outside your profile, the installer said it was done without replacing it. It
+  now checks and replaces it.
+
 ## 0.60.0 — reinstall Spacekeeper without opening its page
 
 - **New:** when about:spacekeeper opens blank, there is now a way back that does
