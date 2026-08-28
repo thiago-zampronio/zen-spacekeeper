@@ -91,8 +91,9 @@ grouped by subject, with the label on the left and the control on the right.
 
 ### Requirement: Local confinement
 
-The panel SHALL NOT load any resource from the network — no font, no image, no
-external script.
+The panel SHALL NOT load any resource from the network — no font, no image,
+no script. Its own logic is loaded from `chrome://`, which is the profile on
+disk and not a request.
 
 #### Scenario: No network
 

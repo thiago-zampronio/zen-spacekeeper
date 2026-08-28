@@ -9,8 +9,8 @@ Implementation must not start before this is answered.
       reimplement-and-prove option was withdrawn on evidence: it needs `pwsh` to
       check the third implementation, and commit `6f74ac1` retired `verify.ps1`
       exactly to stop the verifier from skipping whenever pwsh was absent
-- [ ] 0.2 Confirm this change is not implemented before `add-update-menu-entry` has
-      delivered the ref option it depends on
+- [x] 0.2 Confirm this change is not implemented before `add-update-menu-entry` has
+      delivered the ref option it depends on — it did, and shipped in 0.60.1
 
 ## 1. Resolving the latest release
 
