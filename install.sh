@@ -758,14 +758,32 @@ fi
 # ---------------------------------------------------------------------------
 # The loader needs write access to the application directory; the mod does not.
 
+# Presence is not enough: a loader that exists but is OLDER than the release is
+# the case that sends someone here in the first place. The panel's repair
+# detects a changed loader and offers to run this installer; deciding by
+# presence made that installer report success and change nothing, which is worse
+# than not offering the button - the user is told the problem is solved.
+# Content decides, so an identical loader still skips and still asks for no
+# elevation, and a differing one is rewritten.
 loader_present=1
-while IFS=: read -r _ dest; do
+while IFS=: read -r src dest; do
     [ -n "$dest" ] || continue
-    [ -f "$ZEN/$dest" ] || loader_present=0
+    if [ -f "$ZEN/$dest" ]; then
+        cmp -s "$(fetch "$src")" "$ZEN/$dest" || loader_present=0
+    else
+        loader_present=0
+    fi
 done <<EOF
 $LOADER
 EOF
-[ -f "$PROF/chrome/utils/boot.sys.mjs" ] || loader_present=0
+for u in $UTILS; do
+    installed="$PROF/chrome/utils/$u"
+    if [ -f "$installed" ]; then
+        cmp -s "$(fetch "vendor/fx-autoconfig/profile/chrome/utils/$u")" "$installed" || loader_present=0
+    else
+        loader_present=0
+    fi
+done
 
 if [ "$loader_present" = 0 ]; then
     # Whether elevation is needed is decided BEFORE announcing it. Announcing
@@ -831,7 +849,7 @@ EOF
     ok "chrome/utils"
     say ""
 else
-    say "Loader: already present, skipping (no administrator rights needed)."
+    say "Loader: already up to date, skipping (no administrator rights needed)."
     say ""
 fi
 

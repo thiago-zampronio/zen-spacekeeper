@@ -8,8 +8,11 @@ latest published release — the highest version published, not the most recentl
 published; the entry SHALL NOT compare the running version against
 that release, and SHALL install regardless of whether one is newer; it SHALL ask
 for confirmation naming the release and stating that the current files will be
-overwritten; and the write SHALL use the same all-or-nothing path as the panel's
-Update, leaving the previous files in place when any step fails.
+overwritten; the write SHALL use the same all-or-nothing path as the panel's
+Update, leaving the previous files in place when any step fails; the system
+SHALL run at most one repair at a time, ignoring any further activation while
+one is in flight; and it SHALL report that a step has begun before that step
+waits on the network, so that no activation looks like it did nothing.
 
 The panel is the place an update is decided; it must not also be the only place an
 update can happen. The panel is an HTML document rendered by an engine the project
@@ -33,6 +36,17 @@ The reach of this requirement ends where the chrome script does. The entry is
 inserted by the script, so a profile whose script does not load at all — the loader
 deleted by a browser update — has no entry either, and is the installer's problem.
 
+One at a time and say-it-started are one clause split in two, and both were paid
+for. Every step waits on the network before it shows anything, so the first build
+gave no sign a click had landed, and pressing again is the honest response to a
+button that does nothing — the log recorded three confirmations against two
+cancels. A second run is not merely wasteful: the staging directory is one fixed
+path, so two runs write the same names into it, the first to finish moves them
+out, the second finds them gone and rolls back over what the first correctly
+installed. The all-or-nothing guarantee above holds for one repair and dissolves
+for two, which is why the guard belongs in the requirement and not only in the
+code.
+
 #### Scenario: The entry is there before anything is wrong
 
 - **GIVEN** the mod is loaded and the installed version is the latest
@@ -53,6 +67,25 @@ deleted by a browser update — has no entry either, and is the installer's prob
 - **WHEN** the user runs the repair and confirms
 - **THEN** every profile-side file of that release is written again
 - **AND** no version comparison prevented it
+
+#### Scenario: A second activation while one repair is running
+
+- **GIVEN** a repair is in flight
+- **WHEN** the user activates the entry again, or confirms a second time
+- **THEN** no second repair starts
+- **AND** the running one completes unaffected
+
+#### Scenario: A step says it has begun
+
+- **WHEN** the user activates the entry, or confirms the reinstall
+- **THEN** the system reports that the step has begun
+- **AND** it does so before the step waits on the network
+
+#### Scenario: A failed repair leaves the entry usable
+
+- **GIVEN** a repair failed, or its confirmation was dismissed without answering
+- **WHEN** the user activates the entry again
+- **THEN** the repair runs
 
 #### Scenario: Confirmation is required
 

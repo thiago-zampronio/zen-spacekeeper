@@ -556,7 +556,18 @@ $isAdmin = ([Security.Principal.WindowsPrincipal] `
     [Security.Principal.WindowsIdentity]::GetCurrent()
 ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-$loaderPresent = ($LOADER | ForEach-Object { Test-Path (Join-Path $zen $_.To) }) -notcontains $false
+# Content, not presence. A loader that exists but is OLDER than the release is
+# exactly the case that sends someone here: the panel's repair detects a changed
+# loader and offers to run this installer, and deciding by presence made that
+# installer report success and change nothing - worse than not offering the
+# button, because the user is told the problem is solved. An identical loader
+# still skips and still asks for no elevation.
+$loaderPresent = ($LOADER | ForEach-Object {
+    $target = Join-Path $zen $_.To
+    if (-not (Test-Path $target)) { return $false }
+    (Get-FileHash -Algorithm SHA256 (Get-Source $_.From)).Hash -eq
+        (Get-FileHash -Algorithm SHA256 $target).Hash
+}) -notcontains $false
 
 if (-not $loaderPresent -and -not $isAdmin) {
     Say "The fx-autoconfig loader has to be written into the Zen program folder,"
@@ -655,7 +666,7 @@ if ($isAdmin) {
     Say ""
 }
 else {
-    Say "Loader: already present, skipping (administrator not needed)."
+    Say "Loader: already up to date, skipping (administrator not needed)."
     # A second profile has the program-side loader but not the profile-side
     # utilities — and those need no privilege. Without this, a fresh profile got a
     # dead install reported as success.

@@ -2367,6 +2367,35 @@ function resetAndRestart() {
 const REPAIR_ENTRY_ID = "zstg-repair-entry";
 const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
+// The progress bar's own type, so it can be found and closed when the step it
+// announces ends. Without a distinct type there is no handle: appendNotification
+// hands nothing back that survives across the awaits below.
+const REPAIR_WORKING_TYPE = "zstg-repair-working";
+
+/**
+ * One repair at a time.
+ *
+ * Not defensive programming — this was watched happening. Every step here waits
+ * on the network before it shows anything, so the first build gave no sign that
+ * a click had landed, and the honest response to a button that does nothing is
+ * to press it again. The log recorded exactly that: three confirmations against
+ * two cancels.
+ *
+ * A second run is not merely redundant. `applyUpdate` stages into ONE fixed
+ * directory: two overlapping runs write the same six names into it, the first
+ * to finish moves them out, the second finds them gone, throws, and rolls back
+ * over the files the first had just installed correctly — and whichever ends
+ * first deletes the staging directory under the other. The all-or-nothing
+ * guarantee holds for one repair and dissolves for two.
+ *
+ * The flag is cleared in a `finally` at every entry point, so a failure cannot
+ * leave the rescue permanently unavailable. Note what it deliberately does NOT
+ * cover: the time a confirmation bar sits waiting for a human. Holding it there
+ * would mean a bar dismissed by its close button — which happens, the log has
+ * one — locks the repair out until the window is restarted.
+ */
+let repairInFlight = false;
+
 /**
  * Resolves the latest release and reinstalls it over whatever is on disk —
  * deliberately with no version comparison anywhere in the path. The situation
@@ -2376,11 +2405,24 @@ const RELEASES_URL = `https://github.com/${REPO}/releases`;
  * confirmation in between.
  */
 async function reinstallLatest() {
-  const { tag } = await checkForUpdate("repair");
-  if (!tag) {
-    throw new Error("no published release found");
+  // Guarded like the menu path. Two console calls are a deliberate act rather
+  // than the misread click the guard was written for, but they reach the same
+  // shared staging directory, and an entry point that writes the profile has no
+  // business being the one that skips the check.
+  if (repairInFlight) {
+    dbg("repairAlreadyRunning", { at: "console" });
+    throw new Error("a repair is already running");
   }
-  return applyUpdate(tag);
+  repairInFlight = true;
+  try {
+    const { tag } = await checkForUpdate("repair");
+    if (!tag) {
+      throw new Error("no published release found");
+    }
+    return await applyUpdate(tag);
+  } finally {
+    repairInFlight = false;
+  }
 }
 
 /**
@@ -2388,13 +2430,77 @@ async function reinstallLatest() {
  * uses for its own prompts. A rescue path must not be able to trap the user
  * behind a modal if it throws mid-flow.
  */
-function notifyRepair(label, priority, buttons) {
+function notifyRepair(label, priority, buttons, type) {
   const show = window.UC_API?.Notifications?.show;
   if (typeof show !== "function") {
     console.warn(`${LOG} ${label}`);
     return;
   }
-  show({ label, priority, buttons, window });
+  show({ label, priority, buttons, type, window });
+}
+
+/**
+ * Says that a step has begun, before the step goes to the network.
+ *
+ * Every wait here is a round trip, and a bar that only appears once the wait is
+ * over cannot tell the user their click landed — which is how the double-click
+ * that `repairInFlight` guards against was earned in the first place. The guard
+ * makes the second press harmless; this makes it unnecessary.
+ */
+let repairWorkingBar = null;
+
+async function repairWorking(label) {
+  await repairWorkingDone();
+  const box = window.gNotificationBox;
+  if (!box) {
+    return;
+  }
+  try {
+    // The bar is appended HERE rather than through UC_API, and the promise is
+    // kept, because both matter and the first cut had neither.
+    //
+    // `appendNotification` resolves asynchronously, and Gecko's own code warns
+    // that `getNotificationWithValue()` returns null while it does — so a
+    // lookup by type is not a handle, it is a race. `UC_API.Notifications.show`
+    // makes that worse by discarding the promise, which also swallows any
+    // rejection: the first progress bar failed silently and was reported, quite
+    // reasonably, as "I never saw it anywhere".
+    //
+    // Awaiting the append before returning is what makes the announcement true:
+    // the caller reaches the network only once the bar is actually up.
+    repairWorkingBar = box.appendNotification(
+      REPAIR_WORKING_TYPE,
+      {
+        label,
+        image: "chrome://browser/skin/notification-icons/popup.svg",
+        priority: box.PRIORITY_INFO_HIGH,
+      },
+      []
+    );
+    await repairWorkingBar;
+    // Logged on SUCCESS, not only on failure. The first version of this bar
+    // failed silently and the only evidence available was a person saying they
+    // had not seen anything — which is a true report and a weak measurement.
+    // A line here makes "the bar went up" a fact rather than an impression.
+    dbg("repairWorkingShown", { label });
+  } catch (ex) {
+    repairWorkingBar = null;
+    dbg("repairWorkingFailed", { error: String(ex) });
+  }
+}
+
+/** Closes the progress bar, if one was started. Safe to call when none was. */
+async function repairWorkingDone() {
+  const pending = repairWorkingBar;
+  repairWorkingBar = null;
+  if (!pending) {
+    return;
+  }
+  try {
+    (await pending)?.close?.();
+  } catch (ex) {
+    dbg("repairWorkingCloseFailed", { error: String(ex) });
+  }
 }
 
 /**
@@ -2441,6 +2547,12 @@ function removeRepairEntry() {
  * happens without a click" line names.
  */
 async function repairFromMenu() {
+  if (repairInFlight) {
+    dbg("repairAlreadyRunning", { at: "check" });
+    return;
+  }
+  repairInFlight = true;
+  await repairWorking(t("repair.checking"));
   let release;
   try {
     release = await checkForUpdate("repair");
@@ -2450,6 +2562,12 @@ async function repairFromMenu() {
   } catch (ex) {
     notifyRepair(t("update.failed", { error: String(ex) }), "critical");
     return;
+  } finally {
+    // Released here, not after the confirmation: the bar below waits on a
+    // person, and a person who closes it with its own X would otherwise leave
+    // the flag raised for the life of the window.
+    await repairWorkingDone();
+    repairInFlight = false;
   }
   dbg("repairConfirm", { tag: release.tag, running: VERSION });
   notifyRepair(
@@ -2483,6 +2601,15 @@ function restartFromRepair() {
 }
 
 async function runRepair(release) {
+  // The guard that matters. Above it a second run only costs a wasted request;
+  // here it costs a shared staging directory and a rollback fired over files
+  // the other run installed correctly.
+  if (repairInFlight) {
+    dbg("repairAlreadyRunning", { at: "apply" });
+    return;
+  }
+  repairInFlight = true;
+  await repairWorking(t("repair.working", { version: release.version }));
   try {
     const result = await applyUpdate(release.tag);
     if (result.loaderChanged) {
@@ -2504,6 +2631,9 @@ async function runRepair(release) {
     // applyUpdate rolled its moves back and dropped the staging directory, so
     // "nothing was changed" is literally true here.
     notifyRepair(t("update.failed", { error: String(ex) }), "critical");
+  } finally {
+    await repairWorkingDone();
+    repairInFlight = false;
   }
 }
 
@@ -2519,6 +2649,16 @@ async function runRepair(release) {
  * fallback, so the worst case stays yesterday's behaviour.
  */
 async function launchInstaller(tag) {
+  // Guarded like the repair, and for a sharper reason: two installers writing
+  // the loader at the same time is the one place this reaches outside the
+  // profile. The wait here is a whole external process, so the progress bar is
+  // not a courtesy either.
+  if (repairInFlight) {
+    dbg("repairAlreadyRunning", { at: "installer" });
+    return;
+  }
+  repairInFlight = true;
+  await repairWorking(t("repair.installing"));
   const isWindows = Services.appinfo.OS === "WINNT";
   const name = isWindows ? "install.ps1" : "install.sh";
   const path = profilePath(`spacekeeper-repair-${name}`);
@@ -2558,6 +2698,8 @@ async function launchInstaller(tag) {
     dbg("repairInstallerFailed", { tag, error: String(ex) });
     notifyRepair(t("update.doneLoaderChanged"), "warning");
   } finally {
+    await repairWorkingDone();
+    repairInFlight = false;
     // The downloaded installer never outlives the attempt.
     await IOUtils.remove(path, { ignoreAbsent: true }).catch(() => {});
   }

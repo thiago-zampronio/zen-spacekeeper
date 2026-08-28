@@ -221,6 +221,9 @@ const en = {
   "repair.entry": "Reinstall Spacekeeper (latest release)",
   "repair.confirm":
     "Reinstall Spacekeeper {version}? The current files will be overwritten, even if you are already on this version. The release notes are at {notes}",
+  "repair.checking": "Spacekeeper: looking up the latest release\u2026",
+  "repair.working": "Spacekeeper: reinstalling {version}\u2026",
+  "repair.installing": "Spacekeeper: running the installer\u2026",
   "repair.confirmAction": "Reinstall",
   "repair.done": "Spacekeeper {version} was reinstalled. It takes effect when Zen restarts.",
   "repair.doneLoaderChanged":
@@ -452,6 +455,9 @@ const pt = {
   "repair.entry": "Reinstalar o Spacekeeper (última versão)",
   "repair.confirm":
     "Reinstalar o Spacekeeper {version}? Os arquivos atuais serão sobrescritos, mesmo que você já esteja nesta versão. As novidades da versão estão em {notes}",
+  "repair.checking": "Spacekeeper: procurando a \u00faltima vers\u00e3o\u2026",
+  "repair.working": "Spacekeeper: reinstalando a {version}\u2026",
+  "repair.installing": "Spacekeeper: executando o instalador\u2026",
   "repair.confirmAction": "Reinstalar",
   "repair.done": "O Spacekeeper {version} foi reinstalado. Passa a valer quando o Zen reiniciar.",
   "repair.doneLoaderChanged":
@@ -683,6 +689,9 @@ const es = {
   "repair.entry": "Reinstalar Spacekeeper (última versión)",
   "repair.confirm":
     "¿Reinstalar Spacekeeper {version}? Los archivos actuales se sobrescribirán, incluso si ya estás en esta versión. Las novedades de la versión están en {notes}",
+  "repair.checking": "Spacekeeper: buscando la \u00faltima versi\u00f3n\u2026",
+  "repair.working": "Spacekeeper: reinstalando la {version}\u2026",
+  "repair.installing": "Spacekeeper: ejecutando el instalador\u2026",
   "repair.confirmAction": "Reinstalar",
   "repair.done": "Spacekeeper {version} fue reinstalado. Tiene efecto cuando Zen se reinicie.",
   "repair.doneLoaderChanged":

@@ -47,11 +47,17 @@
   the new group in the open cluster without any further interaction
 - [x] 4.5 A group created when no collapsed group sits above it does not move,
   and logs no `focusRise`
-- [ ] 4.6 With the reorder option off, a newly created group stays where it was
-  born
-- [ ] 4.7 A group created in one Space leaves the other Space's group order
-  untouched
+- [x] 4.6 With the reorder option off, a newly created group stays where it was
+  born — confirmed on Zen/macOS, and corroborated in the log: `groupCreated`
+  domain:atlassian at 13:33:52 with no `focusRise` after it, then the option
+  back on and `groupCreated` domain:youtube at 13:34:17.948 followed by
+  `focusRise` 6ms later
+- [x] 4.7 A group created in one Space leaves the other Space's group order
+  untouched — confirmed on Zen/macOS; the log shows every `focusRise` in the
+  period naming only the Space the group was created in
 - [x] 4.8 Collapse and expand still reorder as before, and switching tabs alone
   still moves nothing
-- [ ] 4.9 The panel shows the updated help text for the option, in each of the
-  three languages
+- [x] 4.9 The panel shows the updated help text for the option, in each of the
+  three languages — confirmed on Zen/macOS by switching the language in
+  Appearance and reading the option in Focus mode; the longer sentence fits the
+  layout in all three

@@ -78,6 +78,54 @@ the requirement *Updates come from a release, not a branch* forbids.
 - [x] 5.4 Run `node scripts/verify.mjs` and get EVERYTHING IN SYNC
 - [x] 5.5 Run the vitest suite and keep it green
 
+## 5b. Defects found while exercising the repair, and their fixes
+
+Both were found by the user on a real Zen, after the feature had shipped in
+0.60.0. They compound: the missing feedback is what earns the double click, and
+the missing guard is what makes a double click dangerous.
+
+- [x] 5b.1 Guard the repair so only one runs at a time — the staging directory is
+      one fixed path, so two overlapping runs write the same names into it, the
+      first to finish moves them out, and the second rolls back over what the
+      first correctly installed
+- [x] 5b.2 Cover every entry point: `repairFromMenu`, `runRepair`,
+      `launchInstaller`, and `reinstallLatest` — the console path was found
+      unguarded while testing the others
+- [x] 5b.3 Release the flag in a `finally` everywhere, and deliberately NOT hold
+      it while a confirmation bar waits on a person: a bar dismissed by its own
+      close button would otherwise lock the rescue out for the life of the window
+- [x] 5b.4 Report that a step has begun before it waits on the network, with a
+      progress bar carrying its own type so it can be closed when the step ends
+- [x] 5b.5 Three new strings in all three languages (checking / reinstalling /
+      running the installer)
+- [x] 5b.6 Decide the loader by content rather than presence in both installers —
+      `install.sh` with `cmp`, `install.ps1` with `Get-FileHash`
+- [x] 5b.7 Carry the guard and the progress reporting into the `self-update`
+      delta, with scenarios including recovery after a failure
+- [x] 5b.8 The guard is PROVEN, not read: `ZSTG.reinstallLatest();
+      ZSTG.reinstallLatest();` in one tick produced one `repairAlreadyRunning`
+      (`at: "console"`, 18:28:48.633), one `updateCheck` 3ms later, and one
+      `updated` — the second call was barred before it reached the network
+- [x] 5b.9 The feedback is proven by four `repairWorkingShown` events with zero
+      failures, one of them the reinstall step the user watched.
+      Two corrections belong in this line. The first attempt failed silently and
+      was reported as "I never saw it anywhere": `appendNotification` resolves
+      asynchronously, Gecko's own source warns that `getNotificationWithValue()`
+      returns null while it does, and `UC_API.Notifications.show` discards the
+      promise — so there was no handle and no visible rejection. It now appends
+      through `gNotificationBox` directly and keeps the promise.
+      The second: an earlier claim here rested on the ratio of confirmations to
+      cancels, which proved nothing — the bar was not appearing at all at the
+      time, so the improvement had another cause. A success line in the log
+      replaced the inference, which is what should have existed first
+- [x] 5b.11 The bar flashes when the work is fast: measured at 49ms between the
+      reinstall bar going up and `updated`, because the release files were served
+      from a warm HTTP cache. Not a defect — the announcement is there when a
+      wait is; it leaves when there is nothing to wait for
+- [x] 5b.10 The loader fix is proven in the terminal: an altered `config.js` is
+      now rewritten by the installer and its hash matches the release again,
+      where before the run reported success and changed nothing
+
 ## 6. Needs a running browser — check only after the user confirms
 
 These cannot be verified by reading code. Leave them unchecked until the user says
@@ -110,10 +158,39 @@ they tested it.
       (sha256 before/after), and the rollback is proven distinct from "nothing was
       written": the two moved files carry a LATER mtime than the untouched third,
       which is the signature of having been replaced and restored
-- [ ] 6.7 The loader hand-off launches the installer on Windows, including whether
-      the UAC prompt appears at all when the parent is not a console, and whether a
-      cancelled UAC throws out of the second `Start-Process` (`install.ps1:582-585`,
-      which carries no `-ErrorAction SilentlyContinue`)
-- [ ] 6.8 The same hand-off on macOS and on Linux (WSL)
-- [ ] 6.9 The installer run headless takes its defaults and completes — the
-      non-interactive path from task 0.3, on each platform
+- [x] 6.9 The installer run headless takes its defaults and completes, on macOS —
+      with no tty and no reachable `/dev/tty`, `--check --non-interactive` exits 0,
+      and `--ref v0.59.1 --non-interactive` run from outside the clone installed
+      0.59.1 over the network, proving the ref pins the tag since `main` would
+      have brought 0.60.0 with the menu. Recorded honestly: the control run
+      WITHOUT the flag also completed, so on macOS the flag changes nothing
+      observable. Its value is the contract, as design D8 states, not a hang it
+      fixes. Windows and Linux are tracked in section 7.
+
+## 7. Owed on other machines — does NOT block this change
+
+Split out of section 6 so the change can be archived from the machine that did
+the work. Every item here needs hardware this session did not have.
+
+One of them is also ordered, not merely deferred: the hand-off fetches the
+installer FROM THE RELEASE (`fetchRaw(tag, "install.sh")`), so it runs whatever
+installer the latest release carries. The content-based loader fix lives in
+0.60.1, which means the hand-off could not have been proven before 0.60.1 was
+published — it was attempted twice on macOS and reported `exitCode: 0` while
+changing nothing, both times correctly, because the published installer was
+still the presence-based one. Testing it requires a release that carries the fix.
+
+- [ ] 7.1 The loader hand-off actually updates the loader, on macOS, **against
+      0.60.1 or later** — the mechanism is proven (Subprocess launches, exit 0,
+      output captured, temp installer cleaned up); what is unproven is that the
+      installer it downloads now rewrites an outdated loader
+- [ ] 7.2 The same hand-off on Windows, including whether the UAC prompt appears
+      at all when the parent is not a console, and whether a cancelled UAC throws
+      out of the second `Start-Process` (`install.ps1:582-585`, which carries no
+      `-ErrorAction SilentlyContinue`)
+- [ ] 7.3 The same hand-off on Linux (WSL)
+- [ ] 7.4 The headless installer run on Windows
+- [ ] 7.5 The headless installer run on Linux (WSL)
+- [ ] 7.6 `install.ps1`'s content-based loader comparison (`Get-FileHash`) rewrites
+      an outdated loader — the `install.sh` half is proven, the PowerShell half is
+      written but never executed
