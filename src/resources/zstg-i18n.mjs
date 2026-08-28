@@ -196,7 +196,7 @@ const en = {
   "updates.title": "Look for new versions",
   "updates.short": "A banner appears at the top of this page when one exists.",
   "updates.help":
-    "Spacekeeper asks the project's repository whether a newer release exists — when this page opens, shortly after a window opens, and every few hours. It is metadata only, never a download: nothing is installed until you click Update, and a release you ignore stays ignored. Turn this off and none of it happens — no request, no banner, no alert beside the tabs — and a button appears here to look manually whenever you want. This is the only thing in the whole product that touches the network.",
+    "Spacekeeper asks the project's repository whether a newer release exists — when this page opens, shortly after a window opens, and every few hours. It is metadata only, never a download: nothing is installed until you click Update, and a release you ignore stays ignored. Turn this off and none of it happens — no request, no banner, no alert beside the tabs — and a button appears here to look manually whenever you want. One thing this switch does not silence: the repair in the browser's userScripts menu, which also contacts the network — only when you activate it and confirm — to reinstall the latest release, and stays reachable precisely because this page may be the thing that is broken. Nothing else in the whole product touches the network.",
 
   "sec.maintenance": "Removal",
   "maintenance.help":
@@ -218,6 +218,17 @@ const en = {
   "update.pill": "Update {version} available",
   "update.pillTip": "Open Spacekeeper to see what changed and update",
   "update.dismiss": "Not now — hidden until the next restart",
+  "repair.entry": "Reinstall Spacekeeper (latest release)",
+  "repair.confirm":
+    "Reinstall Spacekeeper {version}? The current files will be overwritten, even if you are already on this version. The release notes are at {notes}",
+  "repair.confirmAction": "Reinstall",
+  "repair.done": "Spacekeeper {version} was reinstalled. It takes effect when Zen restarts.",
+  "repair.doneLoaderChanged":
+    "Spacekeeper {version} was reinstalled, and this release also changed the loader — the part only the installer can update. Run the installer now?",
+  "repair.runInstaller": "Run the installer",
+  "repair.installerDone": "The installer finished. The loader update takes effect when Zen restarts.",
+  "repair.restartUnavailable":
+    "Restarting from here is not available — restart Zen yourself to apply.",
   "uninstall.button": "Uninstall Spacekeeper",
   "uninstall.title": "Uninstall Spacekeeper?",
   "uninstall.body":
@@ -416,7 +427,7 @@ const pt = {
   "updates.title": "Procurar versões novas",
   "updates.short": "Um aviso aparece no topo desta página quando existir uma.",
   "updates.help":
-    "O Spacekeeper pergunta ao repositório do projeto se existe uma versão mais nova — quando esta página abre, pouco depois de uma janela abrir, e a cada algumas horas. É só metadado, nunca um download: nada é instalado até você clicar em Atualizar, e uma versão que você ignorar continua ignorada. Desligue e nada disso acontece — sem consulta, sem aviso, sem o alerta ao lado das abas — e aparece aqui um botão para procurar na mão quando quiser. Isto é a única coisa no produto inteiro que acessa a rede.",
+    "O Spacekeeper pergunta ao repositório do projeto se existe uma versão mais nova — quando esta página abre, pouco depois de uma janela abrir, e a cada algumas horas. É só metadado, nunca um download: nada é instalado até você clicar em Atualizar, e uma versão que você ignorar continua ignorada. Desligue e nada disso acontece — sem consulta, sem aviso, sem o alerta ao lado das abas — e aparece aqui um botão para procurar na mão quando quiser. Uma coisa este interruptor não silencia: o reparo no menu userScripts do navegador, que também acessa a rede — só quando você o aciona e confirma — para reinstalar a última versão, e continua ao alcance justamente porque esta página pode ser o que está quebrado. Nada mais no produto inteiro acessa a rede.",
 
   "sec.maintenance": "Remoção",
   "maintenance.help":
@@ -438,6 +449,17 @@ const pt = {
   "update.pill": "Atualização {version} disponível",
   "update.pillTip": "Abra o Spacekeeper para ver o que mudou e atualizar",
   "update.dismiss": "Agora não — escondido até o próximo restart",
+  "repair.entry": "Reinstalar o Spacekeeper (última versão)",
+  "repair.confirm":
+    "Reinstalar o Spacekeeper {version}? Os arquivos atuais serão sobrescritos, mesmo que você já esteja nesta versão. As novidades da versão estão em {notes}",
+  "repair.confirmAction": "Reinstalar",
+  "repair.done": "O Spacekeeper {version} foi reinstalado. Passa a valer quando o Zen reiniciar.",
+  "repair.doneLoaderChanged":
+    "O Spacekeeper {version} foi reinstalado, e esta versão também mudou o loader — a parte que só o instalador consegue atualizar. Rodar o instalador agora?",
+  "repair.runInstaller": "Rodar o instalador",
+  "repair.installerDone": "O instalador terminou. A atualização do loader passa a valer quando o Zen reiniciar.",
+  "repair.restartUnavailable":
+    "Reiniciar por aqui não está disponível — reinicie o Zen você mesmo para aplicar.",
   "uninstall.button": "Desinstalar o Spacekeeper",
   "uninstall.title": "Desinstalar o Spacekeeper?",
   "uninstall.body":
@@ -636,7 +658,7 @@ const es = {
   "updates.title": "Buscar versiones nuevas",
   "updates.short": "Aparece un aviso arriba en esta página cuando exista una.",
   "updates.help":
-    "Spacekeeper le pregunta al repositorio del proyecto si existe una versión más nueva — al abrir esta página, poco después de abrir una ventana, y cada pocas horas. Son solo metadatos, nunca una descarga: no se instala nada hasta que pulses Actualizar, y una versión que ignores sigue ignorada. Desactívalo y nada de eso ocurre — sin consulta, sin aviso, sin la alerta junto a las pestañas — y aquí aparece un botón para buscar a mano cuando quieras. Esto es lo único en todo el producto que accede a la red.",
+    "Spacekeeper le pregunta al repositorio del proyecto si existe una versión más nueva — al abrir esta página, poco después de abrir una ventana, y cada pocas horas. Son solo metadatos, nunca una descarga: no se instala nada hasta que pulses Actualizar, y una versión que ignores sigue ignorada. Desactívalo y nada de eso ocurre — sin consulta, sin aviso, sin la alerta junto a las pestañas — y aquí aparece un botón para buscar a mano cuando quieras. Una cosa que este interruptor no silencia: la reparación en el menú userScripts del navegador, que también accede a la red — solo cuando la activas y confirmas — para reinstalar la última versión, y sigue al alcance justamente porque esta página puede ser lo que está roto. Nada más en todo el producto accede a la red.",
 
   "sec.maintenance": "Eliminación",
   "maintenance.help":
@@ -658,6 +680,17 @@ const es = {
   "update.pill": "Actualización {version} disponible",
   "update.pillTip": "Abre Spacekeeper para ver qué cambió y actualizar",
   "update.dismiss": "Ahora no — oculto hasta el próximo reinicio",
+  "repair.entry": "Reinstalar Spacekeeper (última versión)",
+  "repair.confirm":
+    "¿Reinstalar Spacekeeper {version}? Los archivos actuales se sobrescribirán, incluso si ya estás en esta versión. Las novedades de la versión están en {notes}",
+  "repair.confirmAction": "Reinstalar",
+  "repair.done": "Spacekeeper {version} fue reinstalado. Tiene efecto cuando Zen se reinicie.",
+  "repair.doneLoaderChanged":
+    "Spacekeeper {version} fue reinstalado, y esta versión también cambió el loader — la parte que solo el instalador puede actualizar. ¿Ejecutar el instalador ahora?",
+  "repair.runInstaller": "Ejecutar el instalador",
+  "repair.installerDone": "El instalador terminó. La actualización del loader tiene efecto cuando Zen se reinicie.",
+  "repair.restartUnavailable":
+    "Reiniciar desde aquí no está disponible — reinicia Zen tú mismo para aplicar.",
   "uninstall.button": "Desinstalar Spacekeeper",
   "uninstall.title": "¿Desinstalar Spacekeeper?",
   "uninstall.body":

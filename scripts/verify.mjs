@@ -562,6 +562,7 @@ const anchors = [
   ["self-update/alert dismissible", "updatePillDismissed"],
   ["self-update/all-or-nothing staging", "spacekeeper-staging"],
   ["self-update/loader reported not applied", "loaderChanged"],
+  ["self-update/repair does not depend on the panel", "function reinstallLatest"],
   ["control-panel/one-click uninstall", "uninstallSelf"],
   ["control-panel/clean handover reset", "resetAndRestart"],
   ["diagnostics/contract canary", "function checkZenContract"],

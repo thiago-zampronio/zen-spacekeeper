@@ -77,7 +77,17 @@ Run from a clone, both installers use the local files instead of downloading.
 
 Both installers also take a source override — `-Repo` and `-Branch` on Windows,
 `--repo` and `--branch` elsewhere — pointing a standalone run at another
-repository or branch. Useful mainly for development.
+repository or branch. Useful mainly for development. To fetch an exact release
+instead of a moving branch, pass `-Ref` / `--ref` with a tag (any git ref
+works); it wins over the branch when both are given, and on Windows the
+elevated relaunch downloads from the same ref, so the elevated half can never
+run different code than the run that asked for it.
+
+For a run with nobody watching — a script, a scheduled job — `-NonInteractive` /
+`--non-interactive` takes every question's default without asking: the restart
+is skipped unless `-Restart` / `--restart` asks for it, and the loader
+elevation proceeds (the operating system still asks its own confirmation where
+it applies).
 
 ### Installing while Zen is open
 
@@ -440,6 +450,35 @@ When both conditions hold, only the orange one is shown. Both end in a restart, 
 updating while the browser runs older code writes files that will not take effect
 either — so the restart comes first, and the update banner appears by itself
 afterwards. The alert over the sidebar is unaffected either way.
+
+### When the panel cannot help
+
+The panel is where an update is decided, but it cannot be the only door: it is an
+HTML page, and a page that will not render cannot offer you its Update button.
+For that case there is a second way in that needs nothing from the panel:
+**Tools > userScripts > Reinstall Spacekeeper (latest release)**, present
+whenever the mod is loaded. Click it and it names the latest published release,
+points at the release notes, and waits — nothing is downloaded or written until
+you confirm. Confirming puts that release's files back over whatever is on disk.
+
+It is a repair, not a second update button, and two of its choices follow from
+that. It never compares versions: the situation it exists for is the one where
+the version is already right and the files are wrong, and a version check would
+refuse exactly when help is needed — so it reinstalls even when you are already
+current. And `zen.stg.updateCheck` does not hide it: that preference silences the
+automatic check, and the repair involves none — it contacts the network only
+after your click and your confirmation. A rescue that a configuration can remove
+is not a rescue.
+
+The write is the same all-or-nothing path as the panel's Update: a failure midway
+leaves the previous files in place and tells you why. When the release also
+changed the loader — the part that lives in the application directory, which the
+mod never writes — it says so and offers to run the installer for you.
+
+Its reach ends where the chrome script does. The entry is put in the menu by
+Spacekeeper itself, so a profile whose script does not load at all — the usual
+aftermath of a Zen update deleting the loader — has no entry either. That case
+belongs to the installer, run from outside the browser as described above.
 
 ## What the script never touches
 

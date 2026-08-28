@@ -22,6 +22,10 @@ param(
     # Where the sources come from when the script is piped from the web.
     [string]$Repo = "thiago-zampronio/zen-spacekeeper",
     [string]$Branch = "main",
+    # An exact ref to fetch from - a release tag, usually. Wins over -Branch when
+    # both are given: a branch moves under the caller, a tag does not, and whoever
+    # pins a release means exactly that release, not whatever main has become since.
+    [string]$Ref,
     # Set these only if detection picks the wrong one.
     [string]$ZenDir,
     [string]$ProfileDir,
@@ -38,6 +42,10 @@ param(
     # Zen update deletes it (or notifies you, when restoring would need
     # privilege). Opt-in; removed by -Uninstall.
     [switch]$Guard,
+    # Take every question's default without asking, instead of relying on the
+    # Read-Host catch paths that fire when no host is attached. The restart is
+    # skipped unless -Restart asks for it; the loader elevation proceeds.
+    [switch]$NonInteractive,
     # Internal: set by the self-elevation relaunch. The elevated window closes as
     # soon as the script ends, so everything the user must read or answer — the
     # restart offer, the final instructions — is skipped there and printed by the
@@ -50,6 +58,11 @@ $ErrorActionPreference = "Stop"
 # How long the offered restart waits for Zen to exit before giving up. Kept equal
 # in install.sh (RESTART_WAIT); the verifier fails if the two disagree.
 $RestartWaitSeconds = 20
+
+# The one ref every download uses, the self-elevation re-download included.
+# install.sh resolves it the same way (REF over BRANCH); the two must agree, or
+# the elevated child could run different code than the parent that launched it.
+$SourceRef = if ($Ref) { $Ref } else { $Branch }
 
 $FILES = @(
     @{ From = "src/zen-space-tab-groups.uc.mjs"; To = "chrome\JS\zen-space-tab-groups.uc.mjs" }
@@ -229,7 +242,7 @@ function Invoke-PostInstall {
     $restartOutcome = "manual"
     $doRestart = $Restart.IsPresent
 
-    if (-not $doRestart -and [Environment]::UserInteractive) {
+    if (-not $doRestart -and -not $NonInteractive -and [Environment]::UserInteractive) {
         $promptText = if (@(Get-ZenProcesses).Count -gt 0) {
             "Restart Zen now? It will close, the startup cache will be cleared, and it will reopen. [y/N]"
         }
@@ -418,7 +431,7 @@ function Get-Source($relative) {
     $local = Join-Path $script:staging ($relative -replace '/', '\')
     if (-not (Test-Path $local)) {
         New-Item -ItemType Directory -Force (Split-Path $local -Parent) | Out-Null
-        $url = "https://raw.githubusercontent.com/$Repo/$Branch/$relative"
+        $url = "https://raw.githubusercontent.com/$Repo/$SourceRef/$relative"
         Invoke-WebRequest -Uri $url -OutFile $local -UseBasicParsing
     }
     $local
@@ -554,15 +567,20 @@ if (-not $loaderPresent -and -not $isAdmin) {
     # and the asymmetry is deliberate — declining the restart still leaves a
     # working install, while declining the elevation leaves nothing installed at
     # all. The UAC dialog asks again anyway, and that one cannot be bypassed.
-    try {
-        $answer = Read-Host "Continue? [Y/n]"
-        if ($answer -and $answer -notmatch '^[YySs]') {
-            Say "Stopped. Nothing was changed."
-            exit 1
-        }
+    if ($NonInteractive) {
+        Say "(non-interactive; continuing - Windows will still ask for confirmation)"
     }
-    catch {
-        Say "(no terminal to ask; continuing - Windows will still ask for confirmation)"
+    else {
+        try {
+            $answer = Read-Host "Continue? [Y/n]"
+            if ($answer -and $answer -notmatch '^[YySs]') {
+                Say "Stopped. Nothing was changed."
+                exit 1
+            }
+        }
+        catch {
+            Say "(no terminal to ask; continuing - Windows will still ask for confirmation)"
+        }
     }
 
     # Piped from the web there is no file to re-launch, so it is written out first.
@@ -573,12 +591,16 @@ if (-not $loaderPresent -and -not $isAdmin) {
         $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "spacekeeper-$(Get-Random)"
         New-Item -ItemType Directory -Force $tmpDir | Out-Null
         $tmp = Join-Path $tmpDir "install.ps1"
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$Branch/install.ps1" -OutFile $tmp -UseBasicParsing
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$SourceRef/install.ps1" -OutFile $tmp -UseBasicParsing
         $tmp
     }
+    # The RESOLVED ref, not $Ref as it was passed: the child must fetch from
+    # exactly the same source as this run, whatever combination of -Ref and
+    # -Branch produced it.
     $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $self,
-              "-Repo", $Repo, "-Branch", $Branch, "-ZenDir", $zen, "-ProfileDir", $prof,
+              "-Repo", $Repo, "-Ref", $SourceRef, "-ZenDir", $zen, "-ProfileDir", $prof,
               "-ElevatedChild")
+    if ($NonInteractive) { $args += "-NonInteractive" }
     Start-Process -FilePath "pwsh.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue
     if ($LASTEXITCODE -ne 0 -and -not (Test-Path (Join-Path $zen "config.js"))) {
         Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -Wait
