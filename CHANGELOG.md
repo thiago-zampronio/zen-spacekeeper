@@ -5,6 +5,13 @@ entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.59.1 — the settings panel opens again
+
+- **Fixed:** after a recent Zen update, about:spacekeeper opened blank — just
+  the Spacekeeper title, with no settings and no buttons. The panel is back,
+  with every section and control where you left it. Your groups and your
+  settings were never touched.
+
 ## 0.59.0 — new groups appear on top, not at the bottom
 
 - **Fixed:** with **Open groups on top** enabled, a group for a site you just
