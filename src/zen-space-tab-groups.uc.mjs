@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.60.1
+// @version        0.60.2
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.mjs. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.60.1";
+const VERSION = "0.60.2";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";
@@ -2131,6 +2131,41 @@ async function fetchRaw(tag, path) {
 }
 
 /**
+ * One repair at a time.
+ *
+ * Not defensive programming — this was watched happening. Every step here waits
+ * on the network before it shows anything, so the first build gave no sign that
+ * a click had landed, and the honest response to a button that does nothing is
+ * to press it again. The log recorded exactly that: three confirmations against
+ * two cancels.
+ *
+ * A second run is not merely redundant. `applyUpdate` stages into ONE fixed
+ * directory: two overlapping runs write the same six names into it, the first
+ * to finish moves them out, the second finds them gone, throws, and rolls back
+ * over the files the first had just installed correctly — and whichever ends
+ * first deletes the staging directory under the other. The all-or-nothing
+ * guarantee holds for one repair and dissolves for two.
+ *
+ * It went on the repair's entry points first, and that was the wrong place: the
+ * panel's Update button reaches `applyUpdate` straight through ZSTG, so it was
+ * the one caller nobody had to remember to add, and it is a caller the repair's
+ * own specification expects to be usable while a repair runs. Guarding the
+ * writer covers every caller, including the next one.
+ *
+ * Three non-nesting sections share the flag: `applyUpdate` while it writes,
+ * `repairFromMenu` while it asks the network which release is latest, and
+ * `launchInstaller` while an external installer runs. Each clears it in a
+ * `finally`, so a failure cannot leave the rescue permanently unavailable, and
+ * none of them is reachable from inside another.
+ *
+ * Note what it deliberately does NOT cover: the time a confirmation bar sits
+ * waiting for a human. Holding it there would mean a bar dismissed by its close
+ * button — which happens, the log has one — locks the repair out until the
+ * window is restarted.
+ */
+let repairInFlight = false;
+
+/**
  * All-or-nothing: every file lands in a staging directory first, and only then
  * replaces the installed ones — a half-fetched update must leave the previous
  * install untouched. Only profile-side files are ever written; a release that
@@ -2138,6 +2173,22 @@ async function fetchRaw(tag, path) {
  * to the installer, where a human is present to grant privilege.
  */
 async function applyUpdate(tag) {
+  // The guard belongs HERE, not only at the doors that lead here.
+  //
+  // It first went on the repair's three entry points, which left the one caller
+  // nobody had to add: the panel's Update button reaches this function straight
+  // through ZSTG.applyUpdate. So a repair downloading in the background and a
+  // click on Update in the panel — a panel the repair's own specification
+  // expects to be usable while it runs — met inside the single fixed staging
+  // directory below, and the all-or-nothing guarantee this function exists to
+  // provide dissolved exactly where it was needed.
+  //
+  // Guarding the writer covers every caller, including the next one.
+  if (repairInFlight) {
+    dbg("repairAlreadyRunning", { at: "applyUpdate", tag });
+    throw new Error("an update is already running");
+  }
+  repairInFlight = true;
   const staging = profilePath("spacekeeper-staging");
   try {
   await IOUtils.makeDirectory(staging, { ignoreExisting: true });
@@ -2228,6 +2279,7 @@ async function applyUpdate(tag) {
   removeUpdatePill();
   return { updated: fetched.length, loaderChanged };
   } finally {
+    repairInFlight = false;
     // The staging directory never outlives the attempt, success or failure.
     await IOUtils.remove(staging, { recursive: true, ignoreAbsent: true }).catch(
       () => {}
@@ -2372,29 +2424,6 @@ const RELEASES_URL = `https://github.com/${REPO}/releases`;
 // hands nothing back that survives across the awaits below.
 const REPAIR_WORKING_TYPE = "zstg-repair-working";
 
-/**
- * One repair at a time.
- *
- * Not defensive programming — this was watched happening. Every step here waits
- * on the network before it shows anything, so the first build gave no sign that
- * a click had landed, and the honest response to a button that does nothing is
- * to press it again. The log recorded exactly that: three confirmations against
- * two cancels.
- *
- * A second run is not merely redundant. `applyUpdate` stages into ONE fixed
- * directory: two overlapping runs write the same six names into it, the first
- * to finish moves them out, the second finds them gone, throws, and rolls back
- * over the files the first had just installed correctly — and whichever ends
- * first deletes the staging directory under the other. The all-or-nothing
- * guarantee holds for one repair and dissolves for two.
- *
- * The flag is cleared in a `finally` at every entry point, so a failure cannot
- * leave the rescue permanently unavailable. Note what it deliberately does NOT
- * cover: the time a confirmation bar sits waiting for a human. Holding it there
- * would mean a bar dismissed by its close button — which happens, the log has
- * one — locks the repair out until the window is restarted.
- */
-let repairInFlight = false;
 
 /**
  * Resolves the latest release and reinstalls it over whatever is on disk —
@@ -2405,24 +2434,14 @@ let repairInFlight = false;
  * confirmation in between.
  */
 async function reinstallLatest() {
-  // Guarded like the menu path. Two console calls are a deliberate act rather
-  // than the misread click the guard was written for, but they reach the same
-  // shared staging directory, and an entry point that writes the profile has no
-  // business being the one that skips the check.
-  if (repairInFlight) {
-    dbg("repairAlreadyRunning", { at: "console" });
-    throw new Error("a repair is already running");
+  // No guard of its own: applyUpdate holds it. Setting the flag here would make
+  // this function refuse its own call — which is the trap the door-by-door
+  // version invited, and the reason the guard moved to the writer.
+  const { tag } = await checkForUpdate("repair");
+  if (!tag) {
+    throw new Error("no published release found");
   }
-  repairInFlight = true;
-  try {
-    const { tag } = await checkForUpdate("repair");
-    if (!tag) {
-      throw new Error("no published release found");
-    }
-    return await applyUpdate(tag);
-  } finally {
-    repairInFlight = false;
-  }
+  return applyUpdate(tag);
 }
 
 /**
@@ -2601,14 +2620,9 @@ function restartFromRepair() {
 }
 
 async function runRepair(release) {
-  // The guard that matters. Above it a second run only costs a wasted request;
-  // here it costs a shared staging directory and a rollback fired over files
-  // the other run installed correctly.
-  if (repairInFlight) {
-    dbg("repairAlreadyRunning", { at: "apply" });
-    return;
-  }
-  repairInFlight = true;
+  // No guard of its own: applyUpdate holds it, and throws when a run is already
+  // in flight. The catch below already reports a failure with its reason, so a
+  // second confirmation says so instead of silently doing nothing.
   await repairWorking(t("repair.working", { version: release.version }));
   try {
     const result = await applyUpdate(release.tag);
@@ -2632,8 +2646,10 @@ async function runRepair(release) {
     // "nothing was changed" is literally true here.
     notifyRepair(t("update.failed", { error: String(ex) }), "critical");
   } finally {
+    // Only the progress bar is this function's to clean up. Clearing the flag
+    // here would release a lock it never took, and hand the next caller a green
+    // light over an update still in flight.
     await repairWorkingDone();
-    repairInFlight = false;
   }
 }
 

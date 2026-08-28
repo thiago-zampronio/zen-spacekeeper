@@ -104,11 +104,20 @@ function Resolve-LatestRef {
 # default is the one everybody else gets, and it is a release. Resolved lazily so
 # -Check, -Uninstall and a run from a clone never reach the network for an answer
 # they do not use.
+#
+# Captured HERE, at script scope, and not inside the function: $PSBoundParameters
+# is per-invocation, so inside a parameterless function it is that function's own
+# and always empty. Testing it there is silently always false, which made an
+# explicit -Branch be ignored and the latest release installed instead - and the
+# recovery this script itself advertises when resolution fails is "-Branch main",
+# so the advertised escape hatch was the thing that did not work. install.sh has
+# always recorded the equivalent flag at parse time.
+$script:branchGiven = $PSBoundParameters.ContainsKey("Branch")
 $script:resolvedRef = $null
 function Get-SourceRef {
     if ($script:resolvedRef) { return $script:resolvedRef }
     if ($Ref) { $script:resolvedRef = $Ref }
-    elseif ($PSBoundParameters.ContainsKey("Branch")) { $script:resolvedRef = $Branch }
+    elseif ($script:branchGiven) { $script:resolvedRef = $Branch }
     elseif ($fromClone) { $script:resolvedRef = $Branch }
     else {
         $script:resolvedRef = Resolve-LatestRef
@@ -659,11 +668,32 @@ if (-not $loaderPresent -and -not $isAdmin) {
         Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$(Get-SourceRef)/install.ps1" -OutFile $tmp -UseBasicParsing
         $tmp
     }
+    # Every path is quoted, and that is not defensive habit - without it this
+    # branch cannot install on a default Windows Zen at all.
+    #
+    # Start-Process -ArgumentList joins its elements with a bare space and quotes
+    # NOTHING. The default location is "C:\Program Files\Zen Browser", so the
+    # child's command line becomes -ZenDir C:\Program Files\Zen Browser: it binds
+    # -ZenDir to "C:\Program" and takes "Files\Zen" as a positional argument,
+    # which this script's [CmdletBinding()] refuses. The elevated window then dies
+    # on a binding error before doing anything, config.js never appears, the retry
+    # below raises a SECOND UAC prompt and fails the same way, and the run ends
+    # claiming the elevated install did not complete.
+    #
+    # It survived because it only fires when the loader is missing AND the shell
+    # is not already elevated - so anyone installing from an admin PowerShell, or
+    # over an existing loader, never reaches it. A first install from the
+    # documented one-liner reaches it every time.
+    #
+    # The profile path needs this just as badly: it contains spaces on macOS and
+    # can on Windows, and $self is a temp path when the script was piped.
+    $q = { param($v) '"{0}"' -f $v }
     # The RESOLVED ref, not $Ref as it was passed: the child must fetch from
     # exactly the same source as this run, whatever combination of -Ref and
     # -Branch produced it.
-    $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $self,
-              "-Repo", $Repo, "-Ref", (Get-SourceRef), "-ZenDir", $zen, "-ProfileDir", $prof,
+    $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (& $q $self),
+              "-Repo", (& $q $Repo), "-Ref", (& $q (Get-SourceRef)),
+              "-ZenDir", (& $q $zen), "-ProfileDir", (& $q $prof),
               "-ElevatedChild")
     if ($NonInteractive) { $args += "-NonInteractive" }
     Start-Process -FilePath "pwsh.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue

@@ -10,8 +10,8 @@ that release, and SHALL install regardless of whether one is newer; it SHALL ask
 for confirmation naming the release and stating that the current files will be
 overwritten; the write SHALL use the same all-or-nothing path as the panel's
 Update, leaving the previous files in place when any step fails; the system
-SHALL run at most one repair at a time, ignoring any further activation while
-one is in flight; and it SHALL report that a step has begun before that step
+SHALL run at most one update or repair at a time, whichever surface asked for
+it, refusing any further attempt while one is in flight; and it SHALL report that a step has begun before that step
 waits on the network, so that no activation looks like it did nothing.
 
 The panel is the place an update is decided; it must not also be the only place an
@@ -74,6 +74,13 @@ code.
 - **WHEN** the user activates the entry again, or confirms a second time
 - **THEN** no second repair starts
 - **AND** the running one completes unaffected
+
+#### Scenario: The panel's Update while a repair is running
+
+- **GIVEN** a repair is in flight
+- **WHEN** the user clicks Update in the panel
+- **THEN** no second write starts
+- **AND** the running repair completes unaffected
 
 #### Scenario: A step says it has begun
 

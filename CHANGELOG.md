@@ -5,6 +5,17 @@ entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.60.2 — installing on Windows works from a normal PowerShell
+
+- **Fixed:** on Windows, installing from the command in the readme could fail at
+  the administrator step and end saying the install did not complete. It now
+  finishes. This one had been there since the beginning, and only showed up when
+  Spacekeeper was installed for the first time, from an ordinary PowerShell
+  window.
+- **Fixed:** starting an update in the panel while a reinstall from the menu was
+  still running could leave a mix of two versions. Only one runs at a time now,
+  whichever you started it from.
+
 ## 0.60.1 — the reinstall tells you it started, and only runs once
 
 - **Fixed:** the reinstall in your browser's **Tools → userScripts** menu gave no
