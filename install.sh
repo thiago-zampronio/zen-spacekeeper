@@ -354,7 +354,16 @@ startup_cache_dir() {
         printf '%s' "$HOME/Library/Caches/zen/$rel/startupCache"
     else
         case "$root" in
-            "$HOME/.var/app/"*) printf '%s' "${root%/.zen}/cache/zen/$rel/startupCache" ;;
+            # Derived from the application id, not by stripping a suffix. The
+            # strip only matched ~/.var/app/<APP>/.zen, and profile detection
+            # also probes ~/.var/app/<APP>/.config/zen — for which nothing was
+            # stripped, producing a path under .config that does not exist while
+            # the run still reported the cache as cleared. Both layouts share
+            # one cache root: ~/.var/app/<APP>/cache.
+            "$HOME/.var/app/"*)
+                app=${root#"$HOME/.var/app/"}
+                app=${app%%/*}
+                printf '%s' "$HOME/.var/app/$app/cache/zen/$rel/startupCache" ;;
             *) printf '%s' "$HOME/.cache/zen/$rel/startupCache" ;;
         esac
     fi
@@ -579,6 +588,12 @@ guard_unavailable() {
 SCRIPT_DIR=""
 case "${0:-}" in
     */*) SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) ;;
+    # `sh install.sh` from inside the clone leaves $0 without a slash, so the
+    # case above missed it and the installer went to the network for files
+    # sitting in the current directory. The basename must actually exist here
+    # before this counts: piped from the web $0 is "sh", and "./sh" is not a
+    # file, so `curl | sh` still takes the network path it must take.
+    ?*) [ -f "./${0}" ] && SCRIPT_DIR=$(CDPATH= cd -- . && pwd) ;;
 esac
 FROM_CLONE=0
 [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/src/zen-space-tab-groups.uc.mjs" ] && FROM_CLONE=1
@@ -847,12 +862,18 @@ while IFS=: read -r src dest; do
 done <<EOF
 $LOADER
 EOF
+# The profile-side utilities are tracked SEPARATELY, because they need no
+# privilege and folding them into loader_present asked for administrator rights
+# to fix files under $HOME. The spec is explicit that elevation is only ever for
+# the application directory; claiming a permission you do not use for the thing
+# you are using it on teaches the user to disbelieve the next claim.
+utils_current=1
 for u in $UTILS; do
     installed="$PROF/chrome/utils/$u"
     if [ -f "$installed" ]; then
-        cmp -s "$(fetch "vendor/fx-autoconfig/profile/chrome/utils/$u")" "$installed" || loader_present=0
+        cmp -s "$(fetch "vendor/fx-autoconfig/profile/chrome/utils/$u")" "$installed" || utils_current=0
     else
-        loader_present=0
+        utils_current=0
     fi
 done
 
@@ -912,6 +933,20 @@ EOF
 
     # The profile side is written as the user, never through sudo: root-owned files
     # here would break the next non-elevated install.
+    mkdir -p "$PROF/chrome/utils"
+    for u in $UTILS; do
+        file=$(fetch "vendor/fx-autoconfig/profile/chrome/utils/$u")
+        cp -f "$file" "$PROF/chrome/utils/$u"
+    done
+    ok "chrome/utils"
+    say ""
+elif [ "$utils_current" = 0 ]; then
+    # The application directory is fine; only the profile-side utilities are
+    # stale or missing. That needs no privilege at all, so it happens here
+    # instead of dragging the whole branch above - and instead of being skipped,
+    # which is what left a second profile with a dead install reported as
+    # success.
+    say "Loader: up to date; refreshing the profile-side utilities."
     mkdir -p "$PROF/chrome/utils"
     for u in $UTILS; do
         file=$(fetch "vendor/fx-autoconfig/profile/chrome/utils/$u")

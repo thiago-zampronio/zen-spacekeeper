@@ -1067,8 +1067,13 @@ sDiagnostics.append(
 
 // ---- Maintenance: update and uninstall ----
 // The buttons only ask the chrome script; every fetch happens THERE, so this
-// page keeps loading nothing remote. Checking/updating are the one action in
-// the whole product that contacts the network, and only when clicked.
+// page keeps loading nothing remote. What the product does touch the network
+// for is three things and no more: the metadata-only check (automatic, and
+// silenced by zen.stg.updateCheck), the download the user clicks here, and the
+// repair in the browser's userScripts menu, which that preference does NOT
+// silence. This comment used to claim updating was the one action that
+// contacts the network; the automatic check made that false first, and the
+// repair made it false again.
 const sMaintenance = document.getElementById("maintenance");
 heading("maintenance", "sec.maintenance", t("maintenance.help"));
 // Both outputs start hidden and appear only when they have something to

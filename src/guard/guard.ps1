@@ -122,5 +122,13 @@ try {
 catch {
     # Not writable (or the copy failed): restoring needs the installer, where a
     # human is present to grant privilege.
+    #
+    # The exception is logged, not swallowed. The user gets the actionable
+    # sentence; the log gets the reason, because "the guard did not restore it"
+    # and "the guard could not restore it, because X" are the same event to
+    # anyone reading only the notification - and the guard runs with nobody
+    # watching, so the log is the only account of it that exists. guard.sh logs
+    # its equivalent for the macOS TCC case.
+    Write-GuardLog "restore failed: $($_.Exception.Message)"
     Show-GuardNotification "A Zen update removed the Spacekeeper loader. Re-run the installer to restore it."
 }

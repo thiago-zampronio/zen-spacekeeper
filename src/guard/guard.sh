@@ -132,5 +132,10 @@ fi
 
 # Not writable (or the write was denied): restoring needs the installer, where a
 # human is present to grant privilege.
+#
+# The plain not-writable case reaches here without having logged anything, and
+# it is the common one on a system install. Naming it costs one line and turns
+# "the guard did nothing" into "the guard could not, and here is why".
+[ -w "$ZEN" ] || log "$ZEN is not writable by $(id -un 2>/dev/null || echo "this user")"
 notify "A Zen update removed the Spacekeeper loader. Re-run the installer to restore it."
 log "loader missing; asked the user to re-run the installer"

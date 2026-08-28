@@ -239,7 +239,7 @@ const en = {
   "uninstall.action": "Uninstall",
   "uninstall.checkbox": "Restart Zen now",
   "uninstall.done":
-    "Removed. Spacekeeper keeps working in this session and disappears when Zen restarts. Your settings were kept, so a reinstall finds everything again.",
+    "Removed. Spacekeeper keeps working in this session and disappears when Zen restarts. Your settings and the loader were kept, so a reinstall finds everything again and other mods keep working.",
   "uninstall.failed": "Removal failed: {error}",
   "common.cancel": "Cancel",
   "restart.title": "Restart Zen now?",
@@ -473,7 +473,7 @@ const pt = {
   "uninstall.action": "Desinstalar",
   "uninstall.checkbox": "Reiniciar o Zen agora",
   "uninstall.done":
-    "Removido. O Spacekeeper continua funcionando nesta sessão e some quando o Zen reiniciar. Suas configurações foram mantidas, então uma reinstalação encontra tudo de novo.",
+    "Removido. O Spacekeeper continua funcionando nesta sessão e some quando o Zen reiniciar. Suas configurações e o carregador foram mantidos, então uma reinstalação encontra tudo de novo e outros mods continuam funcionando.",
   "uninstall.failed": "A remoção falhou: {error}",
   "common.cancel": "Cancelar",
   "restart.title": "Reiniciar o Zen agora?",
@@ -707,7 +707,7 @@ const es = {
   "uninstall.action": "Desinstalar",
   "uninstall.checkbox": "Reiniciar Zen ahora",
   "uninstall.done":
-    "Eliminado. Spacekeeper sigue funcionando en esta sesión y desaparece cuando Zen se reinicie. Tu configuración se conservó, así que una reinstalación encuentra todo de nuevo.",
+    "Eliminado. Spacekeeper sigue funcionando en esta sesión y desaparece cuando Zen se reinicie. Tu configuración y el cargador se conservaron, así que una reinstalación encuentra todo de nuevo y otros mods siguen funcionando.",
   "uninstall.failed": "La eliminación falló: {error}",
   "common.cancel": "Cancelar",
   "restart.title": "¿Reiniciar Zen ahora?",

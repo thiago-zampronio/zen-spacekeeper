@@ -483,6 +483,16 @@ $fromClone = $scriptDir -and (Test-Path (Join-Path $scriptDir "src\zen-space-tab
 
 $staging = $null
 
+# Both temporary directories a piped run creates: the staging area Get-Source
+# fills, and the copy of this script written for the elevated relaunch. Factored
+# into one place because the elevation branch exits without reaching the cleanup
+# at the end of the file, so a first install on Windows left both behind.
+function Remove-Staging {
+    foreach ($d in @($script:staging, $script:selfTemp)) {
+        if ($d) { Remove-Item $d -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 function Get-Source($relative) {
     if ($fromClone) {
         return Join-Path $scriptDir ($relative -replace '/', '\')
@@ -664,6 +674,7 @@ if (-not $loaderPresent -and -not $isAdmin) {
     $self = if ($PSCommandPath) { $PSCommandPath } else {
         $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "spacekeeper-$(Get-Random)"
         New-Item -ItemType Directory -Force $tmpDir | Out-Null
+        $script:selfTemp = $tmpDir
         $tmp = Join-Path $tmpDir "install.ps1"
         Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$(Get-SourceRef)/install.ps1" -OutFile $tmp -UseBasicParsing
         $tmp
@@ -698,7 +709,13 @@ if (-not $loaderPresent -and -not $isAdmin) {
     if ($NonInteractive) { $args += "-NonInteractive" }
     Start-Process -FilePath "pwsh.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue
     if ($LASTEXITCODE -ne 0 -and -not (Test-Path (Join-Path $zen "config.js"))) {
-        Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -Wait
+        # -ErrorAction here for the same reason the attempt above carries it:
+        # -Verb RunAs raises a terminating error when UAC is declined, and this
+        # script sets $ErrorActionPreference = "Stop". Without it, declining the
+        # second prompt crashes the installer with a stack trace instead of
+        # reaching the message below, which is the one that tells the user what
+        # actually happened. Test-Path decides success, not the exit code.
+        Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue
     }
     # The elevated window is gone; whatever the user must read or answer happens
     # here. The guard and the restart offer need no privilege - and the guard must
@@ -710,9 +727,11 @@ if (-not $loaderPresent -and -not $isAdmin) {
             Install-Guard
         }
         Invoke-PostInstall
+        Remove-Staging
         exit 0
     }
     Warn "The elevated install did not complete - the loader is still missing."
+    Remove-Staging
     exit 1
 }
 
@@ -754,7 +773,26 @@ else {
     # A second profile has the program-side loader but not the profile-side
     # utilities — and those need no privilege. Without this, a fresh profile got a
     # dead install reported as success.
-    if (-not (Test-Path (Join-Path $prof "chrome\utils\boot.sys.mjs"))) {
+    #
+    # Compared by CONTENT, matching install.sh, and not merely by the presence of
+    # boot.sys.mjs: a profile whose utilities are stale is the same dead install
+    # as one missing them, and presence cannot tell the two apart. This is the
+    # profile side, so it stays out of $loaderPresent entirely — folding it in
+    # would ask for administrator rights to fix files under the user's own
+    # profile, which the specification says elevation is never for.
+    $utilsCurrent = $true
+    foreach ($u in @("boot.sys.mjs", "chrome.manifest", "fs.sys.mjs",
+                     "module_loader.mjs", "uc_api.sys.mjs", "utils.sys.mjs")) {
+        $installed = Join-Path $prof "chrome\utils\$u"
+        if (-not (Test-Path $installed)) { $utilsCurrent = $false; break }
+        $source = Get-Source "vendor/fx-autoconfig/profile/chrome/utils/$u"
+        if ((Get-FileHash -Algorithm SHA256 $source).Hash -ne
+            (Get-FileHash -Algorithm SHA256 $installed).Hash) {
+            $utilsCurrent = $false
+            break
+        }
+    }
+    if (-not $utilsCurrent) {
         Install-LoaderUtils
     }
     Say ""
@@ -775,7 +813,7 @@ if ($Guard) {
     Install-Guard
 }
 
-if ($staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }
+Remove-Staging
 
 if ($ElevatedChild) {
     # The parent is waiting and will print everything the user must read; this
