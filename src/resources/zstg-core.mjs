@@ -134,6 +134,45 @@ export const runtimeState = {
   lastAutoCheck: 0,
 };
 
+export function isNewerVersion(latest, current) {
+  const a = String(latest).split(".").map(Number);
+  const b = String(current).split(".").map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] || 0) - (b[i] || 0);
+    if (d !== 0) {
+      return d > 0;
+    }
+  }
+  return false;
+}
+
+/**
+ * The highest-VERSION published release, out of the API's chronological list.
+ *
+ * The head must not be the most recently published release. Publish a hotfix on
+ * an older line after a bigger release and chronology puts the smaller version
+ * first — which the update path never noticed, because it only ever looked at
+ * releases newer than the running one, and the repair does the opposite: it runs
+ * precisely when nothing is newer. There the chronological head is a DOWNGRADE,
+ * on the one path that exists to rescue a broken installation.
+ *
+ * So the rule lives here, in the pure layer, where it is tested against the
+ * cases that would otherwise only be found in the field.
+ */
+export function latestRelease(releases) {
+  const ver = r => String(r?.tag_name ?? "").replace(/^v/, "");
+  let head = null;
+  for (const r of releases ?? []) {
+    if (!r || r.draft || r.prerelease || !r.tag_name) {
+      continue;
+    }
+    if (!head || isNewerVersion(ver(r), ver(head))) {
+      head = r;
+    }
+  }
+  return head;
+}
+
 export function capLabel(s) {
   if (!s) {
     return s;

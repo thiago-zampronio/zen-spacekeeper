@@ -35,6 +35,8 @@ const {
   colorName,
   keyFromParts,
   runDerivationTests,
+  isNewerVersion,
+  latestRelease,
 } = core ?? {};
 
 // ---------------------------------------------------------------------------
@@ -2005,7 +2007,12 @@ async function checkForUpdate(via = "panel") {
   const newer = releases
     .filter(x => isNewerVersion(ver(x), VERSION))
     .sort((a, b) => (isNewerVersion(ver(a), ver(b)) ? -1 : 1));
-  const head = newer[0] ?? releases[0];
+  // The head is the highest VERSION of the whole list, never the chronological
+  // first. When something newer exists this is the same release `newer[0]` names;
+  // when nothing is, the old fallback handed back whatever was published last,
+  // and the repair — which runs exactly then — would have installed it. A hotfix
+  // on an older line published after a bigger release made that a downgrade.
+  const head = latestRelease(releases);
   const tag = String(head?.tag_name ?? "");
   dbg("updateCheck", { tag, via, installed: VERSION, missed: newer.length });
   return {
@@ -2019,18 +2026,6 @@ async function checkForUpdate(via = "panel") {
       .join("\n\n")
       .trim(),
   };
-}
-
-function isNewerVersion(latest, current) {
-  const a = String(latest).split(".").map(Number);
-  const b = String(current).split(".").map(Number);
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const d = (a[i] || 0) - (b[i] || 0);
-    if (d !== 0) {
-      return d > 0;
-    }
-  }
-  return false;
 }
 
 /*
@@ -2362,6 +2357,213 @@ function resetAndRestart() {
 }
 
 // ---------------------------------------------------------------------------
+// The repair: reinstall from the userScripts menu, without the panel
+// ---------------------------------------------------------------------------
+
+// The panel is where an update is decided, but a broken page or a half-finished
+// write leaves the user with no way in from inside the product. This entry is
+// the way in: it does not ask what is wrong, it puts the published files back.
+
+const REPAIR_ENTRY_ID = "zstg-repair-entry";
+const RELEASES_URL = `https://github.com/${REPO}/releases`;
+
+/**
+ * Resolves the latest release and reinstalls it over whatever is on disk —
+ * deliberately with no version comparison anywhere in the path. The situation
+ * this exists for is the one where the version is right and the files are
+ * wrong; a gate would refuse exactly when help is needed. Exposed on ZSTG as
+ * the console last resort; the menu runs the same two steps with the
+ * confirmation in between.
+ */
+async function reinstallLatest() {
+  const { tag } = await checkForUpdate("repair");
+  if (!tag) {
+    throw new Error("no published release found");
+  }
+  return applyUpdate(tag);
+}
+
+/**
+ * Chrome UI, independent of the panel — the same notification bar the loader
+ * uses for its own prompts. A rescue path must not be able to trap the user
+ * behind a modal if it throws mid-flow.
+ */
+function notifyRepair(label, priority, buttons) {
+  const show = window.UC_API?.Notifications?.show;
+  if (typeof show !== "function") {
+    console.warn(`${LOG} ${label}`);
+    return;
+  }
+  show({ label, priority, buttons, window });
+}
+
+/**
+ * Appends the entry at the end of the loader's userScripts menu. The menu is
+ * built once per window and never regenerated (its trigger listener is
+ * {once: true}), so there is nothing to survive: once appended, the item stays
+ * for the life of the window. Unconditional on purpose: `zen.stg.updateCheck`
+ * silences the automatic check, and this involves none — a rescue that a
+ * configuration can remove is not a rescue.
+ */
+function insertRepairEntry() {
+  let menu = null;
+  try {
+    menu = window.UC_API?.Scripts?.getScriptMenuForDocument(document);
+  } catch (ex) {
+    console.warn(`${LOG} could not reach the userScripts menu:`, ex);
+  }
+  const popup = menu?.querySelector("#menuUserScriptsPopup");
+  if (!popup) {
+    dbg("repairEntryUnavailable", {});
+    return;
+  }
+  const item = document.createXULElement("menuitem");
+  item.id = REPAIR_ENTRY_ID;
+  item.setAttribute("label", t("repair.entry"));
+  // Deliberately no data-filename and no type="checkbox": the loader's shared
+  // command listener toggles anything carrying a filename, and its per-popup
+  // status pass rewrites anything typed checkbox. Carrying neither, this item
+  // is invisible to both, and our listener is the only handler.
+  item.addEventListener("command", () => {
+    repairFromMenu();
+  });
+  popup.appendChild(item);
+}
+
+function removeRepairEntry() {
+  document.getElementById(REPAIR_ENTRY_ID)?.remove();
+}
+
+/**
+ * The click on the entry. The resolve is metadata only — the release must be
+ * NAMED before anything is downloaded or written, so the confirmation sits
+ * between the two steps, and the confirmation is the click the "nothing
+ * happens without a click" line names.
+ */
+async function repairFromMenu() {
+  let release;
+  try {
+    release = await checkForUpdate("repair");
+    if (!release.tag) {
+      throw new Error("no published release found");
+    }
+  } catch (ex) {
+    notifyRepair(t("update.failed", { error: String(ex) }), "critical");
+    return;
+  }
+  dbg("repairConfirm", { tag: release.tag, running: VERSION });
+  notifyRepair(
+    t("repair.confirm", { version: release.version, notes: RELEASES_URL }),
+    "warning",
+    [
+      {
+        label: t("repair.confirmAction"),
+        // The braces matter: an async callback's Promise is truthy, and a
+        // truthy return keeps the notification bar open forever.
+        callback: () => {
+          runRepair(release);
+        },
+      },
+      {
+        // Cancel writes nothing and fetches nothing; its only effect is the
+        // bar closing itself.
+        label: t("common.cancel"),
+        callback: () => {
+          dbg("repairCancelled", { tag: release.tag });
+        },
+      },
+    ]
+  );
+}
+
+function restartFromRepair() {
+  if (!restartToApply()) {
+    notifyRepair(t("repair.restartUnavailable"), "warning");
+  }
+}
+
+async function runRepair(release) {
+  try {
+    const result = await applyUpdate(release.tag);
+    if (result.loaderChanged) {
+      notifyRepair(t("repair.doneLoaderChanged", { version: release.version }), "warning", [
+        {
+          label: t("repair.runInstaller"),
+          callback: () => {
+            launchInstaller(release.tag);
+          },
+        },
+        { label: t("restart.action"), callback: restartFromRepair },
+      ]);
+    } else {
+      notifyRepair(t("repair.done", { version: release.version }), undefined, [
+        { label: t("restart.action"), callback: restartFromRepair },
+      ]);
+    }
+  } catch (ex) {
+    // applyUpdate rolled its moves back and dropped the staging directory, so
+    // "nothing was changed" is literally true here.
+    notifyRepair(t("update.failed", { error: String(ex) }), "critical");
+  }
+}
+
+/**
+ * The loader hand-off: fetch the installer FROM THE SAME RELEASE the files came
+ * from, and run it with that tag pinned — never a branch — plus the
+ * non-interactive flag, because a browser-launched process is exactly the
+ * no-terminal case. This is the only thing in the mod that executes anything
+ * outside the browser, and it is fenced on purpose: offered only when the
+ * loader changed, only after an explicit second click. The installer still does
+ * the privileged work and still asks for elevation itself. When the launch
+ * cannot be performed, the pre-existing "run the installer" message is the
+ * fallback, so the worst case stays yesterday's behaviour.
+ */
+async function launchInstaller(tag) {
+  const isWindows = Services.appinfo.OS === "WINNT";
+  const name = isWindows ? "install.ps1" : "install.sh";
+  const path = profilePath(`spacekeeper-repair-${name}`);
+  try {
+    const { Subprocess } = ChromeUtils.importESModule(
+      "resource://gre/modules/Subprocess.sys.mjs"
+    );
+    await IOUtils.writeUTF8(path, await fetchRaw(tag, name));
+    const proc = await Subprocess.call(
+      isWindows
+        ? {
+            command:
+              "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            arguments: [
+              "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path,
+              "-Ref", tag, "-NonInteractive",
+            ],
+          }
+        : { command: "/bin/sh", arguments: [path, "--ref", tag, "--non-interactive"] }
+    );
+    // Drained, not ignored: an unread pipe has a finite buffer, and a chatty
+    // installer blocked on a full one would hang here forever.
+    let output = "";
+    for (let chunk; (chunk = await proc.stdout.readString()); ) {
+      output += chunk;
+    }
+    const { exitCode } = await proc.wait();
+    dbg("repairInstaller", { tag, exitCode, tail: output.slice(-400) });
+    if (exitCode === 0) {
+      notifyRepair(t("repair.installerDone"), undefined, [
+        { label: t("restart.action"), callback: restartFromRepair },
+      ]);
+    } else {
+      notifyRepair(t("update.doneLoaderChanged"), "warning");
+    }
+  } catch (ex) {
+    dbg("repairInstallerFailed", { tag, error: String(ex) });
+    notifyRepair(t("update.doneLoaderChanged"), "warning");
+  } finally {
+    // The downloaded installer never outlives the attempt.
+    await IOUtils.remove(path, { ignoreAbsent: true }).catch(() => {});
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
 
@@ -2562,6 +2764,10 @@ const prefObserver = {
       try {
         removeMenu();
         createMenu();
+        // The repair entry's label was resolved at insertion, like the menu's;
+        // remove + insert re-appends it at the same end position.
+        removeRepairEntry();
+        insertRepairEntry();
       } catch (ex) {
         console.warn(`${LOG} could not rebuild the menu:`, ex);
       }
@@ -3115,6 +3321,7 @@ async function start() {
   Services.prefs.addObserver(PREF_PREFIX, prefObserver);
 
   createMenu();
+  insertRepairEntry();
   registerHotkeys();
   installSpaceScopedSwitch();
   registerPanel();
@@ -3169,6 +3376,7 @@ async function start() {
       window.gBrowser.removeTabsProgressListener(progressListener);
       Services.prefs.removeObserver(PREF_PREFIX, prefObserver);
       removeMenu();
+      removeRepairEntry();
       uninstallSpaceScopedSwitch();
       clearFocusTimers();
       window.clearInterval(idleSweepTimer);
@@ -3242,6 +3450,7 @@ if (core) {
     dumpStrip: () => dumpStrip("manual"),
     checkForUpdate,
     applyUpdate,
+    reinstallLatest,
     removeUpdatePill,
     isUpdateDismissed: () => updateDismissed(),
     uninstallSelf,

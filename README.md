@@ -64,9 +64,10 @@ read-it-first path and the fine print live in the
 - **Respects your organization** — pinned tabs, essential tabs, Zen folders,
   split view and groups you made by hand are never touched.
 - **Private by design** — no telemetry, everything stays on your machine, and the
-  only network traffic is update-shaped: the update you explicitly click, and a
-  quiet check for a newer release — shortly after a window opens, every few hours
-  while it lives, and when the panel opens (metadata only, off with one pref).
+  only network traffic is update-shaped: the update you explicitly click, the
+  repair you explicitly confirm, and a quiet check for a newer release — shortly
+  after a window opens, every few hours while it lives, and when the panel opens
+  (metadata only, off with one pref).
 - **Takes care of itself** — an optional guard restores the loader when a Zen
   update deletes it (or tells you — within seconds on macOS and Linux, at the
   next logon or noon on Windows); updates and uninstall are one click inside
@@ -111,8 +112,9 @@ the other two:
 
 The WebExtensions API does not expose Spaces, and Zen Mods run no JavaScript at
 all. What is left is a privileged chrome script, and the project treats that
-privilege seriously: no network at runtime, a living specification, and every
-requirement anchored in the code by an automated check.
+privilege seriously: the only network traffic is update-shaped and listed above, a
+living specification, and every requirement anchored in the code by an automated
+check.
 
 ## Problems?
 

@@ -25,11 +25,16 @@ set -eu
 
 REPO="thiago-zampronio/zen-spacekeeper"
 BRANCH="main"
+# An exact ref to fetch from - a release tag, usually. Wins over BRANCH when both
+# are given: a branch moves under the caller, a tag does not, and whoever pins a
+# release means exactly that release, not whatever main has become since.
+REF=""
 ZEN_DIR=""
 PROFILE_DIR=""
 ACTION="install"
 RESTART=0
 GUARD=0
+NONINTERACTIVE=0
 
 # How long the offered restart waits for Zen to exit before giving up. Kept equal
 # in install.ps1 ($RestartWaitSeconds); the verifier fails if the two disagree.
@@ -81,6 +86,11 @@ Usage: install.sh [options]
   --profile-dir DIR Zen profile directory. Set only if detection is wrong.
   --repo OWNER/NAME Source repository when fetching over the network.
   --branch NAME     Branch to fetch from.
+  --ref NAME        Exact git ref to fetch from - a release tag, usually. Wins
+                    over --branch when both are given.
+  --non-interactive Take every question's default without asking. The restart is
+                    skipped unless --restart asks for it; the loader elevation
+                    proceeds.
   -h, --help        This text.
 EOF
 }
@@ -95,6 +105,8 @@ while [ $# -gt 0 ]; do
         --profile-dir) PROFILE_DIR="${2:?--profile-dir needs a directory}"; shift ;;
         --repo) REPO="${2:?--repo needs OWNER/NAME}"; shift ;;
         --branch) BRANCH="${2:?--branch needs a name}"; shift ;;
+        --ref) REF="${2:?--ref needs a tag or branch}"; shift ;;
+        --non-interactive) NONINTERACTIVE=1 ;;
         -h|--help) usage; exit 0 ;;
         *) die "Unknown option: $1  (try --help)" ;;
     esac
@@ -351,6 +363,10 @@ startup_cache_dir() {
 # script, but their stdout is still their terminal. Automation captures stdout, so
 # it skips - which is the behavior it wanted anyway.
 someone_is_there() {
+    # Declared absence beats detection: --non-interactive is the caller stating
+    # that no one will answer, so every prompt takes its default by contract
+    # instead of by whichever rescue path happens to fire.
+    [ "$NONINTERACTIVE" = 1 ] && return 1
     [ -t 1 ] || return 1
     ( : </dev/tty ) 2>/dev/null || return 1
 }
@@ -582,7 +598,7 @@ fetch() {
     local_path="$STAGING/$1"
     if [ ! -f "$local_path" ]; then
         mkdir -p "$(dirname "$local_path")"
-        url="https://raw.githubusercontent.com/$REPO/$BRANCH/$1"
+        url="https://raw.githubusercontent.com/$REPO/${REF:-$BRANCH}/$1"
         if command -v curl >/dev/null 2>&1; then
             curl -fsSL "$url" -o "$local_path" || die "Could not download $1"
         elif command -v wget >/dev/null 2>&1; then
