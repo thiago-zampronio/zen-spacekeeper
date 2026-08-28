@@ -72,3 +72,38 @@ describe(req("self-update/Updates come from a release, not a branch"), () => {
     expect(isNewerVersion("0.59.1", "0.59.1")).toBe(false);
   });
 });
+
+/**
+ * The same rule, in its second job.
+ *
+ * The installers stopped comparing versions: they follow GitHub's
+ * latest-release pointer. That is only correct while the pointer names the
+ * highest version, which is a release-time decision rather than a computation —
+ * so `latestRelease()` is what audits it, in scripts/check-latest-pointer.mjs.
+ * These cases are that audit's, written from the situation it exists to catch.
+ */
+describe(req("installation/Installing without a copy of the repository"), () => {
+  const rel = tag => ({ tag_name: tag });
+
+  it("catches a pointer left on a hotfix for an older line", () => {
+    // What the mistake looks like: 0.59.2 published after 0.60.0, and whoever
+    // published it passed --latest out of habit.
+    const published = [rel("v0.59.2"), rel("v0.60.0"), rel("v0.59.1")];
+    const pointer = "v0.59.2";
+    expect(latestRelease(published)?.tag_name).toBe("v0.60.0");
+    expect(pointer).not.toBe(latestRelease(published)?.tag_name);
+  });
+
+  it("agrees when the pointer is on the highest version", () => {
+    const published = [rel("v0.60.1"), rel("v0.60.0")];
+    expect(latestRelease(published)?.tag_name).toBe("v0.60.1");
+  });
+
+  it("agrees on the real history, where nothing is out of order", () => {
+    // The published history of this repository is monotonic, which is exactly
+    // why the audit cannot be built from it: it contains no instance of the
+    // mistake. Kept as a regression net, never as the source of the cases.
+    const real = ["v0.60.1", "v0.60.0", "v0.59.1", "v0.59.0", "v0.58.0"].map(rel);
+    expect(latestRelease(real)?.tag_name).toBe("v0.60.1");
+  });
+});

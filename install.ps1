@@ -19,7 +19,9 @@
 
 [CmdletBinding()]
 param(
-    # Where the sources come from when the script is piped from the web.
+    # Where the sources come from when the script is piped from the web. With
+    # neither -Ref nor -Branch given, that is the latest published release; a
+    # branch is the override, not the default.
     [string]$Repo = "thiago-zampronio/zen-spacekeeper",
     [string]$Branch = "main",
     # An exact ref to fetch from - a release tag, usually. Wins over -Branch when
@@ -60,9 +62,61 @@ $ErrorActionPreference = "Stop"
 $RestartWaitSeconds = 20
 
 # The one ref every download uses, the self-elevation re-download included.
-# install.sh resolves it the same way (REF over BRANCH); the two must agree, or
-# the elevated child could run different code than the parent that launched it.
-$SourceRef = if ($Ref) { $Ref } else { $Branch }
+# install.sh resolves it the same way; the two must agree, or the elevated child
+# could run different code than the parent that launched it.
+#
+# The tag of the latest published release, learned by asking rather than by
+# computing.
+#
+# GitHub redirects /releases/latest to /releases/tag/<tag>, so the final URI IS
+# the answer - no API call, and no version comparison here at all. That absence
+# is the point: the rule for which release is newest lives in one place,
+# zstg-core.mjs, where it is tested. HttpWebRequest rather than
+# Invoke-WebRequest because the property holding the final URI moved between
+# PowerShell 5.1 and 7, and this installer must work on both.
+function Resolve-LatestRef {
+    $url = "https://github.com/$Repo/releases/latest"
+    $final = $null
+    try {
+        $req = [System.Net.HttpWebRequest]::Create($url)
+        $req.AllowAutoRedirect = $true
+        $req.Method = "HEAD"
+        $resp = $req.GetResponse()
+        $final = $resp.ResponseUri.AbsoluteUri
+        $resp.Close()
+    }
+    catch { $final = $null }
+    if (-not $final -or $final -notlike "*/releases/tag/*") {
+        # Stopping, never falling back to a branch. A quiet branch install is
+        # discovered months later if ever; a loud failure with an override to
+        # hand is recoverable in one command.
+        Warn "Could not determine the latest release (asked $url)."
+        Warn "If this is a network problem, try again. To install an exact version anyway:"
+        Warn "  -Ref v1.2.3       an exact release tag"
+        Warn "  -Branch main      the moving branch, as older versions always did"
+        exit 1
+    }
+    $final.Substring($final.LastIndexOf("/tag/") + 5)
+}
+
+# Precedence: an explicit -Ref wins, then an explicit -Branch, then the latest
+# release. Both overrides are deliberate acts by someone who typed them; the
+# default is the one everybody else gets, and it is a release. Resolved lazily so
+# -Check, -Uninstall and a run from a clone never reach the network for an answer
+# they do not use.
+$script:resolvedRef = $null
+function Get-SourceRef {
+    if ($script:resolvedRef) { return $script:resolvedRef }
+    if ($Ref) { $script:resolvedRef = $Ref }
+    elseif ($PSBoundParameters.ContainsKey("Branch")) { $script:resolvedRef = $Branch }
+    elseif ($fromClone) { $script:resolvedRef = $Branch }
+    else {
+        $script:resolvedRef = Resolve-LatestRef
+        Say "Installing release $($script:resolvedRef)."
+        Say ""
+    }
+    $script:resolvedRef
+}
 
 $FILES = @(
     @{ From = "src/zen-space-tab-groups.uc.mjs"; To = "chrome\JS\zen-space-tab-groups.uc.mjs" }
@@ -431,7 +485,7 @@ function Get-Source($relative) {
     $local = Join-Path $script:staging ($relative -replace '/', '\')
     if (-not (Test-Path $local)) {
         New-Item -ItemType Directory -Force (Split-Path $local -Parent) | Out-Null
-        $url = "https://raw.githubusercontent.com/$Repo/$SourceRef/$relative"
+        $url = "https://raw.githubusercontent.com/$Repo/$(Get-SourceRef)/$relative"
         Invoke-WebRequest -Uri $url -OutFile $local -UseBasicParsing
     }
     $local
@@ -602,14 +656,14 @@ if (-not $loaderPresent -and -not $isAdmin) {
         $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "spacekeeper-$(Get-Random)"
         New-Item -ItemType Directory -Force $tmpDir | Out-Null
         $tmp = Join-Path $tmpDir "install.ps1"
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$SourceRef/install.ps1" -OutFile $tmp -UseBasicParsing
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Repo/$(Get-SourceRef)/install.ps1" -OutFile $tmp -UseBasicParsing
         $tmp
     }
     # The RESOLVED ref, not $Ref as it was passed: the child must fetch from
     # exactly the same source as this run, whatever combination of -Ref and
     # -Branch produced it.
     $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $self,
-              "-Repo", $Repo, "-Ref", $SourceRef, "-ZenDir", $zen, "-ProfileDir", $prof,
+              "-Repo", $Repo, "-Ref", (Get-SourceRef), "-ZenDir", $zen, "-ProfileDir", $prof,
               "-ElevatedChild")
     if ($NonInteractive) { $args += "-NonInteractive" }
     Start-Process -FilePath "pwsh.exe" -ArgumentList $args -Verb RunAs -Wait -ErrorAction SilentlyContinue

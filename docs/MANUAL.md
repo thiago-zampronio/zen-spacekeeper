@@ -75,13 +75,24 @@ Run from a clone, both installers use the local files instead of downloading.
 ./install.sh --uninstall
 ```
 
-Both installers also take a source override — `-Repo` and `-Branch` on Windows,
+**What a standalone run installs.** With no source options, both installers
+install the **latest published release** — not the `main` branch. They learn
+which release that is by following GitHub's own latest-release redirect, and
+they compare nothing themselves. When that cannot be reached they stop and say
+so, naming the options below; they never quietly fall back to a branch, because
+an install from a moving branch is the thing this avoids and a silent one would
+never be noticed.
+
+Both installers still take a source override — `-Repo` and `-Branch` on Windows,
 `--repo` and `--branch` elsewhere — pointing a standalone run at another
-repository or branch. Useful mainly for development. To fetch an exact release
-instead of a moving branch, pass `-Ref` / `--ref` with a tag (any git ref
-works); it wins over the branch when both are given, and on Windows the
-elevated relaunch downloads from the same ref, so the elevated half can never
-run different code than the run that asked for it.
+repository or branch. Useful mainly for development, and now the exception
+rather than the default. To fetch an exact release, pass `-Ref` / `--ref` with a
+tag (any git ref works); it wins over the branch when both are given, and on
+Windows the elevated relaunch downloads from the same ref, so the elevated half
+can never run different code than the run that asked for it.
+
+Run from a clone, none of this applies: the local files are used and nothing is
+fetched.
 
 For a run with nobody watching — a script, a scheduled job — `-NonInteractive` /
 `--non-interactive` takes every question's default without asking: the restart

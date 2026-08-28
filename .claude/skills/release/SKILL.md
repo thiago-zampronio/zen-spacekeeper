@@ -92,5 +92,24 @@ release. The checklist, in order:
    changelog entry as the notes, verbatim — the panel shows those notes next
    to "update available", so they are user-facing copy, not an afterthought.
 
+   **`--latest` is not decoration.** The installers follow GitHub's
+   latest-release pointer to decide what a fresh install receives, and they do
+   no version comparison of their own. So the flag IS the answer, and setting it
+   is the moment the answer is chosen.
+
+   A release that continues the current line takes `--latest`. **A hotfix for an
+   older line must be published WITHOUT it** — `gh release create vX.Y.Z` with
+   no flag, or `--latest=false` — or every fresh install would be handed the
+   lower version. This is the one case where chronology and version disagree,
+   and it is the whole reason the flag is treated as a decision.
+
+6. **Audit the pointer**: `node scripts/check-latest-pointer.mjs`
+
+   It asks GitHub which release it calls latest, asks `latestRelease()` in
+   `zstg-core.mjs` which is highest, and fails when they disagree — naming the
+   `gh release edit` commands that fix it. Run it after publishing, every time.
+   It is not in `verify.mjs` because it needs the network and `verify.mjs` runs
+   in the pre-commit hook, offline, on every platform.
+
 Behavior changes need their OpenSpec change applied and (once user-confirmed)
 archived; wording, tooling and installer plumbing do not.

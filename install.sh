@@ -24,11 +24,20 @@
 set -eu
 
 REPO="thiago-zampronio/zen-spacekeeper"
+# The branch is now the EXCEPTION, not the default: with neither --ref nor
+# --branch given, the source is the latest published release. A branch turns
+# every later push into whatever the next person to run this receives, and the
+# reason that is unacceptable for updating does not stop applying at install
+# time. Kept as an override because development needs it.
 BRANCH="main"
+BRANCH_SET=0
 # An exact ref to fetch from - a release tag, usually. Wins over BRANCH when both
 # are given: a branch moves under the caller, a tag does not, and whoever pins a
 # release means exactly that release, not whatever main has become since.
 REF=""
+# The ref actually used, resolved once before the first fetch. Empty in a clone,
+# which reads local files and asks the network nothing.
+SOURCE_REF=""
 ZEN_DIR=""
 PROFILE_DIR=""
 ACTION="install"
@@ -85,7 +94,7 @@ Usage: install.sh [options]
   --zen-dir DIR     Zen application directory. Set only if detection is wrong.
   --profile-dir DIR Zen profile directory. Set only if detection is wrong.
   --repo OWNER/NAME Source repository when fetching over the network.
-  --branch NAME     Branch to fetch from.
+  --branch NAME     Branch to fetch from, instead of the latest release.
   --ref NAME        Exact git ref to fetch from - a release tag, usually. Wins
                     over --branch when both are given.
   --non-interactive Take every question's default without asking. The restart is
@@ -104,7 +113,7 @@ while [ $# -gt 0 ]; do
         --zen-dir) ZEN_DIR="${2:?--zen-dir needs a directory}"; shift ;;
         --profile-dir) PROFILE_DIR="${2:?--profile-dir needs a directory}"; shift ;;
         --repo) REPO="${2:?--repo needs OWNER/NAME}"; shift ;;
-        --branch) BRANCH="${2:?--branch needs a name}"; shift ;;
+        --branch) BRANCH="${2:?--branch needs a name}"; BRANCH_SET=1; shift ;;
         --ref) REF="${2:?--ref needs a tag or branch}"; shift ;;
         --non-interactive) NONINTERACTIVE=1 ;;
         -h|--help) usage; exit 0 ;;
@@ -589,6 +598,45 @@ if [ "$FROM_CLONE" = 0 ]; then
     STAGING=$(mktemp -d "${TMPDIR:-/tmp}/spacekeeper.XXXXXX")
 fi
 
+# The tag of the latest published release, learned by asking rather than by
+# computing.
+#
+# GitHub redirects /releases/latest to /releases/tag/<tag>, so the final URL IS
+# the answer — no API call, so none of api.github.com's 60-per-hour-per-IP limit,
+# and no version comparison here at all. That absence is the point: the rule for
+# which release is newest lives in one place, zstg-core.mjs, where it is tested,
+# and duplicating it into sh and PowerShell would put it in three places where
+# copies fail only on inputs nobody has yet.
+#
+# What makes the pointer trustworthy is not GitHub: it is that the release step
+# sets it deliberately, with --latest on the current line and without it on a
+# hotfix for an older one, and audits it. Read the "The pointer is ours" section
+# of the change for why this differs from taking /releases/latest blindly.
+resolve_latest() {
+    url="https://github.com/$REPO/releases/latest"
+    final=""
+    if command -v curl >/dev/null 2>&1; then
+        final=$(curl -sIL -o /dev/null -w '%{url_effective}' "$url" 2>/dev/null)
+    elif command -v wget >/dev/null 2>&1; then
+        final=$(wget -S --spider --max-redirect=10 "$url" 2>&1 |
+            awk '/^ *Location: /{print $2}' | tail -1)
+    else
+        die "Neither curl nor wget is available, and this is not a clone."
+    fi
+    case "$final" in
+        */releases/tag/*) : ;;
+        *)
+            # Stopping, never falling back to a branch. A quiet branch install is
+            # discovered months later if ever; a loud failure with an override to
+            # hand is recoverable in one command.
+            die "Could not determine the latest release (asked $url).
+If this is a network problem, try again. To install an exact version anyway:
+  --ref v1.2.3      an exact release tag
+  --branch main     the moving branch, as older versions always did" ;;
+    esac
+    printf '%s' "${final##*/tag/}"
+}
+
 fetch() {
     # $1 = path relative to the repository root; prints a local path to the file
     if [ "$FROM_CLONE" = 1 ]; then
@@ -598,7 +646,7 @@ fetch() {
     local_path="$STAGING/$1"
     if [ ! -f "$local_path" ]; then
         mkdir -p "$(dirname "$local_path")"
-        url="https://raw.githubusercontent.com/$REPO/${REF:-$BRANCH}/$1"
+        url="https://raw.githubusercontent.com/$REPO/$SOURCE_REF/$1"
         if command -v curl >/dev/null 2>&1; then
             curl -fsSL "$url" -o "$local_path" || die "Could not download $1"
         elif command -v wget >/dev/null 2>&1; then
@@ -753,6 +801,29 @@ EOF
     say "Your preferences are kept, under zen.stg. in about:config."
     say "Restart Zen."
     exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Where the files come from, decided once.
+#
+# Resolved HERE rather than at startup so --check and --uninstall, which exit
+# above, never reach the network for an answer they do not use. A clone never
+# reaches it at all.
+#
+# Precedence: an explicit --ref wins, then an explicit --branch, then the latest
+# release. Both overrides are deliberate acts by someone who typed them; the
+# default is the one everybody else gets, and it is a release.
+if [ "$FROM_CLONE" = 0 ]; then
+    if [ -n "$REF" ]; then
+        SOURCE_REF="$REF"
+    elif [ "$BRANCH_SET" = 1 ]; then
+        SOURCE_REF="$BRANCH"
+    else
+        SOURCE_REF=$(resolve_latest) || exit 1
+        [ -n "$SOURCE_REF" ] || die "Could not determine the latest release."
+        say "Installing release $SOURCE_REF."
+        say ""
+    fi
 fi
 
 # ---------------------------------------------------------------------------

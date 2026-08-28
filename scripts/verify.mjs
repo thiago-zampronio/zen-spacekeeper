@@ -725,6 +725,31 @@ check(onlyPs.length === 0 && onlySh.length === 0, "both installers deploy the sa
 for (const f of onlyPs) detail("only in install.ps1: " + f);
 for (const f of onlySh) detail("only in install.sh:  " + f);
 
+// The installers ask which release is latest; they do not work it out. That was a
+// decision, not an omission, and this is what keeps it one: the comparison rule
+// lives once, in zstg-core.mjs, where it is tested against the pairs a naive
+// implementation gets wrong. A copy in sh or PowerShell would be a second place
+// to be wrong, failing only on inputs nobody has produced yet - the shape of the
+// drift that once let inspect() report 0.2.0 for a 0.16.0 script.
+//
+// Deliberately offline. The other half of this - that GitHub's pointer really
+// names the highest version - needs the network and lives in
+// scripts/check-latest-pointer.mjs, run at release time. This file runs in the
+// pre-commit hook, on every commit and every platform, and must keep doing so.
+const comparisonSmells = [
+  ["sort -V", "sort -V"],
+  ["sort_by_version", "sort_by_version"],
+  ["version_gt", "version_gt"],
+  ["[System.Version]", "\\[System\\.Version\\]"],
+  ["Sort-Object.*Version", "Sort-Object[^\\n]*Version"],
+];
+const foundSmells = comparisonSmells.filter(([, pattern]) => like(installerSrc, pattern));
+check(
+  foundSmells.length === 0,
+  "neither installer compares versions (the rule lives in zstg-core.mjs)",
+);
+for (const [name] of foundSmells) detail("version comparison in an installer: " + name);
+
 // The staleness warning is the same three lines in both installers. It is the
 // sentence a user reads once, at the moment the mod appears not to have updated,
 // so the two platforms must not describe the same condition differently.
