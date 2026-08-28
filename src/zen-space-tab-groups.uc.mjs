@@ -2686,7 +2686,18 @@ async function launchInstaller(tag) {
       output += chunk;
     }
     const { exitCode } = await proc.wait();
-    dbg("repairInstaller", { tag, exitCode, tail: output.slice(-400) });
+    // `loaderWritten` is recorded because the tail alone cannot answer the one
+    // question this hand-off exists for. The installer prints its loader section
+    // BEFORE the profile files, so the last 400 characters look identical
+    // whether the loader was rewritten or skipped — three runs were diagnosed
+    // from a file hash instead, which is not available to whoever tests this on
+    // another machine.
+    dbg("repairInstaller", {
+      tag,
+      exitCode,
+      loaderWritten: /^\s*\[ok\] (config\.js|defaults)/m.test(output),
+      tail: output.slice(-400),
+    });
     if (exitCode === 0) {
       notifyRepair(t("repair.installerDone"), undefined, [
         { label: t("restart.action"), callback: restartFromRepair },

@@ -180,10 +180,17 @@ published — it was attempted twice on macOS and reported `exitCode: 0` while
 changing nothing, both times correctly, because the published installer was
 still the presence-based one. Testing it requires a release that carries the fix.
 
-- [ ] 7.1 The loader hand-off actually updates the loader, on macOS, **against
-      0.60.1 or later** — the mechanism is proven (Subprocess launches, exit 0,
-      output captured, temp installer cleaned up); what is unproven is that the
-      installer it downloads now rewrites an outdated loader
+- [x] 7.1 The loader hand-off actually updates the loader, on macOS, against
+      0.60.1 — confirmed: an altered `config.js` (`92a0c80c…`) was rewritten back
+      to the release's own (`80dc4212…`) by the installer the hand-off downloaded,
+      with `tag: v0.60.1` and `exitCode: 0`. The precondition was verified at the
+      source first: `install.sh` at tag v0.60.1 contains `cmp -s` twice, at
+      v0.60.0 zero times, which is why the two earlier attempts failed.
+      Noted while confirming: `repairInstaller` logs `output.slice(-400)`, and the
+      installer prints its `Loader:` section BEFORE the profile files — so the
+      logged tail never shows the loader outcome and looked identical on the
+      passing run and the two failing ones. The hash carried every verdict. See
+      7.7
 - [ ] 7.2 The same hand-off on Windows, including whether the UAC prompt appears
       at all when the parent is not a console, and whether a cancelled UAC throws
       out of the second `Start-Process` (`install.ps1:582-585`, which carries no
@@ -194,3 +201,7 @@ still the presence-based one. Testing it requires a release that carries the fix
 - [ ] 7.6 `install.ps1`'s content-based loader comparison (`Get-FileHash`) rewrites
       an outdated loader — the `install.sh` half is proven, the PowerShell half is
       written but never executed
+- [x] 7.7 Record the loader outcome in the debug log, so the remaining tests on
+      other machines do not need a file hash to reach a verdict — the logged tail
+      cannot show it, and whoever runs 7.2 and 7.6 will not have this session's
+      before/after hashes to hand
