@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name           Spacekeeper
 // @description    Automatic tab grouping by site, scoped to Zen Spaces
-// @version        0.59.1
+// @version        0.60.0
 // ==/UserScript==
 
 const LOG = "[ZSTG]";
 // Kept in step with @version above by verify.mjs. It was duplicated as a literal
 // in four places and drifted: inspect() reported 0.2.0 while the script was 0.16.0,
 // so the one number people are asked for when reporting a problem was wrong.
-const VERSION = "0.59.1";
+const VERSION = "0.60.0";
 const KEY_ATTR = "zstg-key";
 const SPACE_ATTR = "zen-workspace-id";
 const PREF_PREFIX = "zen.stg.";

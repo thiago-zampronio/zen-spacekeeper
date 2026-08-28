@@ -5,6 +5,14 @@ entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.60.0 — reinstall Spacekeeper without opening its page
+
+- **New:** when about:spacekeeper opens blank, there is now a way back that does
+  not go through that page. Your browser's **Tools → userScripts** menu has a
+  Spacekeeper entry that reinstalls the latest release and brings the page back.
+  It asks before changing anything, and your groups and your settings stay as
+  they are.
+
 ## 0.59.1 — the settings panel opens again
 
 - **Fixed:** after a recent Zen update, about:spacekeeper opened blank — just
