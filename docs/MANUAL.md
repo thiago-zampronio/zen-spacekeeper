@@ -550,11 +550,16 @@ real tabs and must be checked by hand.
   permits `chrome:` sources but not an inline `<script>` block.
 - **One window at a time:** the script is window-scoped; each window keeps its own
   listeners.
-- **Own styling for the collapse.** Zen only styles `zen-folder[collapsed]`; a
-  regular group toggles the attribute and hides nothing. The project provides the
-  stylesheet that fills that gap, restricted to the groups it creates. If Zen
-  changes the internal structure of `tab-group`, the collapse will look broken
-  again.
+- **Own styling for the collapse.** Zen hides a collapsed group's tabs with a rule
+  that expects them as direct children of `tab-group`, while keeping them inside
+  `.tab-group-container`: nothing matches, so the attribute is toggled and every tab
+  stays on screen. Only `zen-folder` is collapsed by Zen itself. The project's
+  stylesheet fills the gap twice over: for its own groups with the chosen motion
+  preset, and for a group the user made by hand with a plain instant hiding — that
+  group gets the hiding and nothing else, no color, no chip, no motion. If Zen moves
+  the tabs again, the startup canary names the path it expected
+  (`tab-group > .tab-group-container > tab`) in one console error and in the debug
+  log, instead of the collapse failing in silence.
 - **Migration between versions.** Changes to the group marking leave the previous
   ones unmarked; use `ZSTG.recoverOldGroups()` once after updating.
 

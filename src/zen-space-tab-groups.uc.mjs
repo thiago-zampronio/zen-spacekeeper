@@ -1595,6 +1595,16 @@ function slideResettle(groups, doMove) {
  * corrector, which covers the one bad outcome a move can have). Triggered by
  * collapse/expand events and by creation only, never from TabMove, so it
  * cannot fight a drag.
+ *
+ * The move is always expressed as "next to THIS group", never as a tab index.
+ * A tab index resolves to a tab that lives inside the neighboring group, and
+ * Zen keeps each Space's groups in a container of their own: moving forwards
+ * survived that (the browser widens the reference to the whole group), while
+ * moving backwards — every rise — inserted against a reference belonging to
+ * another parent and silently did nothing, so an expanded group stopped rising
+ * above the collapsed cluster and the strip drifted out of order with no error
+ * anywhere. moveTabBefore/moveTabAfter insert relative to the reference
+ * element's own parent, which is the same call Zen's own drag and drop makes.
  */
 function resettleGroupOrder(group) {
   const c = cfg();
@@ -1616,17 +1626,13 @@ function resettleGroupOrder(group) {
       if (!lastExpanded || pos(lastExpanded) < pos(group)) {
         return;
       }
-      const target = lastExpanded.tabs[lastExpanded.tabs.length - 1];
-      if (!target) {
-        return;
-      }
       dbg("focusSink", {
         key: group.getAttribute(KEY_ATTR),
         below: lastExpanded.getAttribute(KEY_ATTR),
-        to: target._tPos,
+        to: pos(lastExpanded),
       });
       slideResettle([group, ...others], () =>
-        window.gBrowser.moveTabTo(group, { tabIndex: target._tPos })
+        window.gBrowser.moveTabAfter(group, lastExpanded)
       );
     } else {
       // Rise: above the first collapsed group — the bottom of the open cluster.
@@ -1634,17 +1640,13 @@ function resettleGroupOrder(group) {
       if (!firstCollapsed || pos(firstCollapsed) > pos(group)) {
         return;
       }
-      const target = firstCollapsed.tabs[0];
-      if (!target) {
-        return;
-      }
       dbg("focusRise", {
         key: group.getAttribute(KEY_ATTR),
         above: firstCollapsed.getAttribute(KEY_ATTR),
-        to: target._tPos,
+        to: pos(firstCollapsed),
       });
       slideResettle([group, ...others], () =>
-        window.gBrowser.moveTabTo(group, { tabIndex: target._tPos })
+        window.gBrowser.moveTabBefore(group, firstCollapsed)
       );
     }
   } catch (e) {
@@ -3386,6 +3388,16 @@ function registerHotkeys() {
 // Startup
 // ---------------------------------------------------------------------------
 
+/** The first tab of the first group of ours, or undefined: the probe's sample. */
+function firstOwnTab() {
+  for (const g of window.gBrowser?.tabGroups ?? []) {
+    if (isOurGroup(g) && g.tabs?.length) {
+      return g.tabs[0];
+    }
+  }
+  return undefined;
+}
+
 /**
  * The mod is deliberately defensive — optional chaining and try/catch everywhere —
  * so when Zen renames an internal, features degrade without a single line in the
@@ -3395,6 +3407,7 @@ function registerHotkeys() {
  */
 function checkZenContract() {
   const spaces = window.gZenWorkspaces;
+  const sample = firstOwnTab();
   const probes = {
     "gZenWorkspaces": !!spaces,
     "gZenWorkspaces.workspaceElement()": typeof spaces?.workspaceElement === "function",
@@ -3402,8 +3415,19 @@ function checkZenContract() {
     "gZenWorkspaces.allUsedBrowsers": !!spaces && "allUsedBrowsers" in spaces,
     "gBrowser.addTabGroup()": typeof window.gBrowser?.addTabGroup === "function",
     "gBrowser.tabGroups": !!window.gBrowser?.tabGroups?.[Symbol.iterator],
+    // The order option moves groups with these two, and only these two: a tab
+    // index lands a backwards move in the wrong parent without throwing.
+    "gBrowser.moveTabBefore()": typeof window.gBrowser?.moveTabBefore === "function",
+    "gBrowser.moveTabAfter()": typeof window.gBrowser?.moveTabAfter === "function",
     "switchToTabHavingURI()": typeof (originalSwitch ?? window.switchToTabHavingURI) === "function",
     "UC_API.Hotkeys": !!window.UC_API?.Hotkeys,
+    // The stylesheet is the other half of the contract, and CSS cannot report a
+    // miss: hiding a collapsed group's tabs depends on this exact path, and the day
+    // Zen moves the tabs the collapse breaks with nothing thrown and nothing logged.
+    // That is how Zen 1.22b was found — from a user report, one release late.
+    // No group of ours yet means nothing to probe, not a broken contract.
+    "tab-group > .tab-group-container > tab":
+      sample?.matches("tab-group > .tab-group-container > .tabbrowser-tab") ?? true,
   };
   const missing = Object.keys(probes).filter(name => !probes[name]);
   if (missing.length) {
