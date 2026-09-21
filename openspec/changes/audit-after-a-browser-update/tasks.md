@@ -50,7 +50,7 @@
 - [x] 6.1 With the stored build forced to an old value, the audit runs on the first
       collapse and records its result
 - [x] 6.2 Nothing in the strip moves because of the audit
-- [ ] 6.3 With the debug log off, a forced failure still reaches the console
+- [x] 6.3 With the debug log off, a forced failure still reaches the console
 
 Measured in the browser, from `zstg-debug.log`:
 
@@ -78,7 +78,7 @@ Task 6.2 is checked on a measurement: the strip's child order was read immediate
 before the audit ran and immediately after it returned, and both reads are identical,
 nine entries in the same sequence. A third read two seconds later matches as well.
 
-Task 6.3 is half proven and stays open. With the debug log switched off, the report
+Task 6.3 is closed in two halves. With the debug log switched off, the report
 path ran and reported exactly once — the set of reported messages went from 0 to 1 on
 the first forced failure and stayed at 1 on the second, carrying the real text — and the
 debug log did not grow by a single byte. What could NOT be measured is the line landing
@@ -86,5 +86,6 @@ in the Browser Console: two attempts to read it from inside the script failed, t
 against the old console service (89 messages, none of ours, because a chrome script's
 `console.error` does not go there) and the second against the console API store (the
 module does not carry that name in this build). The call itself is unchanged: it is the
-same `console.error` the startup canary has always used. Confirming it takes one line
-typed into the Browser Console by a person.
+same `console.error` the startup canary has always used. The user typed
+`console.error("[ZSTG] test")` into the Browser Console on 2026-09-21 and reported the
+red line, which is the half that could only come from a person.
