@@ -50,16 +50,16 @@
 
 - [x] 5.1 State in `docs/MANUAL.md` what the mod now does to a group the user made;
       verify: `node scripts/verify.mjs` passes
-- [ ] 5.2 Add the `CHANGELOG.md` entry at release time, with the version bump (the
+- [x] 5.2 Add the `CHANGELOG.md` entry at release time, with the version bump (the
       `release` skill); verify: `node scripts/verify.mjs` passes
 
 ## 6. Needs a running browser (check only after the user confirms the test)
 
-- [ ] 6.1 A group made by hand, collapsed, hides its tabs and keeps the label
+- [x] 6.1 A group made by hand, collapsed, hides its tabs and keeps the label
 - [ ] 6.2 The active tab of a collapsed group made by hand stays visible
 - [ ] 6.3 A native Zen folder collapses exactly as before
 - [ ] 6.4 Our own groups keep their motion preset, and the strip shows no jump
-- [ ] 6.5 Collapsing a group sends it below the open ones, and expanding it brings it
+- [x] 6.5 Collapsing a group sends it below the open ones, and expanding it brings it
       back above the collapsed ones
 
 Measured in the browser, from `zstg-debug.log`, not eyeballed — the checkboxes above
@@ -70,5 +70,10 @@ stay open until the user confirms what they saw:
 - our groups, collapsed: rows shown 0, and 1 when the group holds the active tab
 - collapse sinks the group below the open ones; expand raises it above the collapsed
   ones (the same rise moved nothing before this change)
-- [ ] 6.6 A group made by hand recedes like ours when closed, and sinks below the open
+- [x] 6.6 A group made by hand recedes like ours when closed, and sinks below the open
       ones
+
+Confirmed by the user from two screenshots of his own strip: 6.1, 6.5 and 6.6.
+Still unconfirmed, and left open on purpose: the active tab inside a collapsed
+hand-made group, a native folder collapsing exactly as before, and our own motion
+preset playing without a jump.

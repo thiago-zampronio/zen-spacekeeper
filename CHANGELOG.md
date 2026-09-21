@@ -5,6 +5,19 @@ entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.61.0 — Closing a group hides its tabs again
+
+The last Zen update broke closing. If you had made a group yourself, closing it
+hid nothing and every tab stayed on screen. It hides them again, and the tab you
+are reading stays visible.
+
+- **Fixed:** closed groups sink to the bottom and open ones stay on top again.
+  That had stopped for every group, so the sidebar slowly drifted out of order.
+- **Fixed:** a tab you left outside a group settles under the groups again.
+- **Changed:** a group you made by hand now looks like an automatic one when
+  closed — a quieter chip, without the bright ring around it.
+- Your group names, colors and tabs are untouched.
+
 ## 0.60.2 — installing on Windows works from a normal PowerShell
 
 - **Fixed:** on Windows, installing from the command in the readme could fail at
