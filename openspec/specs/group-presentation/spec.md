@@ -81,6 +81,10 @@ the following recreations of that key.
 
 The system SHALL ensure that collapsing a group visually hides its tabs in the sidebar,
 keeping only the active tab visible when it belongs to the group.
+This SHALL hold both for the groups the system creates and for the groups the user
+created by hand, whose tabs the browser itself leaves visible; the system SHALL change
+nothing else about a group it did not create, and SHALL leave native folders entirely
+to the browser.
 
 #### Scenario: Collapsed group hides the tabs
 
@@ -100,7 +104,18 @@ keeping only the active tab visible when it belongs to the group.
 
 - **GIVEN** a native Zen folder and a group created by the user
 - **WHEN** the system style is applied
-- **THEN** the appearance and collapse of those elements remain Zen's own
+- **THEN** their appearance remains Zen's own while expanded: no system color, no system
+  label, no motion preset, no hidden-tab count
+- **AND** a native folder's appearance and collapse remain Zen's own
+
+#### Scenario: A group the user made by hand also hides its tabs
+
+- **GIVEN** a group the user created by hand, with three tabs, none of them active
+- **AND** the browser no longer hides the tabs of such a group when it is collapsed
+- **WHEN** the user collapses it
+- **THEN** none of the three tabs appear in the sidebar
+- **AND** its chip recedes the same way a system group's chip does — tinted, no ring —
+  so half the strip does not shout while the other half recedes
 
 ### Requirement: Collapse state preserved
 
@@ -339,7 +354,10 @@ idle strategy retires it without the user having to decide anything.
 
 The system SHALL, when focus mode is active with either strategy and the
 reorder option is enabled, keep a Space's expanded groups above its collapsed
-groups by moving a group at the moment it closes, opens, or is created — a
+groups — every plain group of that Space's strip, the ones the system created
+and the ones the user created by hand, native folders excepted because they
+nest other groups and the browser moves them itself — by moving a group at the
+moment it closes, opens, or is created — a
 group that collapses sinks below the open cluster, a group that expands rises
 above the collapsed cluster, and a group born expanded rises the same way, so
 that a group is never left below the collapsed cluster on the strip where it
@@ -373,6 +391,14 @@ one group guaranteed to appear at the bottom, under everything closed. It also
 removes a second-order symptom — with the move deferred to the next collapse
 event, the new group only rose once the user clicked another tab, which read
 as the grouping itself having been late.
+
+#### Scenario: A group the user made sinks too
+
+- **GIVEN** focus mode is on with reorder enabled
+- **AND** a group the user made by hand sits open above the open `youtube` group
+- **WHEN** that group collapses
+- **THEN** it moves below `youtube`, to the top of the collapsed cluster
+- **AND** a native folder in the same strip does not move
 
 #### Scenario: A closing group sinks
 
@@ -449,6 +475,7 @@ as the grouping itself having been late.
 - **GIVEN** reorder enabled and two Spaces with groups
 - **WHEN** a group of the active Space sinks or rises
 - **THEN** the groups of the other Space keep their order
+
 ### Requirement: Active tab without a group does not trigger collapse
 
 The system SHALL, when the active tab does not belong to any group, leave the collapse
