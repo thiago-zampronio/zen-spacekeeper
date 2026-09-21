@@ -42,7 +42,7 @@
 
 - [x] 5.1 Document the new preference and the two new log entries in `docs/MANUAL.md`;
       verify: `node scripts/verify.mjs` passes
-- [ ] 5.2 Add the `CHANGELOG.md` entry at release time, with the version bump (the
+- [x] 5.2 Add the `CHANGELOG.md` entry at release time, with the version bump (the
       `release` skill); verify: `node scripts/verify.mjs` passes
 
 ## 6. Needs a running browser (check only after the user confirms the test)

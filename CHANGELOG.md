@@ -5,6 +5,18 @@ entry for that version — `scripts/verify.mjs` fails when the current version
 has no entry here, so a release cannot ship silent. History older than what is
 listed lives in the [GitHub releases](https://github.com/thiago-zampronio/zen-spacekeeper/releases).
 
+## 0.62.0 — Spacekeeper notices when a Zen update breaks it
+
+Nothing looks different in the sidebar. This one is about what happens the next
+time Zen updates itself.
+
+- **Added:** after a Zen update, the first group you close is checked — did its
+  tabs really go away? If they did not, Spacekeeper says so in plain words
+  instead of failing in silence.
+- **Added:** every move it makes in the sidebar is verified afterwards. A group
+  that fails to move says so, instead of leaving the order quietly wrong.
+- Your groups, their names, their colors and your tabs are untouched.
+
 ## 0.61.0 — Closing a group hides its tabs again
 
 The last Zen update broke closing. If you had made a group yourself, closing it
