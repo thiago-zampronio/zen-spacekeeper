@@ -35,20 +35,31 @@
       or the same pair repeated; verify: it reports 9 violations on the log recorded
       before the fix, and none on the log recorded after it
 
-## 4. Documentation and sync
+## 4. A group the user made stops acting like an exception
 
-- [x] 4.1 State in `docs/MANUAL.md` what the mod now does to a group the user made;
+- [x] 4.1 Apply the collapsed ghost (tint, no ring) to every plain collapsed group, not
+      only ours; verify: the computed style of a hand-made collapsed chip reports
+      `outline-style: none` and the 24% tint
+- [x] 4.2 Let the order rule move every plain group of the strip, folders excepted;
+      verify: the log records a sink for a group with no key, with a real `from` and `to`
+- [x] 4.3 Read the Space from the group's own parent, so a group with no Space attribute
+      is still handled and no other Space can be reached; verify: `verify.mjs` passes and
+      the moves stay inside one strip
+
+## 5. Documentation and sync
+
+- [x] 5.1 State in `docs/MANUAL.md` what the mod now does to a group the user made;
       verify: `node scripts/verify.mjs` passes
-- [ ] 4.2 Add the `CHANGELOG.md` entry at release time, with the version bump (the
+- [ ] 5.2 Add the `CHANGELOG.md` entry at release time, with the version bump (the
       `release` skill); verify: `node scripts/verify.mjs` passes
 
-## 5. Needs a running browser (check only after the user confirms the test)
+## 6. Needs a running browser (check only after the user confirms the test)
 
-- [ ] 5.1 A group made by hand, collapsed, hides its tabs and keeps the label
-- [ ] 5.2 The active tab of a collapsed group made by hand stays visible
-- [ ] 5.3 A native Zen folder collapses exactly as before
-- [ ] 5.4 Our own groups keep their motion preset, and the strip shows no jump
-- [ ] 5.5 Collapsing a group sends it below the open ones, and expanding it brings it
+- [ ] 6.1 A group made by hand, collapsed, hides its tabs and keeps the label
+- [ ] 6.2 The active tab of a collapsed group made by hand stays visible
+- [ ] 6.3 A native Zen folder collapses exactly as before
+- [ ] 6.4 Our own groups keep their motion preset, and the strip shows no jump
+- [ ] 6.5 Collapsing a group sends it below the open ones, and expanding it brings it
       back above the collapsed ones
 
 Measured in the browser, from `zstg-debug.log`, not eyeballed — the checkboxes above
@@ -59,3 +70,5 @@ stay open until the user confirms what they saw:
 - our groups, collapsed: rows shown 0, and 1 when the group holds the active tab
 - collapse sinks the group below the open ones; expand raises it above the collapsed
   ones (the same rise moved nothing before this change)
+- [ ] 6.6 A group made by hand recedes like ours when closed, and sinks below the open
+      ones

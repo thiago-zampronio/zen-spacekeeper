@@ -307,14 +307,22 @@ tab-group[zstg-key] .tab-group-label {
 
 /*
  * Collapsed recedes in emphasis: the filled chip turns into a ghost — tinted
- * background, outline in the group's color, text in the interface's normal color.
+ * background, text in the interface's normal color, and no ring.
  *
  * The text does NOT take the group's color, on purpose: the native colors shift
  * with the theme, and some of them would be unreadable over the sidebar
  * background. Letting the text inherit the theme's color guarantees legibility
- * and leaves color identity to the tint and the outline.
+ * and leaves color identity to the tint.
+ *
+ * This is the second thing a group we did not create receives. Zen 1.22b dresses
+ * a collapsed chip the opposite way — inverted fill, colored text, a 1px ring in
+ * the group's pale color (tabs.css, `tab-group[collapsed] >
+ * .tab-group-label-container .tab-group-label`) — so a closed group shouted
+ * louder than the open ones right beside it, and the groups we do own receded
+ * exactly as designed. Half the strip receding and half of it shouting is worse
+ * than either rule applied to all of it.
  */
-tab-group[zstg-key][collapsed] .tab-group-label {
+tab-group[collapsed]:not([split-view-group]) .tab-group-label {
   background-color: color-mix(
     in srgb,
     var(--tab-group-color, currentColor) 24%,

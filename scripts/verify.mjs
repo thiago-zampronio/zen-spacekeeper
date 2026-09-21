@@ -484,7 +484,7 @@ const anchors = [
   ["group-presentation/active groups on top", "resettleGroupOrder"],
   ["group-visuals/count", "COUNT_ATTR"],
   ["group-visuals/count displayed", "attr\\(zstg-hidden-count\\)"],
-  ["group-visuals/collapsed dimmed", "collapsed\\] \\.tab-group-label"],
+  ["group-visuals/collapsed dimmed", "collapsed\\].*\\.tab-group-label"],
   ["grouping-commands/scoped to current Space", "function currentSpace"],
   ["grouping-commands/regroup", "function regroup"],
   ["grouping-commands/ungroup", "function ungroup"],

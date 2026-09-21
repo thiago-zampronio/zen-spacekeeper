@@ -205,7 +205,9 @@ export function analyze(session) {
         [`${at(e)} ${JSON.stringify(e)}`]
       );
     }
-    const pair = `${e.event} ${e.key} ${e.above ?? e.below}`;
+    // By name, not by key: a group the user made has no key, so three of them
+    // sinking below the same neighbor would read as one move repeated.
+    const pair = `${e.event} ${e.name ?? e.key} ${e.above ?? e.below}`;
     if (pair === previousMove) {
       fail(
         "reorderTarget",

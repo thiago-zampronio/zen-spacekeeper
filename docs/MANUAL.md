@@ -555,8 +555,11 @@ real tabs and must be checked by hand.
   `.tab-group-container`: nothing matches, so the attribute is toggled and every tab
   stays on screen. Only `zen-folder` is collapsed by Zen itself. The project's
   stylesheet fills the gap twice over: for its own groups with the chosen motion
-  preset, and for a group the user made by hand with a plain instant hiding — that
-  group gets the hiding and nothing else, no color, no chip, no motion. If Zen moves
+  preset, and for a group the user made by hand with a plain instant hiding. Such a
+  group receives three things and no more: the hiding, the same receded chip when
+  closed (tinted, without the ring Zen 1.22b draws), and a place in the
+  open-above-closed order. It gets no group color, no label of ours, no hidden-tab
+  count, no motion preset, and it is never collapsed on its own by focus mode. If Zen moves
   the tabs again, the startup canary names the path it expected
   (`tab-group > .tab-group-container > tab`) in one console error and in the debug
   log, instead of the collapse failing in silence.

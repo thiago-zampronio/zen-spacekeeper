@@ -1034,6 +1034,11 @@ function removeEmptyGroups() {
  * dump before and after a corrective pass answers exactly who moved what. Also
  * exposed as ZSTG.dumpStrip() for live diagnosis.
  */
+/** The name a group answers to in the log: its key, or the label the user gave it. */
+function stripName(group) {
+  return group.getAttribute(KEY_ATTR) ?? `manual(${group.label ?? ""})`;
+}
+
 function dumpStrip(reason) {
   const spaceId = currentSpace();
   const container = spaceContainer(spaceId);
@@ -1043,8 +1048,7 @@ function dumpStrip(reason) {
   const strip = [];
   for (const node of container.children) {
     if (node.localName === "tab-group") {
-      const key =
-        node.getAttribute(KEY_ATTR) ?? `manual(${node.label ?? ""})`;
+      const key = stripName(node);
       strip.push(
         `[${key} x${node.tabs?.length ?? 0}${node.collapsed ? " collapsed" : ""}]`
       );
@@ -1626,11 +1630,26 @@ function slideResettle(groups, doMove) {
  */
 function resettleGroupOrder(group) {
   const c = cfg();
-  if (!c.focusMode || !c.focusReorder || !isOurGroup(group) || !group.isConnected) {
+  if (!c.focusMode || !c.focusReorder || !group?.isConnected) {
     return;
   }
-  const spaceId = group.getAttribute(SPACE_ATTR);
-  const container = spaceContainer(spaceId);
+  // Every plain group of the strip, not only ours. A group the user made by hand
+  // was staying exactly where it was while ours sank and rose around it, which
+  // reads as if those groups were pinned — and it left the strip with closed
+  // groups on top, the one thing this option exists to prevent. Native folders
+  // are excluded: they nest other groups and Zen moves and animates them itself.
+  if (
+    group.localName !== "tab-group" ||
+    group.isZenFolder ||
+    group.hasAttribute("split-view-group")
+  ) {
+    return;
+  }
+  // The group's own parent IS its Space's strip, so comparing against its
+  // siblings can never reach into another Space — the core invariant, read from
+  // the DOM instead of from the active workspace. It also covers a group the
+  // user made, which carries no Space attribute of its own.
+  const container = group.parentElement;
   if (!container) {
     return;
   }
@@ -1641,7 +1660,10 @@ function resettleGroupOrder(group) {
   // "already in place, do not move" — stopped guarding. The debug log names that
   // state outright, and check-log.mjs now fails on it: `to: 9007199254740991`.
   const strip = [...container.children].filter(
-    n => n.localName === "tab-group" && isOurGroup(n)
+    n =>
+      n.localName === "tab-group" &&
+      !n.isZenFolder &&
+      !n.hasAttribute("split-view-group")
   );
   const here = strip.indexOf(group);
   // Not in this Space's strip: nested inside another group, or mid-reparent.
@@ -1660,7 +1682,8 @@ function resettleGroupOrder(group) {
       }
       dbg("focusSink", {
         key: group.getAttribute(KEY_ATTR),
-        below: lastExpanded.getAttribute(KEY_ATTR),
+        name: stripName(group),
+        below: stripName(lastExpanded),
         from: here,
         to: strip.indexOf(lastExpanded),
       });
@@ -1675,7 +1698,8 @@ function resettleGroupOrder(group) {
       }
       dbg("focusRise", {
         key: group.getAttribute(KEY_ATTR),
-        above: firstCollapsed.getAttribute(KEY_ATTR),
+        name: stripName(group),
+        above: stripName(firstCollapsed),
         from: here,
         to: strip.indexOf(firstCollapsed),
       });
