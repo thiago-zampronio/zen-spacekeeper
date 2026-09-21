@@ -1,0 +1,10 @@
+{
+  "zenVersion": "1.22.2b",
+  "buildID": "20260915091052",
+  "sha256Short": {
+    "chrome/browser/content/browser/tabbrowser/tabgroup.js": "2df35ab224aaf955",
+    "chrome/browser/skin/classic/browser/tabbrowser/tabs.css": "09813158e90f039b",
+    "chrome/browser/content/browser/zen-styles/zen-folders.css": "8324e161406ed419",
+    "chrome/browser/content/browser/zen-styles/zen-split-view.css": "bc69bf9c747a3710"
+  }
+}

@@ -103,6 +103,10 @@ const DEFAULTS = {
   debugLog: false,
   // Marker of the one-shot first-run seed. Stored identity: never rename.
   seeded: false,
+  // The browser build this mod last ran under. Not a setting: the only moment a
+  // browser can break the mod is the moment it changes, so that is the moment
+  // worth auditing, and this is how the mod knows the moment arrived.
+  lastBrowserBuild: "",
 };
 
 // ---------------------------------------------------------------------------
@@ -161,6 +165,28 @@ async function pruneDebugLog() {
     }
   } catch {
     // pruning is hygiene; a failure must never cost the session its log
+  }
+}
+
+/*
+ * One console line per distinct problem per session.
+ *
+ * The debug log is off by default and rightly so — it records every site — but a
+ * broken mod must not depend on a preference nobody has turned on. So the two
+ * loud moments write to the console as well, once each: a repeated failure would
+ * otherwise flood it, which is the reason the canary was built as a single error
+ * in the first place.
+ */
+const reportedOnce = new Set();
+function reportOnce(message) {
+  if (reportedOnce.has(message)) {
+    return;
+  }
+  reportedOnce.add(message);
+  try {
+    console.error(`${LOG} ${VERSION}: ${message}`);
+  } catch {
+    // A console that cannot be written to is not worth a second failure.
   }
 }
 
@@ -1114,6 +1140,9 @@ function fixNestedGroups(spaceId) {
     } catch {
       // fall through to the rebuild
     }
+    // This path has always checked its own outcome — that is what the rebuild
+    // below is for — which is why it was the one move that could not fail in
+    // silence. The other three now check themselves the same way.
     if (!g.parentElement?.closest("tab-group")) {
       dbg("unnested", { key, space, how: "moved" });
       continue;
@@ -1239,12 +1268,30 @@ function settleLooseTabs(spaceId) {
       if (tab.group) {
         window.gBrowser.ungroupTab(tab);
       }
+      const landed = stripIndex(tab);
       dbg("looseSettled", {
         space: spaceId,
         key: keyFromTab(tab)?.key ?? null,
         from,
-        to: stripIndex(tab),
+        to: landed,
       });
+      // Same check as the reorder's: the settle ran 54 times from the same
+      // position under Zen 1.22b, moving nothing, and said nothing about it.
+      if (landed <= stripIndex(anchor)) {
+        dbg("moveDidNothing", {
+          what: "settle",
+          moved: keyFromTab(tab)?.key ?? "loose",
+          reference: stripName(anchor.localName === "tab-group" ? anchor : tab),
+          side: "after",
+          at: landed,
+          referenceAt: stripIndex(anchor),
+        });
+        reportOnce(
+          "a tab left outside the groups asked to land at the end of the Space " +
+            "and the strip did not change. A browser update likely changed how a " +
+            "tab is moved."
+        );
+      }
       moved = true;
     } catch (ex) {
       dbg("looseSettleFailed", { space: spaceId, error: String(ex) });
@@ -1607,6 +1654,48 @@ function slideResettle(groups, doMove) {
 }
 
 /*
+ * Did the browser actually do it?
+ *
+ * This is the check whose absence cost a week. `moveTabTo` asked for a position
+ * the browser had stopped publishing, returned normally, and moved nothing —
+ * three features failed that way at once, in silence, under one Zen release. A
+ * move is cheap to verify: read the strip again and see whether the element
+ * landed on the side it was asked to land on.
+ *
+ * It only reports. Fighting the browser here would risk a loop against whatever
+ * put the element back, and the strip is cosmetic at this point: the next
+ * collapse or expand runs the whole decision again.
+ */
+function confirmMoved(what, container, moved, reference, side) {
+  try {
+    const order = [...container.children];
+    const a = order.indexOf(moved);
+    const b = order.indexOf(reference);
+    if (a < 0 || b < 0) {
+      return;
+    }
+    if (side === "after" ? a > b : a < b) {
+      return;
+    }
+    dbg("moveDidNothing", {
+      what,
+      moved: stripName(moved),
+      reference: stripName(reference),
+      side,
+      at: a,
+      referenceAt: b,
+    });
+    reportOnce(
+      `the ${what} of ${stripName(moved)} asked to land ${side} ` +
+        `${stripName(reference)} and the strip did not change. ` +
+        `A browser update likely changed how a group is moved.`
+    );
+  } catch (e) {
+    dbg("confirmMovedFailed", { what, error: String(e) });
+  }
+}
+
+/*
  * The reorder option: open groups sit above collapsed ones. The event is the
  * group CLOSING, OPENING or BEING CREATED — not tab focus: a group that
  * collapses sinks below the open cluster, a group that expands rises above the
@@ -1690,6 +1779,7 @@ function resettleGroupOrder(group) {
       slideResettle([group, ...others], () =>
         window.gBrowser.moveTabAfter(group, lastExpanded)
       );
+      confirmMoved("sink", container, group, lastExpanded, "after");
     } else {
       // Rise: above the first collapsed group — the bottom of the open cluster.
       const firstCollapsed = others.find(g => g.collapsed);
@@ -1706,6 +1796,7 @@ function resettleGroupOrder(group) {
       slideResettle([group, ...others], () =>
         window.gBrowser.moveTabBefore(group, firstCollapsed)
       );
+      confirmMoved("rise", container, group, firstCollapsed, "before");
     }
   } catch (e) {
     dbg("focusResettleFailed", { error: String(e) });
@@ -2952,6 +3043,20 @@ function onGroupCollapseChanged(e) {
   // not when a tab gains focus.
   window.setTimeout(() => guarded(() => resettleGroupOrder(g)), 0);
   window.setTimeout(() => guarded(() => updateHiddenCount(g)), 0);
+  // The browser changed since the last run, and a closed group just appeared:
+  // this is the only moment the rendering can be audited at all. After the
+  // motion has had time to finish, so a row mid-flight is not read as visible.
+  //
+  // The flag is cleared HERE, not when the audit runs. A session restore
+  // dispatches a collapse for every restored group in the same instant, so
+  // clearing it later scheduled one audit per group — four of them, on the first
+  // test of this code, three of them pointless. One group is the whole sample:
+  // the stylesheet either matches this browser or it does not.
+  if (auditPending && g?.collapsed && g.tabs?.length) {
+    auditPending = false;
+    const settle = 400 * (100 / cfg().motionSpeed);
+    window.setTimeout(() => guarded(() => auditCollapsedRendering(g)), settle);
+  }
 }
 
 const prefObserver = {
@@ -3489,13 +3594,98 @@ function checkZenContract() {
   };
   const missing = Object.keys(probes).filter(name => !probes[name]);
   if (missing.length) {
-    console.error(
-      `${LOG} ${VERSION}: the Zen contract is broken — missing: ${missing.join(", ")}. ` +
+    reportOnce(
+      `the Zen contract is broken — missing: ${missing.join(", ")}. ` +
         `A Zen update likely changed internals this mod depends on.`
     );
     dbg("contractBroken", { missing });
   }
   return missing;
+}
+
+/*
+ * The audit for the one moment that can break this mod: the browser changing
+ * underneath it.
+ *
+ * Everything the canary probes is a name — a function, an attribute, a path. No
+ * list of names can answer the question that actually mattered under Zen 1.22b:
+ * ARE the tabs of a closed group off the screen? Only a running browser answers
+ * that, and only while a group is collapsed.
+ *
+ * So the mod remembers the build it last ran under, and when it starts under a
+ * new one it waits for the first collapse and looks at the result. Read-only by
+ * contract: it creates nothing, deletes nothing and moves nothing. A self-test
+ * that collapsed a group of its own would mutate the strip behind the person
+ * using it, and an interruption would leave debris behind.
+ */
+let auditPending = false;
+
+function noteBrowserBuild() {
+  const build = Services.appinfo?.appBuildID ?? "";
+  // Read straight from the branch, never through cfg(): cfg() is an explicit list
+  // of the configuration surface and is cached for the session, while this is
+  // state that the mod writes itself and must read fresh. Going through cfg()
+  // answered undefined on the first draft, so every start looked like a new
+  // browser and the audit ran every time.
+  const seen = prefStr("lastBrowserBuild");
+  if (!build || build === seen) {
+    return;
+  }
+  auditPending = true;
+  dbg("browserChanged", { from: seen || null, to: build });
+}
+
+function rememberBrowserBuild() {
+  try {
+    Services.prefs.setStringPref(
+      PREF_PREFIX + "lastBrowserBuild",
+      Services.appinfo?.appBuildID ?? ""
+    );
+  } catch (e) {
+    // A build that cannot be stored is audited again next start: noisy, never wrong.
+    dbg("browserBuildNotStored", { error: String(e) });
+  }
+}
+
+/**
+ * Is a row of this collapsed group still on screen? A row counts as visible when
+ * it has height AND its box overlaps the container's own box — which is the only
+ * test that holds under every motion preset: Fold keeps the rows at full height
+ * and hides them by clipping, the others shrink them to nothing.
+ */
+function auditCollapsedRendering(group) {
+  try {
+    const container = group.querySelector(".tab-group-container");
+    if (!container || !group.collapsed) {
+      return;
+    }
+    const box = container.getBoundingClientRect();
+    const rows = [...container.children].filter(n => n.localName === "tab");
+    const visible = rows.filter(row => {
+      if (row.hasAttribute("selected")) {
+        return false;
+      }
+      const r = row.getBoundingClientRect();
+      return r.height > 1 && r.bottom > box.top + 1 && r.top < box.bottom - 1;
+    });
+    dbg("renderAudit", {
+      name: stripName(group),
+      rows: rows.length,
+      visible: visible.length,
+      build: Services.appinfo?.appBuildID ?? null,
+    });
+    if (visible.length) {
+      reportOnce(
+        `${stripName(group)} is collapsed and ${visible.length} of its ` +
+          `${rows.length} tabs are still on screen. A browser update likely ` +
+          `changed the tab strip this mod's stylesheet depends on.`
+      );
+    }
+  } catch (e) {
+    dbg("renderAuditFailed", { error: String(e) });
+  } finally {
+    rememberBrowserBuild();
+  }
 }
 
 async function whenReady() {
@@ -3612,6 +3802,7 @@ async function start() {
   Services.obs.addObserver(onWake, "wake_notification");
   window.addEventListener("activate", onWake);
   checkZenContract();
+  noteBrowserBuild();
 
   window.addEventListener(
     "unload",

@@ -263,6 +263,7 @@ profile that already used Spacekeeper is never touched, on any update; the
 | `zen.stg.debugLog` | bool | `false` | writes diagnostics to `zstg-debug.log` in the profile |
 | `zen.stg.colors` | string | `{}` | color persisted per key (managed by the script) |
 | `zen.stg.groups` | string | `{}` | group id → key binding (managed by the script) |
+| `zen.stg.lastBrowserBuild` | string | `""` | the browser build the mod last ran under; when it differs, the mod audits the first collapse and stores the new one |
 
 Example of `customRules`:
 
@@ -375,6 +376,20 @@ With `zen.stg.debugLog` on, the script writes one JSON line per event to
 `<profile>/zstg-debug.log`: initialization, recognition of restored groups, group
 creation and movement, corrective passes with strip snapshots, and every tab
 switch with the Space before and after.
+
+Two entries are worth knowing by name, because they are the ones that say "a browser
+update broke something":
+
+- `moveDidNothing` — the mod asked the browser to move a group or a tab, and the strip
+  did not change. It names what was asked for. The same failure also writes one line to
+  the browser console, once per session, so it is visible without this log being on.
+- `renderAudit` — the mod started under a browser build it had not seen before, waited
+  for the first group to close, and counted how many of that group's tabs are still on
+  screen. Anything other than zero, or one for the tab you are reading, means the
+  stylesheet no longer matches the browser's tab strip. The audit reads the screen and
+  moves nothing.
+
+`browserChanged` marks the moment that audit was scheduled, and names both builds.
 
 It exists because the hardest moments to diagnose — session restore and group
 recognition — happen before any console is open. The file is truncated once it
@@ -582,8 +597,10 @@ src/resources/           panel page, text catalog and core logic, over chrome://
 scripts/verify.mjs       checks spec, code, docs and installation are in sync
 scripts/check-log.mjs    checks a real debug log against the specified behaviour
 scripts/lib/             the assertions both the check and the tests share
+scripts/zen-snapshot.mjs records what Zen's own code looks like, to diff after an update
 test/                    the test suite, each test tagged with the requirement it covers
 vendor/fx-autoconfig/    vendored loader (MPL 2.0)
+vendor/zen-fingerprint/  the browser markup and selectors this mod is built on
 openspec/                specification and changes in progress
 ```
 
