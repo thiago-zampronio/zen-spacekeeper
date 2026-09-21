@@ -56,9 +56,9 @@
 ## 6. Needs a running browser (check only after the user confirms the test)
 
 - [x] 6.1 A group made by hand, collapsed, hides its tabs and keeps the label
-- [ ] 6.2 The active tab of a collapsed group made by hand stays visible
-- [ ] 6.3 A native Zen folder collapses exactly as before
-- [ ] 6.4 Our own groups keep their motion preset, and the strip shows no jump
+- [x] 6.2 The active tab of a collapsed group made by hand stays visible
+- [x] 6.3 A native Zen folder collapses exactly as before
+- [x] 6.4 Our own groups keep their motion preset, and the strip shows no jump
 - [x] 6.5 Collapsing a group sends it below the open ones, and expanding it brings it
       back above the collapsed ones
 
@@ -73,7 +73,8 @@ stay open until the user confirms what they saw:
 - [x] 6.6 A group made by hand recedes like ours when closed, and sinks below the open
       ones
 
-Confirmed by the user from two screenshots of his own strip: 6.1, 6.5 and 6.6.
-Still unconfirmed, and left open on purpose: the active tab inside a collapsed
-hand-made group, a native folder collapsing exactly as before, and our own motion
-preset playing without a jump.
+Every task in section 6 was confirmed by the user on a running browser, on
+2026-09-21: 6.1, 6.5 and 6.6 from two screenshots of his own strip, and 6.2, 6.3
+and 6.4 from three tests he ran by hand — the active tab kept visible inside a
+collapsed group he had made, a native folder behaving exactly as before, and the
+Fold preset played at 25% speed to watch the sheet travel and the reorder slide.
