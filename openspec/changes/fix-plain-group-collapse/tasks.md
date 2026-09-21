@@ -19,13 +19,21 @@
 - [x] 2.2 Keep the probe silent when no group of ours exists yet; verify: a window with
       no system group logs no `contractBroken`
 
-## 3. The order option moves by element, not by index
+## 3. Nothing moves by tab index
 
 - [x] 3.1 Replace both moves in `resettleGroupOrder()` with the element-relative browser
       calls, and probe those two calls in the contract; verify: a rise logged twice in a
       row for the same pair no longer happens in the debug log
 - [x] 3.2 State in the code comment why an index cannot be used; verify: the comment
-      names the backwards move as the one that failed
+      states the measured fact, that `_tPos` is undefined on every tab
+- [x] 3.3 Read the order decision off the strip's child order, not off tab positions;
+      verify: `from` and `to` in the log are small strip positions, never
+      MAX_SAFE_INTEGER
+- [x] 3.4 Move the loose-tab settle and the unnest fallback to the same element anchor;
+      verify: `looseSettled` logs a real `from` and `to` again
+- [x] 3.5 Teach `scripts/check-log.mjs` to fail on a move with no readable destination,
+      or the same pair repeated; verify: it reports 9 violations on the log recorded
+      before the fix, and none on the log recorded after it
 
 ## 4. Documentation and sync
 

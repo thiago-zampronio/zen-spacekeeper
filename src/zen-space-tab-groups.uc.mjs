@@ -1103,12 +1103,9 @@ function fixNestedGroups(spaceId) {
 
     // The native move first: it preserves the group element itself.
     try {
-      const spaceTabs = [...window.gBrowser.tabs].filter(
-        t => spaceOfTab(t) === space
-      );
-      const last = spaceTabs[spaceTabs.length - 1];
-      if (last) {
-        window.gBrowser.moveTabTo(g, { tabIndex: last._tPos });
+      const anchor = lastStripElement(space);
+      if (anchor && anchor !== g) {
+        window.gBrowser.moveTabAfter(g, anchor);
       }
     } catch {
       // fall through to the rebuild
@@ -1146,6 +1143,31 @@ function fixNestedGroups(spaceId) {
       dbg("unnestFailed", { key, space, error: String(ex) });
     }
   }
+}
+
+/*
+ * The last element of a Space's strip — a group, a folder or a loose tab, never
+ * the scrollbox's own periphery. It is the anchor for every "move this to the
+ * end", and it is an ELEMENT on purpose.
+ *
+ * A tab index cannot be used here at all. Measured on Zen 1.22b, at the moment
+ * this code runs, `_tPos` is undefined on EVERY tab of the strip — including tabs
+ * of expanded groups, in the active Space, present in `gBrowser.tabs`. An index
+ * read from a tab is therefore undefined, `moveTabTo` receives
+ * `tabIndex: undefined`, and it moves NOTHING: no exception, no console line, no
+ * log entry. That is how three features rotted at the same moment and in the same
+ * silence — the loose settle stopped settling, an expanded group stopped rising,
+ * and the unnest fallback stopped unnesting.
+ */
+function lastStripElement(spaceId) {
+  const container = spaceContainer(spaceId);
+  if (!container) {
+    return null;
+  }
+  const nodes = [...container.children].filter(n =>
+    ["tab-group", "zen-folder", "tab"].includes(n.localName)
+  );
+  return nodes[nodes.length - 1] ?? null;
 }
 
 /**
@@ -1196,24 +1218,20 @@ function settleLooseTabs(spaceId) {
   // Moved one at a time to the Space's current end, in their original order —
   // each move makes the moved tab the new end, so the relative order survives.
   // Always through the browser's move API, never raw DOM: raw reparenting would
-  // lie to everything that tracks tab order. The object signature carries
-  // forceUngrouped so landing beside a group does not join it; the numeric
-  // fallback covers older signatures, with an explicit ungroup as the net.
+  // lie to everything that tracks tab order. The anchor is the last ELEMENT of
+  // the strip, never a tab index (see lastStripElement), and the explicit
+  // ungroup stays as the net for a landing that joins the group above.
+  // `from`/`to` are positions in the strip, which is what the reader wants to
+  // see, and unlike a tab index they exist for every Space.
+  const stripIndex = node => [...container.children].indexOf(node);
   for (const tab of misplaced) {
-    const spaceTabs = [...window.gBrowser.tabs].filter(
-      t => spaceOfTab(t) === spaceId
-    );
-    const last = spaceTabs[spaceTabs.length - 1];
-    if (!last || last === tab) {
+    const anchor = lastStripElement(spaceId);
+    if (!anchor || anchor === tab) {
       continue;
     }
-    const from = tab._tPos;
+    const from = stripIndex(tab);
     try {
-      try {
-        window.gBrowser.moveTabTo(tab, { tabIndex: last._tPos, forceUngrouped: true });
-      } catch {
-        window.gBrowser.moveTabTo(tab, last._tPos);
-      }
+      window.gBrowser.moveTabAfter(tab, anchor);
       if (tab.group) {
         window.gBrowser.ungroupTab(tab);
       }
@@ -1221,7 +1239,7 @@ function settleLooseTabs(spaceId) {
         space: spaceId,
         key: keyFromTab(tab)?.key ?? null,
         from,
-        to: tab._tPos,
+        to: stripIndex(tab),
       });
       moved = true;
     } catch (ex) {
@@ -1612,24 +1630,39 @@ function resettleGroupOrder(group) {
     return;
   }
   const spaceId = group.getAttribute(SPACE_ATTR);
-  const pos = g => g.tabs?.[0]?._tPos ?? Number.MAX_SAFE_INTEGER;
-  const others = [...window.gBrowser.tabGroups]
-    .filter(
-      g => g !== group && isOurGroup(g) && g.getAttribute(SPACE_ATTR) === spaceId
-    )
-    .sort((a, b) => pos(a) - pos(b));
+  const container = spaceContainer(spaceId);
+  if (!container) {
+    return;
+  }
+  // Above and below are read off the DOM, not off tab indexes. The strip's child
+  // order IS the visual order, while `_tPos` no longer exists on any tab (see
+  // lastStripElement): every position answered undefined, every comparison fell
+  // back to MAX_SAFE_INTEGER, and the two guards below — the ones that say
+  // "already in place, do not move" — stopped guarding. The debug log names that
+  // state outright, and check-log.mjs now fails on it: `to: 9007199254740991`.
+  const strip = [...container.children].filter(
+    n => n.localName === "tab-group" && isOurGroup(n)
+  );
+  const here = strip.indexOf(group);
+  // Not in this Space's strip: nested inside another group, or mid-reparent.
+  // The nest corrector owns that case; moving it from here would fight it.
+  if (here < 0) {
+    return;
+  }
+  const others = strip.filter(g => g !== group);
   try {
     if (group.collapsed) {
       // Sink: below the last open group — the top of the collapsed cluster,
       // so the most recently closed group sits nearest the open ones.
       const lastExpanded = [...others].reverse().find(g => !g.collapsed);
-      if (!lastExpanded || pos(lastExpanded) < pos(group)) {
+      if (!lastExpanded || strip.indexOf(lastExpanded) < here) {
         return;
       }
       dbg("focusSink", {
         key: group.getAttribute(KEY_ATTR),
         below: lastExpanded.getAttribute(KEY_ATTR),
-        to: pos(lastExpanded),
+        from: here,
+        to: strip.indexOf(lastExpanded),
       });
       slideResettle([group, ...others], () =>
         window.gBrowser.moveTabAfter(group, lastExpanded)
@@ -1637,13 +1670,14 @@ function resettleGroupOrder(group) {
     } else {
       // Rise: above the first collapsed group — the bottom of the open cluster.
       const firstCollapsed = others.find(g => g.collapsed);
-      if (!firstCollapsed || pos(firstCollapsed) > pos(group)) {
+      if (!firstCollapsed || strip.indexOf(firstCollapsed) > here) {
         return;
       }
       dbg("focusRise", {
         key: group.getAttribute(KEY_ATTR),
         above: firstCollapsed.getAttribute(KEY_ATTR),
-        to: pos(firstCollapsed),
+        from: here,
+        to: strip.indexOf(firstCollapsed),
       });
       slideResettle([group, ...others], () =>
         window.gBrowser.moveTabBefore(group, firstCollapsed)

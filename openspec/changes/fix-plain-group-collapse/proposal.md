@@ -29,12 +29,17 @@ this one was found: by hand, from a user report, one Zen release late.
   folders (`zen-folder`) and split-view groups keep Zen's own behavior.
 - The plain group gets the hiding only. It gets no color, no chip, no label rewriting,
   no motion preset: its appearance stays Zen's.
-- The order option moves a group by naming the neighboring group, not by naming a tab
-  index. The index resolves to a tab inside the neighbor, and Zen keeps each Space's
-  groups in a container of their own: moving a group down survived that, moving one up
-  silently did nothing. So an expanded group stopped rising above the collapsed ones and
-  the strip drifted out of order, with no error anywhere. This restores the behavior the
+- Nothing moves by tab index any more. Measured on 1.22b, `_tPos` is undefined on every
+  tab of the strip, so a move asked for `tabIndex: undefined` and did nothing at all —
+  no exception, no log line. Three features were failing in that same silence: an
+  expanded group stopped rising above the collapsed ones, the loose-tab settle stopped
+  settling (it logged a move with no from and no to, 54 times from the same position),
+  and the unnest fallback stopped unnesting. All three now name a neighboring element,
+  and the order decision reads the strip's own child order. This restores behavior the
   specification already requires; it does not change it.
+- `check-log.mjs` gains one assertion, because the log had the answer and nothing was
+  reading it: a rise or sink whose destination is unreadable, or that repeats the same
+  pair twice in a row, is now a violation. On the recorded log it fails 9 times.
 - The startup canary gains one DOM probe: the path the stylesheet depends on
   (`tab-group > .tab-group-container > tab`). A Zen release that moves the tabs is then
   named in the console and in the log at the first start, instead of being discovered
@@ -61,7 +66,9 @@ None.
 ## Impact
 
 - `src/zen-space-tab-groups.uc.css`: one rule for plain collapsed groups.
-- `src/zen-space-tab-groups.uc.mjs`: the two moves in `resettleGroupOrder()`, and three
-  probes inside `checkZenContract()`.
+- `src/zen-space-tab-groups.uc.mjs`: the moves in `resettleGroupOrder()`,
+  `settleLooseTabs()` and the unnest fallback, one shared `lastStripElement()` anchor,
+  and three probes inside `checkZenContract()`.
+- `scripts/lib/log.mjs`: one assertion over the recorded moves.
 - `docs/MANUAL.md`: the collapse section states what the mod does to other groups.
 - No preference, no new user-visible string, no change to stored identity.

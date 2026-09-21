@@ -187,6 +187,36 @@ export function analyze(session) {
     }
   }
 
+  // -- A move that reports no destination, or repeats itself ---------------
+  //
+  // Both are the signature of a move that did nothing. A destination the mod
+  // could not read means it asked the browser to move a group to nowhere, and
+  // the same pair logged twice in a row means the first attempt left the strip
+  // exactly as it was. This is what the log was missing when the reorder broke
+  // under Zen 1.22b: 11 moves recorded MAX_SAFE_INTEGER as their destination and
+  // one pair repeated five times, and nothing here called it a violation.
+  let previousMove = null;
+  for (const { e } of moves) {
+    if (!Number.isSafeInteger(e.to) || e.to === Number.MAX_SAFE_INTEGER) {
+      fail(
+        "reorderTarget",
+        "group-presentation/Open groups sit above collapsed ones",
+        `${e.event} on ${e.key} has no readable destination (to=${e.to})`,
+        [`${at(e)} ${JSON.stringify(e)}`]
+      );
+    }
+    const pair = `${e.event} ${e.key} ${e.above ?? e.below}`;
+    if (pair === previousMove) {
+      fail(
+        "reorderTarget",
+        "group-presentation/Open groups sit above collapsed ones",
+        `${e.event} on ${e.key} repeated with the same neighbor, so the first one moved nothing`,
+        [`${at(e)} ${JSON.stringify(e)}`]
+      );
+    }
+    previousMove = pair;
+  }
+
   // The slide is cosmetic by contract, so a move that did not animate is not a
   // violation. A session where NONE animated leaves the slide untested.
   const slides = of("focusSlide");
